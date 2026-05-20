@@ -97,6 +97,7 @@ poetry install --no-root
 
 ```bash
 poetry run pre-commit install
+poetry run pre-commit install --hook-type commit-msg
 ```
 
 After that pre-commit hooks will run automatically on every commit.
