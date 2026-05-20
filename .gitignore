@@ -98,3 +98,7 @@ logs/
 # Windows
 Thumbs.db
 desktop.ini
+
+# ===== Temporary files =====
+
+tmp/
