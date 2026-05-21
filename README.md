@@ -108,6 +108,15 @@ To run all checks manually across all files:
 poetry run pre-commit run --all-files
 ```
 
+## Running the application
+
+```bash
+poetry run python -m app.main
+```
+
+> **Note:** use `-m app.main`, not `python app/main.py`. The `-m` flag adds the
+> project root to `sys.path` so that the `app` package is importable.
+
 ## Contributing
 
 Before requesting a review, make sure the CI pipeline passes on your pull request. Once the pipeline is green, request a review from [@dchernykh1984](https://github.com/dchernykh1984).
