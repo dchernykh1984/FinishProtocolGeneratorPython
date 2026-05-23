@@ -123,6 +123,37 @@ def _parse_ftp_url(ftp_path: str) -> tuple[str, int, str]:
     return host, port, base
 
 
+def upload_file(  # pragma: no cover
+    ftp_path: str,
+    login: str,
+    password: str,
+    local_path: str,
+) -> int:
+    """Upload *local_path* to the FTP server at *ftp_path*.
+
+    Returns 0 on success, -1 on error.
+    """
+    if not ftp_path or not local_path:
+        return -1
+
+    filename = Path(local_path.replace("\\", "/")).name
+    try:
+        host, port, base = _parse_ftp_url(ftp_path)
+    except Exception:
+        return -1
+
+    remote_path = base + filename
+    try:
+        with ftplib.FTP() as ftp:  # noqa: S321
+            ftp.connect(host, port, timeout=10)
+            ftp.login(login or "anonymous", password or "")
+            with Path(local_path).open("rb") as f:
+                ftp.storbinary(f"STOR {remote_path}", f)
+        return 0
+    except Exception:
+        return -1
+
+
 def download_file(  # pragma: no cover
     ftp_path: str,
     login: str,

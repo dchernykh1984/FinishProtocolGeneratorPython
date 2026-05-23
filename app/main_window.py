@@ -34,7 +34,7 @@ from app.file_io import (
     read_group_times,
     read_start_protocol,
 )
-from app.ftp_io import DOWNLOAD_ACTIONS, download_file
+from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
 
 
@@ -180,6 +180,36 @@ class _GenerateWorker(QThread):
             write_absolute_protocol(
                 cfg.absolute_protocol_file, sorted_proto, group_list, cfg, n_points
             )
+
+            if cfg.upload_groups:
+                self.log_message.emit("Uploading group protocol...")
+                if (
+                    upload_file(
+                        cfg.ftp_path,
+                        cfg.ftp_login,
+                        cfg.ftp_password,
+                        cfg.group_protocol_file,
+                    )
+                    == -1
+                ):
+                    self.log_message.emit("  ERROR: upload group protocol")
+                else:
+                    self.log_message.emit("  Group protocol: uploaded")
+
+            if cfg.upload_absolute and not cfg.is_eliminator_finals():
+                self.log_message.emit("Uploading absolute protocol...")
+                if (
+                    upload_file(
+                        cfg.ftp_path,
+                        cfg.ftp_login,
+                        cfg.ftp_password,
+                        cfg.absolute_protocol_file,
+                    )
+                    == -1
+                ):
+                    self.log_message.emit("  ERROR: upload absolute protocol")
+                else:
+                    self.log_message.emit("  Absolute protocol: uploaded")
 
             self.log_message.emit("Checking protocol...")
             check_start_protocol(
@@ -529,6 +559,18 @@ class MainWindow(QMainWindow):
         chk.toggled.connect(lambda v: setattr(self._cfg, "merge_by_id", v))
         ly.addWidget(chk)
 
+        chk_ug = QCheckBox("Upload Groups Protocol after generate")
+        chk_ug.setObjectName("upload_groups")
+        chk_ug.setChecked(self._cfg.upload_groups)
+        chk_ug.toggled.connect(lambda v: setattr(self._cfg, "upload_groups", v))
+        ly.addWidget(chk_ug)
+
+        chk_ua = QCheckBox("Upload Absolute Protocol after generate")
+        chk_ua.setObjectName("upload_absolute")
+        chk_ua.setChecked(self._cfg.upload_absolute)
+        chk_ua.toggled.connect(lambda v: setattr(self._cfg, "upload_absolute", v))
+        ly.addWidget(chk_ua)
+
         self._btn_ftp_download = QPushButton("Download")
         self._btn_ftp_download.clicked.connect(self._on_ftp_download)
         ly.addWidget(self._btn_ftp_download)
@@ -720,6 +762,10 @@ class MainWindow(QMainWindow):
             lines.append("Buttons")
         if cfg.use_all_buttons:
             lines.append("All Buttons")
+        if cfg.upload_groups:
+            lines.append("UploadGroups")
+        if cfg.upload_absolute:
+            lines.append("UploadAbsolute")
 
         # always: 4 action values and 3 FTP credentials
         lines += [
@@ -914,6 +960,8 @@ class MainWindow(QMainWindow):
             cfg.stretch = _bool("Stretch", cfg.stretch)
             cfg.use_buttons = _bool("UseButtons", cfg.use_buttons)
             cfg.use_all_buttons = _bool("UseAllButtons", cfg.use_all_buttons)
+            cfg.upload_groups = _bool("UploadGroups", cfg.upload_groups)
+            cfg.upload_absolute = _bool("UploadAbsolute", cfg.upload_absolute)
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -993,6 +1041,8 @@ class MainWindow(QMainWindow):
             cfg.hide_empty_columns = _db("hide_empty_columns", cfg.hide_empty_columns)
             cfg.use_buttons = _db("use_buttons", cfg.use_buttons)
             cfg.use_all_buttons = _db("use_all_buttons", cfg.use_all_buttons)
+            cfg.upload_groups = _db("upload_groups", cfg.upload_groups)
+            cfg.upload_absolute = _db("upload_absolute", cfg.upload_absolute)
             cfg.show_finish_time = _db("show_finish_time", cfg.show_finish_time)
             cfg.show_time_difference = _db(
                 "show_time_difference", cfg.show_time_difference

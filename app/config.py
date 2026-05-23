@@ -92,6 +92,8 @@ class RaceConfig:
     use_buttons: bool = False
     use_all_buttons: bool = False
     merge_by_id: bool = False
+    upload_groups: bool = False
+    upload_absolute: bool = False
     ftp_path: str = ""
     ftp_login: str = ""
     ftp_password: str = ""
