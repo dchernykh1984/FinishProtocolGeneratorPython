@@ -51,6 +51,15 @@ def read_finish_times(path: str) -> list[FinishCompetitorElement]:
     return [FinishCompetitorElement.from_line(ln) for ln in _read_lines(path)]
 
 
+# Maps C++ comboBoxRaceType display strings to Python internal race type constants.
+_CPP_RACE_TYPE_MAP: dict[str, str] = {
+    "Mass Start or Splitted Start": "Mass/Splitted",
+    "Mass Start or Splitted Start with Spiridonov's coefficients": (
+        "Mass/Splitted (Spiridonov)"
+    ),
+}
+
+
 def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
     """Load a C++ fpg_info.txt race-info config file into a key-value dict.
 
@@ -86,6 +95,9 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if v is None:
             return result
         result[key] = v
+
+    if result.get("race_type") in _CPP_RACE_TYPE_MAP:
+        result["race_type"] = _CPP_RACE_TYPE_MAP[result["race_type"]]
 
     # optional "Info" block
     tok = nxt()

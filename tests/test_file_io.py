@@ -318,6 +318,20 @@ class TestLoadConfigFile:
         assert cfg.get("print_dsq") == "1"
         assert cfg.get("start_protocol_file") == "start.txt"
 
+    def test_cpp_race_type_mass_splitted_mapped(self) -> None:
+        fields = _fixed_13()
+        fields[-1] = "Mass Start or Splitted Start"
+        path = _tmp("\n".join(fields) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["race_type"] == "Mass/Splitted"
+
+    def test_cpp_race_type_spiridonov_mapped(self) -> None:
+        fields = _fixed_13()
+        fields[-1] = "Mass Start or Splitted Start with Spiridonov's coefficients"
+        path = _tmp("\n".join(fields) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["race_type"] == "Mass/Splitted (Spiridonov)"
+
     def test_full_cpp_format(self) -> None:
         """Exercise all optional sections in a single complete-format file."""
         lines = [
