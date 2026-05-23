@@ -183,12 +183,14 @@ class MainWindow(QMainWindow):
         row_rp.addWidget(QLabel("Control points (0=off):"))
         spin_rp = QSpinBox()
         spin_rp.setRange(0, 99)
+        spin_rp.setObjectName("n_remote_points")
         spin_rp.setValue(self._cfg.n_remote_points)
         spin_rp.setFixedWidth(60)
         spin_rp.valueChanged.connect(lambda v: setattr(self._cfg, "n_remote_points", v))
         row_rp.addWidget(spin_rp)
         row_rp.addWidget(QLabel("Path prefix:"))
         edit_rp = QLineEdit(self._cfg.remote_points_path)
+        edit_rp.setObjectName("remote_points_path")
         edit_rp.textChanged.connect(
             lambda t: setattr(self._cfg, "remote_points_path", t)
         )
@@ -210,12 +212,14 @@ class MainWindow(QMainWindow):
         # start check list
         row_scl = QHBoxLayout()
         self._chk_use_scl = QCheckBox("Use start check list:")
+        self._chk_use_scl.setObjectName("use_start_check_list")
         self._chk_use_scl.setChecked(self._cfg.use_start_check_list)
         self._chk_use_scl.toggled.connect(
             lambda v: setattr(self._cfg, "use_start_check_list", v)
         )
         row_scl.addWidget(self._chk_use_scl)
         edit_scl = QLineEdit(self._cfg.start_check_list_file)
+        edit_scl.setObjectName("start_check_list_file")
         edit_scl.textChanged.connect(
             lambda t: setattr(self._cfg, "start_check_list_file", t)
         )
@@ -274,6 +278,7 @@ class MainWindow(QMainWindow):
             row = QHBoxLayout()
             row.addWidget(QLabel(label), 1)
             edit = QLineEdit(getattr(self._cfg, attr))
+            edit.setObjectName(attr)
             edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
             row.addWidget(edit, 3)
             ly.addLayout(row)
@@ -283,6 +288,7 @@ class MainWindow(QMainWindow):
         row.addWidget(QLabel("Digits after decimal:"), 1)
         spin = QSpinBox()
         spin.setRange(0, 4)
+        spin.setObjectName("n_signs_after_point")
         spin.setValue(self._cfg.n_signs_after_point)
         spin.valueChanged.connect(
             lambda v: setattr(self._cfg, "n_signs_after_point", v)
@@ -326,6 +332,7 @@ class MainWindow(QMainWindow):
         ]
         for label, attr in checks:
             cb = QCheckBox(label)
+            cb.setObjectName(attr)
             cb.setChecked(bool(getattr(self._cfg, attr)))
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
             ly.addWidget(cb)
@@ -345,6 +352,7 @@ class MainWindow(QMainWindow):
         ]
         for label, attr in checks:
             cb = QCheckBox(label)
+            cb.setObjectName(attr)
             cb.setChecked(bool(getattr(self._cfg, attr)))
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
             ly.addWidget(cb)
@@ -353,6 +361,7 @@ class MainWindow(QMainWindow):
         row.addWidget(QLabel("Minimal lap time (sec):"), 1)
         spin = QSpinBox()
         spin.setRange(0, 99999)
+        spin.setObjectName("minimal_time_for_lap")
         spin.setValue(self._cfg.minimal_time_for_lap)
         spin.valueChanged.connect(
             lambda v: setattr(self._cfg, "minimal_time_for_lap", v)
@@ -365,6 +374,7 @@ class MainWindow(QMainWindow):
         row2.addWidget(QLabel("Time limit (sec, 0=off):"), 1)
         spin2 = QSpinBox()
         spin2.setRange(0, 999999)
+        spin2.setObjectName("time_limit")
         spin2.setValue(self._cfg.time_limit)
         spin2.valueChanged.connect(lambda v: setattr(self._cfg, "time_limit", v))
         row2.addWidget(spin2)
@@ -835,24 +845,38 @@ class MainWindow(QMainWindow):
             )
             cfg.bottom_text = _ds("bottom_text", cfg.bottom_text)
 
-        # Update stored widget references (common to both formats)
-        if hasattr(self, "_combo_race_type"):
-            self._combo_race_type.setCurrentText(cfg.race_type)
-        if hasattr(self, "_chk_use_scl"):
-            self._chk_use_scl.setChecked(cfg.use_start_check_list)
-        if hasattr(self, "_spin_refresh"):
-            self._spin_refresh.setValue(cfg.auto_refresh_interval or 30)
-        if hasattr(self, "_chk_refresh"):
-            # setChecked triggers _on_refresh_toggled which starts/stops the timer
-            self._chk_refresh.setChecked(cfg.auto_refresh_enabled)
+        self._sync_ui_from_cfg()
 
-        QMessageBox.information(
-            self,
-            "Loaded",
-            f"Race info loaded from {path}\n"
-            "File paths and column settings updated.\n"
-            "Reopen the window to reflect all UI changes.",
-        )
+    def _sync_ui_from_cfg(self) -> None:
+        cfg = self._cfg
+        for w in self.findChildren(QLineEdit):
+            name = w.objectName()
+            if name and hasattr(cfg, name):
+                w.blockSignals(True)
+                w.setText(str(getattr(cfg, name) or ""))
+                w.blockSignals(False)
+        for w in self.findChildren(QSpinBox):
+            name = w.objectName()
+            if name and hasattr(cfg, name):
+                w.blockSignals(True)
+                w.setValue(int(getattr(cfg, name) or 0))
+                w.blockSignals(False)
+        for w in self.findChildren(QCheckBox):
+            name = w.objectName()
+            if name and hasattr(cfg, name):
+                w.blockSignals(True)
+                w.setChecked(bool(getattr(cfg, name)))
+                w.blockSignals(False)
+        if hasattr(self, "_combo_race_type"):
+            self._combo_race_type.blockSignals(True)
+            self._combo_race_type.setCurrentText(cfg.race_type)
+            self._combo_race_type.blockSignals(False)
+        if hasattr(self, "_spin_refresh"):
+            self._spin_refresh.blockSignals(True)
+            self._spin_refresh.setValue(cfg.auto_refresh_interval or 30)
+            self._spin_refresh.blockSignals(False)
+        if hasattr(self, "_chk_refresh"):
+            self._chk_refresh.setChecked(cfg.auto_refresh_enabled)
 
     def _search_log(self) -> None:
         term = self._log_search.text().lower()
