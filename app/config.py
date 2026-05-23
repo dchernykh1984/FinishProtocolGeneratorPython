@@ -93,6 +93,13 @@ class RaceConfig:
     use_buttons: bool = False
     use_all_buttons: bool = False
     merge_by_id: bool = False
+    ftp_path: str = ""
+    ftp_login: str = ""
+    ftp_password: str = ""
+    start_list_action: str = "None"
+    group_times_action: str = "None"
+    result_times_action: str = "None"
+    remote_points_action: str = "None"
     use_start_check_list: bool = False
     check_laps_difference: bool = False
 

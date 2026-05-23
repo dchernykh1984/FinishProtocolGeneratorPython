@@ -226,7 +226,7 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
 
     # always: 4 action values (current tok is start_list_action)
     result["start_list_action"] = tok
-    for key in ("groups_times_action", "result_times_action", "remote_points_action"):
+    for key in ("group_times_action", "result_times_action", "remote_points_action"):
         v = nxt()
         if v is None:
             return result
