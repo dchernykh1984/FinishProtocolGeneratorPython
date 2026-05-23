@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from app.calculator import calculate_protocol, generate_sorted_protocol
-from app.config import RaceConfig
+from app.config import RACE_TYPE_ELIMINATOR_QUALIFICATION, RaceConfig
 from app.html_writer import _format_time, write_absolute_protocol, write_group_protocol
 from app.models import (
     FinishCompetitorElement,
@@ -684,7 +684,7 @@ class TestHtmlWriterEdgeCases:
         group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
         finish_list = [FinishCompetitorElement.from_line("1#15921 1:5:0.000#finish#")]
         cfg = RaceConfig()
-        cfg.generate_text_protocol = True
+        cfg.race_type = RACE_TYPE_ELIMINATOR_QUALIFICATION
         log: list[str] = []
         protocol = calculate_protocol(
             start_list, group_list, finish_list, [], [], cfg, log
@@ -712,7 +712,7 @@ class TestHtmlWriterEdgeCases:
             FinishCompetitorElement.from_line("3#15921 1:4:0.000#DSQ#"),
         ]
         cfg = RaceConfig()
-        cfg.generate_text_protocol = True
+        cfg.race_type = RACE_TYPE_ELIMINATOR_QUALIFICATION
         cfg.print_dnf = True
         cfg.print_dsq = True
         cfg.print_dns = True
