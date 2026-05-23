@@ -438,7 +438,6 @@ class MainWindow(QMainWindow):
 
     def _on_done(self) -> None:
         self._btn_generate.setEnabled(True)
-        QMessageBox.information(self, "Done", "Protocol generated successfully.")
 
     def _on_error(self, msg: str) -> None:
         self._btn_generate.setEnabled(True)
@@ -586,7 +585,7 @@ class MainWindow(QMainWindow):
         try:
             with Path(path).open("w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + "\n")
-            QMessageBox.information(self, "Saved", f"Race info saved to {path}")
+
         except Exception as exc:
             QMessageBox.critical(self, "Error", f"Failed to save: {exc}")
 
