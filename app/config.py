@@ -102,6 +102,7 @@ class RaceConfig:
     result_times_action: str = "None"
     remote_points_action: str = "None"
     use_start_check_list: bool = False
+    start_check_list_action: str = "None"
     check_laps_difference: bool = False
 
     print_dnf: bool = True

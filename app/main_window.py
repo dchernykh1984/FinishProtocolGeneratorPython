@@ -51,11 +51,13 @@ class _FTPWorker(QThread):
         cfg = self._cfg
         failed = False
 
+        scl_action = cfg.start_check_list_action if cfg.use_start_check_list else "None"
         tasks = [
             ("Remote points", cfg.remote_points_action, False),
             ("Start list", cfg.start_list_action, cfg.merge_by_id),
             ("Group times", cfg.group_times_action, False),
             ("Finish times", cfg.result_times_action, False),
+            ("Start check list", scl_action, False),
         ]
 
         for label, action, by_id in tasks:
@@ -91,6 +93,7 @@ class _FTPWorker(QThread):
                     "Start list": cfg.start_protocol_file,
                     "Group times": cfg.group_time_file,
                     "Finish times": cfg.finish_time_file,
+                    "Start check list": cfg.start_check_list_file,
                 }
                 local = local_map[label]
                 self.log_message.emit(f"Downloading {label}...")
@@ -240,6 +243,7 @@ class MainWindow(QMainWindow):
         self._combo_result_action: QComboBox
         self._combo_rp_action: QComboBox
         self._btn_ftp_download: QPushButton
+        self._combo_scl_action: QComboBox
         self._setup_ui()
 
     # ------------------------------------------------------------------
@@ -335,6 +339,14 @@ class MainWindow(QMainWindow):
             lambda v: setattr(self._cfg, "use_start_check_list", v)
         )
         row_scl.addWidget(self._chk_use_scl)
+        self._combo_scl_action = QComboBox()
+        self._combo_scl_action.setObjectName("start_check_list_action")
+        self._combo_scl_action.addItems(DOWNLOAD_ACTIONS)
+        self._combo_scl_action.setCurrentText(self._cfg.start_check_list_action)
+        self._combo_scl_action.currentTextChanged.connect(
+            lambda t: setattr(self._cfg, "start_check_list_action", t)
+        )
+        row_scl.addWidget(self._combo_scl_action)
         edit_scl = QLineEdit(self._cfg.start_check_list_file)
         edit_scl.setObjectName("start_check_list_file")
         edit_scl.textChanged.connect(
@@ -599,15 +611,15 @@ class MainWindow(QMainWindow):
 
     def _ftp_actions_set(self) -> bool:
         cfg = self._cfg
-        return any(
-            a in ("Download", "Merge", "Merge+Remove")
-            for a in (
-                cfg.start_list_action,
-                cfg.group_times_action,
-                cfg.result_times_action,
-                cfg.remote_points_action,
-            )
-        )
+        actions = [
+            cfg.start_list_action,
+            cfg.group_times_action,
+            cfg.result_times_action,
+            cfg.remote_points_action,
+        ]
+        if cfg.use_start_check_list:
+            actions.append(cfg.start_check_list_action)
+        return any(a in ("Download", "Merge", "Merge+Remove") for a in actions)
 
     def _ftp_configured(self) -> bool:
         return bool(self._cfg.ftp_path) and self._ftp_actions_set()
@@ -828,7 +840,7 @@ class MainWindow(QMainWindow):
         if cfg.use_start_check_list:
             lines += [
                 "UseStartCheckList",
-                cfg.start_check_list_file,
+                cfg.start_check_list_action,
                 str(int(cfg.start_registration_period)),
             ]
 
@@ -926,6 +938,9 @@ class MainWindow(QMainWindow):
             )
             cfg.use_start_check_list = _bool(
                 "UseStartCheckList", cfg.use_start_check_list
+            )
+            cfg.start_check_list_action = _str(
+                "StartCheckListAction", cfg.start_check_list_action
             )
             cfg.start_registration_period = _float(
                 "StartRegistrationPeriod", cfg.start_registration_period
@@ -1103,6 +1118,9 @@ class MainWindow(QMainWindow):
             cfg.use_start_check_list = _db(
                 "use_start_check_list", cfg.use_start_check_list
             )
+            cfg.start_check_list_action = _ds(
+                "start_check_list_action", cfg.start_check_list_action
+            )
             cfg.start_check_list_file = _ds(
                 "start_check_list_file", cfg.start_check_list_file
             )
@@ -1151,6 +1169,7 @@ class MainWindow(QMainWindow):
             ("_combo_group_action", "group_times_action"),
             ("_combo_result_action", "result_times_action"),
             ("_combo_rp_action", "remote_points_action"),
+            ("_combo_scl_action", "start_check_list_action"),
         ):
             if hasattr(self, ivar):
                 combo = getattr(self, ivar)

@@ -397,11 +397,14 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
             return result
 
     # optional "UseStartCheckList" block
+    # C++ stores: action (None/Download/Merge/Merge+Remove), then registration period.
+    # The file path is hardcoded in C++ as temp\results_start.txt; mirror that default.
     if tok == "UseStartCheckList":
         result["use_start_check_list"] = "1"
+        result["start_check_list_file"] = "temp/results_start.txt"
         v = nxt()
         if v is not None:
-            result["start_check_list_file"] = v
+            result["start_check_list_action"] = v
         v = nxt()
         if v is not None:
             result["start_registration_period"] = v
