@@ -114,7 +114,6 @@ class RaceConfig:
     team_label: str = "Team"
     city_label: str = "City"
     group_label: str = "Group"
-    finish_time_label: str = "Time"
     time_shift_label: str = "Start time"
     additional_info_label: str = "Additional info"
 
