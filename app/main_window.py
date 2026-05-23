@@ -34,7 +34,87 @@ from app.file_io import (
     read_group_times,
     read_start_protocol,
 )
+from app.ftp_io import DOWNLOAD_ACTIONS, download_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+
+
+class _FTPWorker(QThread):
+    log_message = Signal(str)
+    finished_ok = Signal()
+    error = Signal(str)
+
+    def __init__(self, cfg: RaceConfig) -> None:
+        super().__init__()
+        self._cfg = cfg
+
+    def run(self) -> None:
+        cfg = self._cfg
+        failed = False
+
+        tasks = [
+            ("Remote points", cfg.remote_points_action, False),
+            ("Start list", cfg.start_list_action, cfg.merge_by_id),
+            ("Group times", cfg.group_times_action, False),
+            ("Finish times", cfg.result_times_action, False),
+        ]
+
+        for label, action, by_id in tasks:
+            if action not in ("Download", "Merge", "Merge+Remove"):
+                continue
+            merge = action in ("Merge", "Merge+Remove")
+            remove = action == "Merge+Remove"
+
+            if label == "Remote points":
+                if not cfg.n_remote_points or not cfg.remote_points_path:
+                    continue
+                for i in range(1, cfg.n_remote_points + 1):
+                    local = cfg.remote_points_path + f"results_{i}.txt"
+                    self.log_message.emit(f"Downloading remote point {i}...")
+                    if (
+                        download_file(
+                            cfg.ftp_path,
+                            cfg.ftp_login,
+                            cfg.ftp_password,
+                            local,
+                            merge,
+                            remove,
+                            by_id,
+                        )
+                        == -1
+                    ):
+                        self.log_message.emit(f"  ERROR: remote point {i}")
+                        failed = True
+                    else:
+                        self.log_message.emit(f"  Remote point {i}: OK")
+            else:
+                local_map = {
+                    "Start list": cfg.start_protocol_file,
+                    "Group times": cfg.group_time_file,
+                    "Finish times": cfg.finish_time_file,
+                }
+                local = local_map[label]
+                self.log_message.emit(f"Downloading {label}...")
+                if (
+                    download_file(
+                        cfg.ftp_path,
+                        cfg.ftp_login,
+                        cfg.ftp_password,
+                        local,
+                        merge,
+                        remove,
+                        by_id,
+                    )
+                    == -1
+                ):
+                    self.log_message.emit(f"  ERROR: {label}")
+                    failed = True
+                else:
+                    self.log_message.emit(f"  {label}: OK")
+
+        if failed:
+            self.error.emit("Some downloads failed - see log for details.")
+        else:
+            self.finished_ok.emit()
 
 
 class _GenerateWorker(QThread):
@@ -120,10 +200,16 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Finish Protocol Generator (pulse-sports.ru)")
         self._cfg = RaceConfig()
         self._worker: _GenerateWorker | None = None
+        self._ftp_worker: _FTPWorker | None = None
         self._timer: QTimer | None = None
         self._chk_refresh: QCheckBox
         self._spin_refresh: QSpinBox
         self._chk_use_scl: QCheckBox
+        self._combo_start_action: QComboBox
+        self._combo_group_action: QComboBox
+        self._combo_result_action: QComboBox
+        self._combo_rp_action: QComboBox
+        self._btn_ftp_download: QPushButton
         self._setup_ui()
 
     # ------------------------------------------------------------------
@@ -142,6 +228,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._make_race_info_tab(), "Race Info")
         tabs.addTab(self._make_columns_tab(), "Columns")
         tabs.addTab(self._make_options_tab(), "Options")
+        tabs.addTab(self._make_ftp_tab(), "FTP")
         tabs.addTab(self._make_logger_tab(), "Log")
 
     def _make_main_tab(self) -> QWidget:
@@ -401,6 +488,54 @@ class MainWindow(QMainWindow):
         ly.addStretch()
         return w
 
+    def _make_ftp_tab(self) -> QWidget:
+        w = QWidget()
+        ly = QVBoxLayout(w)
+
+        def _ftp_row(label: str, attr: str, masked: bool = False) -> QHBoxLayout:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label), 1)
+            edit = QLineEdit(getattr(self._cfg, attr))
+            edit.setObjectName(attr)
+            if masked:
+                edit.setEchoMode(QLineEdit.EchoMode.Password)
+            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            row.addWidget(edit, 3)
+            return row
+
+        ly.addLayout(_ftp_row("FTP address:", "ftp_path"))
+        ly.addLayout(_ftp_row("Login:", "ftp_login"))
+        ly.addLayout(_ftp_row("Password:", "ftp_password", masked=True))
+
+        actions_data = [
+            ("Start list:", "start_list_action", "_combo_start_action"),
+            ("Group times:", "group_times_action", "_combo_group_action"),
+            ("Finish times:", "result_times_action", "_combo_result_action"),
+            ("Remote points:", "remote_points_action", "_combo_rp_action"),
+        ]
+        for label, attr, ivar in actions_data:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label), 1)
+            combo = QComboBox()
+            combo.addItems(DOWNLOAD_ACTIONS)
+            combo.setCurrentText(getattr(self._cfg, attr))
+            combo.currentTextChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            setattr(self, ivar, combo)
+            row.addWidget(combo, 3)
+            ly.addLayout(row)
+
+        chk = QCheckBox("Merge by competitor number (ID) only")
+        chk.setObjectName("merge_by_id")
+        chk.setChecked(self._cfg.merge_by_id)
+        chk.toggled.connect(lambda v: setattr(self._cfg, "merge_by_id", v))
+        ly.addWidget(chk)
+
+        self._btn_ftp_download = QPushButton("Download")
+        self._btn_ftp_download.clicked.connect(self._on_ftp_download)
+        ly.addWidget(self._btn_ftp_download)
+        ly.addStretch()
+        return w
+
     def _make_logger_tab(self) -> QWidget:
         w = QWidget()
         ly = QVBoxLayout(w)
@@ -421,11 +556,50 @@ class MainWindow(QMainWindow):
     # slots
     # ------------------------------------------------------------------
 
+    def _ftp_actions_set(self) -> bool:
+        cfg = self._cfg
+        return any(
+            a in ("Download", "Merge", "Merge+Remove")
+            for a in (
+                cfg.start_list_action,
+                cfg.group_times_action,
+                cfg.result_times_action,
+                cfg.remote_points_action,
+            )
+        )
+
+    def _ftp_configured(self) -> bool:
+        return bool(self._cfg.ftp_path) and self._ftp_actions_set()
+
+    def _set_buttons_enabled(self, enabled: bool) -> None:
+        self._btn_generate.setEnabled(enabled)
+        if hasattr(self, "_btn_ftp_download"):
+            self._btn_ftp_download.setEnabled(enabled)
+
     def _on_generate(self) -> None:
         if self._worker and self._worker.isRunning():
             return
+        if self._ftp_worker and self._ftp_worker.isRunning():
+            return
+        if self._ftp_actions_set() and not self._cfg.ftp_path:
+            QMessageBox.critical(
+                self,
+                "FTP not configured",
+                "Download actions are set but FTP address is empty.",
+            )
+            return
         self._log_list.clear()
-        self._btn_generate.setEnabled(False)
+        self._set_buttons_enabled(False)
+        if self._ftp_configured():
+            self._ftp_worker = _FTPWorker(self._cfg)
+            self._ftp_worker.log_message.connect(self._append_log)
+            self._ftp_worker.finished_ok.connect(self._start_generate_worker)
+            self._ftp_worker.error.connect(self._on_error)
+            self._ftp_worker.start()
+        else:
+            self._start_generate_worker()
+
+    def _start_generate_worker(self) -> None:
         self._worker = _GenerateWorker(self._cfg)
         self._worker.log_message.connect(self._append_log)
         self._worker.finished_ok.connect(self._on_done)
@@ -437,11 +611,40 @@ class MainWindow(QMainWindow):
         self._log_list.scrollToBottom()
 
     def _on_done(self) -> None:
-        self._btn_generate.setEnabled(True)
+        self._set_buttons_enabled(True)
+
+    def _on_ftp_download(self) -> None:
+        if self._ftp_worker and self._ftp_worker.isRunning():
+            return
+        if self._worker and self._worker.isRunning():
+            return
+        if not self._ftp_actions_set():
+            QMessageBox.warning(
+                self, "Nothing to download", "No download actions are configured."
+            )
+            return
+        if not self._cfg.ftp_path:
+            QMessageBox.critical(
+                self,
+                "FTP not configured",
+                "Download actions are set but FTP address is empty.",
+            )
+            return
+        self._log_list.clear()
+        self._set_buttons_enabled(False)
+        self._ftp_worker = _FTPWorker(self._cfg)
+        self._ftp_worker.log_message.connect(self._append_log)
+        self._ftp_worker.finished_ok.connect(self._on_ftp_download_done)
+        self._ftp_worker.error.connect(self._on_error)
+        self._ftp_worker.start()
+
+    def _on_ftp_download_done(self) -> None:
+        self._append_log("Download complete.")
+        self._set_buttons_enabled(True)
 
     def _on_error(self, msg: str) -> None:
-        self._btn_generate.setEnabled(True)
-        QMessageBox.critical(self, "Error", f"Generation failed:\n{msg}")
+        self._set_buttons_enabled(True)
+        QMessageBox.critical(self, "Error", msg)
 
     def _on_refresh_toggled(self, checked: bool) -> None:
         self._cfg.auto_refresh_enabled = checked
@@ -519,10 +722,14 @@ class MainWindow(QMainWindow):
         if cfg.use_all_buttons:
             lines.append("All Buttons")
 
-        # always: 4 action values (Python has no upload; write "None" placeholders)
-        lines += ["None", "None", "None", "None"]
-        # always: 3 FTP values (empty for Python)
-        lines += ["", "", ""]
+        # always: 4 action values and 3 FTP credentials
+        lines += [
+            cfg.start_list_action,
+            cfg.group_times_action,
+            cfg.result_times_action,
+            cfg.remote_points_action,
+        ]
+        lines += [cfg.ftp_path, cfg.ftp_login, cfg.ftp_password]
 
         if cfg.show_finish_time:
             lines.append("Finish")
@@ -818,6 +1025,17 @@ class MainWindow(QMainWindow):
             )
             cfg.remote_points_path = _ds("remote_points_path", cfg.remote_points_path)
             cfg.n_remote_points = _di("n_remote_points", cfg.n_remote_points)
+            cfg.start_list_action = _ds("start_list_action", cfg.start_list_action)
+            cfg.group_times_action = _ds("group_times_action", cfg.group_times_action)
+            cfg.result_times_action = _ds(
+                "result_times_action", cfg.result_times_action
+            )
+            cfg.remote_points_action = _ds(
+                "remote_points_action", cfg.remote_points_action
+            )
+            cfg.ftp_path = _ds("ftp_path", cfg.ftp_path)
+            cfg.ftp_login = _ds("ftp_login", cfg.ftp_login)
+            cfg.ftp_password = _ds("ftp_password", cfg.ftp_password)
             cfg.disable_dnf = _db("disable_dnf", cfg.disable_dnf)
             cfg.disable_dsq = _db("disable_dsq", cfg.disable_dsq)
             cfg.use_file_logger = _db("use_file_logger", cfg.use_file_logger)
@@ -876,6 +1094,20 @@ class MainWindow(QMainWindow):
             self._spin_refresh.blockSignals(False)
         if hasattr(self, "_chk_refresh"):
             self._chk_refresh.setChecked(cfg.auto_refresh_enabled)
+        self._sync_ftp_combos_from_cfg(cfg)
+
+    def _sync_ftp_combos_from_cfg(self, cfg: RaceConfig) -> None:
+        for ivar, attr in (
+            ("_combo_start_action", "start_list_action"),
+            ("_combo_group_action", "group_times_action"),
+            ("_combo_result_action", "result_times_action"),
+            ("_combo_rp_action", "remote_points_action"),
+        ):
+            if hasattr(self, ivar):
+                combo = getattr(self, ivar)
+                combo.blockSignals(True)
+                combo.setCurrentText(getattr(cfg, attr))
+                combo.blockSignals(False)
 
     def _search_log(self) -> None:
         term = self._log_search.text().lower()
