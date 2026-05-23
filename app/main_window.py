@@ -435,7 +435,6 @@ class MainWindow(QMainWindow):
             ("Print DSQ", "print_dsq"),
             ("Disable DNF (everyone counts as finished)", "disable_dnf"),
             ("Disable DSQ", "disable_dsq"),
-            ("Skip first lap (flying start)", "skip_first_lap"),
         ]
         for label, attr in checks:
             cb = QCheckBox(label)
@@ -866,7 +865,6 @@ class MainWindow(QMainWindow):
             cfg.time_limit = _int("TimeLimit", cfg.time_limit)
             cfg.n_signs_after_point = _int("NSignsAfterPoint", cfg.n_signs_after_point)
             cfg.race_type = _str("RaceType", cfg.race_type)
-            cfg.skip_first_lap = _bool("SkipFirstLap", cfg.skip_first_lap)
             cfg.start_protocol_file = _str("StartProtocol", cfg.start_protocol_file)
             cfg.group_time_file = _str("GroupTime", cfg.group_time_file)
             cfg.finish_time_file = _str("FinishTime", cfg.finish_time_file)

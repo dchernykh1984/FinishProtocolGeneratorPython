@@ -8,7 +8,7 @@ from app.calculator import (
     generate_sorted_protocol,
     spiridonov,
 )
-from app.config import RaceConfig
+from app.config import RACE_TYPE_CUSTOM_START, RaceConfig
 from app.models import (
     FinishCompetitorElement,
     FinishProtocolElement,
@@ -462,7 +462,7 @@ class TestSkipFirstLap:
             _finish("1", start_t + 100 + lap * 2, "nextLap"),
             _finish("1", start_t + 100 + lap * 3, "finish"),
         ]
-        cfg = _cfg(skip_first_lap=True)
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
         log: list[str] = []
         protocol = calculate_protocol(
             start_list, group_list, finish_list, [], [], cfg, log
@@ -482,7 +482,7 @@ class TestSkipFirstLap:
             _finish("1", start_t + 50 + lap, "nextLap"),
             _finish("1", start_t + 50 + lap * 2, "finish"),
         ]
-        cfg = _cfg(skip_first_lap=True)
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
         log: list[str] = []
         protocol = calculate_protocol(
             start_list, group_list, finish_list, [], [], cfg, log

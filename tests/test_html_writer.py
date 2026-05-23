@@ -6,7 +6,11 @@ import tempfile
 from pathlib import Path
 
 from app.calculator import calculate_protocol, generate_sorted_protocol
-from app.config import RACE_TYPE_ELIMINATOR_QUALIFICATION, RaceConfig
+from app.config import (
+    RACE_TYPE_CUSTOM_START,
+    RACE_TYPE_ELIMINATOR_QUALIFICATION,
+    RaceConfig,
+)
 from app.html_writer import _format_time, write_absolute_protocol, write_group_protocol
 from app.models import (
     FinishCompetitorElement,
@@ -743,7 +747,7 @@ class TestHtmlWriterEdgeCases:
             FinishCompetitorElement.from_line("1#15921 1:11:0.000#finish#"),
         ]
         cfg = RaceConfig()
-        cfg.skip_first_lap = True
+        cfg.race_type = RACE_TYPE_CUSTOM_START
         cfg.show_time_shift = True
         cfg.print_dns = True
         log: list[str] = []
