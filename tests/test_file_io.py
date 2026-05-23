@@ -269,6 +269,7 @@ class TestLoadConfigFile:
         assert cfg.get("disable_dsq") == "1"
 
     def test_use_start_check_list(self) -> None:
+        # C++ stores action (not file path) after UseStartCheckList token.
         lines = [
             *_cpp_header_through_ftp(),
             "start.txt",
@@ -279,14 +280,15 @@ class TestLoadConfigFile:
             "",
             "0",
             "UseStartCheckList",
-            "check.txt",
+            "Merge",
             "300",
             "Footer",
         ]
         path = _tmp("\n".join(lines) + "\n")
         cfg = load_config_file(path)
         assert cfg.get("use_start_check_list") == "1"
-        assert cfg.get("start_check_list_file") == "check.txt"
+        assert cfg.get("start_check_list_action") == "Merge"
+        assert cfg.get("start_check_list_file") == "temp/results_start.txt"
         assert cfg.get("start_registration_period") == "300"
         assert cfg.get("bottom_text") == "Footer"
 
@@ -407,7 +409,7 @@ class TestLoadConfigFile:
             "Laps Difference Erroros",
             "10",
             "UseStartCheckList",
-            "check.txt",
+            "Download",
             "300",
             "Footer text",
         ]
@@ -457,6 +459,6 @@ class TestLoadConfigFile:
         assert cfg["check_laps_difference"] == "1"
         assert cfg["laps_difference_pct"] == "10"
         assert cfg["use_start_check_list"] == "1"
-        assert cfg["start_check_list_file"] == "check.txt"
+        assert cfg["start_check_list_action"] == "Download"
         assert cfg["start_registration_period"] == "300"
         assert cfg["bottom_text"] == "Footer text"

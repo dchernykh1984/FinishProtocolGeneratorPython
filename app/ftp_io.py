@@ -102,6 +102,7 @@ def merge_files(to_file: str, from_file: str, merge_by_id: bool) -> int:
             return -1
 
         result, added = _apply_merge(raw_to, decoded_from, merge_by_id)
+        to_path.parent.mkdir(parents=True, exist_ok=True)
         to_path.write_text(
             "\n".join(result) + ("\n" if result else ""),
             encoding="utf-8",
@@ -199,7 +200,9 @@ def download_file(  # pragma: no cover
             decoded = _decode_lines(Path(tmp_path))
             if decoded is None:
                 return -1
-            Path(local_path).write_text(
+            local = Path(local_path)
+            local.parent.mkdir(parents=True, exist_ok=True)
+            local.write_text(
                 "\n".join(decoded) + ("\n" if decoded else ""),
                 encoding="utf-8",
             )
