@@ -146,10 +146,19 @@ class TestLoadConfigFile:
         assert "race_name" not in cfg
 
     def test_optional_section_refresh(self) -> None:
-        lines = [*_fixed_13(), "RefreshProtocol", "30"]
+        # C++ stores Timer.Interval in ms; 30000 ms -> 30 s after conversion.
+        lines = [*_fixed_13(), "RefreshProtocol", "30000"]
         path = _tmp("\n".join(lines) + "\n")
         cfg = load_config_file(path)
         assert cfg.get("auto_refresh_interval") == "30"
+
+    def test_refresh_roundtrip_seconds(self) -> None:
+        # Python saves interval * 1000 (ms); loading back must give original seconds.
+        interval_sec = 45
+        lines = [*_fixed_13(), "RefreshProtocol", str(interval_sec * 1000)]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg.get("auto_refresh_interval") == str(interval_sec)
 
     def test_optional_section_info(self) -> None:
         lines = [*_fixed_13(), "Info", "Extra info label"]
@@ -339,7 +348,7 @@ class TestLoadConfigFile:
             "Info",
             "Extra info",
             "RefreshProtocol",
-            "60",
+            "60000",
             "Referee label",
             "Secretary label",
             "ID",
@@ -406,7 +415,7 @@ class TestLoadConfigFile:
         cfg = load_config_file(path)
         assert cfg["show_additional_info"] == "1"
         assert cfg["additional_info_label"] == "Extra info"
-        assert cfg["auto_refresh_interval"] == "60"
+        assert cfg["auto_refresh_interval"] == "60"  # 60000 ms / 1000 = 60 s
         assert cfg["referee_label"] == "Referee label"
         assert cfg["secretary_label"] == "Secretary label"
         assert cfg["show_id"] == "1"

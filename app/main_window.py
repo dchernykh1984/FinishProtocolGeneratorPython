@@ -728,7 +728,8 @@ class MainWindow(QMainWindow):
         if cfg.show_additional_info:
             lines += ["Info", cfg.additional_info_label]
         if cfg.auto_refresh_enabled and cfg.auto_refresh_interval > 0:
-            lines += ["RefreshProtocol", str(cfg.auto_refresh_interval)]
+            # C++ stores Timer.Interval in ms; multiply seconds by 1000.
+            lines += ["RefreshProtocol", str(cfg.auto_refresh_interval * 1000)]
 
         # always: referee/secretary labels
         lines += [cfg.referee_label, cfg.secretary_label]
