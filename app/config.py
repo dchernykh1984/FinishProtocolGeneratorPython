@@ -41,7 +41,6 @@ class RaceConfig:
     race_type: str = RACE_TYPE_MASS_SPLITTED
     skip_first_lap: bool = False
     generate_text_protocol: bool = False
-    use_spiridonov: bool = False
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"
