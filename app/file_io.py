@@ -113,11 +113,15 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
             return result
 
     # optional "RefreshProtocol" block
+    # C++ stores timerRefresh->Interval directly (milliseconds); convert to seconds.
     if tok == "RefreshProtocol":
         result["auto_refresh_enabled"] = "1"
         v = nxt()
         if v is not None:
-            result["auto_refresh_interval"] = v
+            try:
+                result["auto_refresh_interval"] = str(int(v) // 1000)
+            except ValueError:
+                result["auto_refresh_interval"] = v
         tok = nxt()
         if tok is None:
             return result
