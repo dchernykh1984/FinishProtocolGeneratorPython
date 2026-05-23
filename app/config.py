@@ -40,7 +40,6 @@ class HtmlStyles:
 class RaceConfig:
     race_type: str = RACE_TYPE_MASS_SPLITTED
     skip_first_lap: bool = False
-    generate_text_protocol: bool = False
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"
@@ -127,6 +126,9 @@ class RaceConfig:
 
     def use_spiridonov_coefficients(self) -> bool:
         return self.race_type == RACE_TYPE_SPIRIDONOV
+
+    def generate_text_protocol_effective(self) -> bool:
+        return self.race_type == RACE_TYPE_ELIMINATOR_QUALIFICATION
 
     def skip_first_lap_effective(self) -> bool:
         return self.skip_first_lap or self.is_number_of_tries()
