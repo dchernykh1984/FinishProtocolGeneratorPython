@@ -11,6 +11,8 @@ Test Race Тестовая Гонка
 0
 1
 Mass/Splitted
+RefreshProtocol
+10000
 Главный судья
 Помощник главного судьи
 ID
