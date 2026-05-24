@@ -158,13 +158,10 @@ def _place_label(
     if fp.disqualified:
         return f"<td ALIGN=center ROWSPAN={rows}>DSQ</td>\n"
     if not fp.finished:
-        if (
-            fp.n_laps_finished != 0
-            and fp.cross_line_times[0] != 0
-            and fp.cross_line_times[0] != INF
+        group_started = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
+        if group_started or (
+            cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF
         ):
-            return f"<td ALIGN=center ROWSPAN={rows}>DNF</td>\n"
-        if cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF:
             return f"<td ALIGN=center ROWSPAN={rows}>DNF</td>\n"
         return f"<td ALIGN=center ROWSPAN={rows}>DNS</td>\n"
     return f"<td ALIGN=center ROWSPAN={rows}>{place}</td>\n"
@@ -254,19 +251,24 @@ def write_group_protocol(  # noqa: C901
     for group_idx, gs in enumerate(group_list):
         group_id = gs.group_id
 
-        # number of laps for this group
+        # n_laps_group: columns to render; n_laps_configured: total laps (for multi_lap)
         n_laps_group = 0
+        n_laps_configured = 0
         if cfg.hide_empty_columns:
             for fp in sorted_protocol:
-                if fp.group_id == group_id and fp.n_laps_finished > n_laps_group:
-                    n_laps_group = fp.n_laps_finished
+                if fp.group_id == group_id:
+                    if fp.n_laps_finished > n_laps_group:
+                        n_laps_group = fp.n_laps_finished
+                    if fp.n_laps > n_laps_configured:
+                        n_laps_configured = fp.n_laps
         else:
             for fp in sorted_protocol:
                 if fp.group_id == group_id and fp.n_laps > n_laps_group:
                     n_laps_group = fp.n_laps
+                    n_laps_configured = fp.n_laps
                     break
 
-        multi_lap = n_laps_group > 1 or not cfg.show_finish_time
+        multi_lap = n_laps_configured > 1 or not cfg.show_finish_time
         rows = 1 + (
             (
                 (
@@ -385,9 +387,16 @@ def write_group_protocol(  # noqa: C901
                 fp.cross_line_times[0] == 0 or fp.cross_line_times[0] == INF
             ):
                 fp.finished = False
+            group_started = (
+                fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
+            )
             if not (
                 (fp.finished or cfg.print_dnf)
-                and (fp.n_laps_finished != 0 or cfg.print_dns)
+                and (
+                    fp.n_laps_finished != 0
+                    or cfg.print_dns
+                    or (cfg.print_dnf and group_started)
+                )
                 and (not fp.disqualified or cfg.print_dsq)
             ):
                 continue
@@ -597,9 +606,12 @@ def _write_text_group_protocol(
         for fp in sorted_protocol:
             if fp.group_id != group_id:
                 continue
+            _gs = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
             if not (
                 (fp.finished or cfg.print_dnf)
-                and (fp.n_laps_finished != 0 or cfg.print_dns)
+                and (
+                    fp.n_laps_finished != 0 or cfg.print_dns or (cfg.print_dnf and _gs)
+                )
                 and (not fp.disqualified or cfg.print_dsq)
             ):
                 continue
@@ -648,13 +660,16 @@ def write_absolute_protocol(  # noqa: C901
     n_fp = len(sorted_protocol)
     _write_header(buf, cfg, n_fp, n_points)
 
-    max_laps = 0
+    max_laps = 0  # columns to render
+    max_laps_configured = 0  # total laps in race -- drives multi_lap
     if cfg.hide_empty_columns:
         for fp in sorted_protocol:
             max_laps = max(max_laps, fp.n_laps_finished)
+            max_laps_configured = max(max_laps_configured, fp.n_laps)
     else:
         for fp in sorted_protocol:
             max_laps = max(max_laps, fp.n_laps)
+        max_laps_configured = max_laps
 
     buf.write("<CENTER>")
     if (
@@ -682,7 +697,7 @@ def write_absolute_protocol(  # noqa: C901
         )
     buf.write("</CENTER>")
 
-    multi_lap = max_laps > 1 or not cfg.show_finish_time
+    multi_lap = max_laps_configured > 1 or not cfg.show_finish_time
     rows = 1 + (
         (
             (
@@ -794,9 +809,14 @@ def write_absolute_protocol(  # noqa: C901
             fp.cross_line_times[0] == 0 or fp.cross_line_times[0] == INF
         ):
             fp.finished = False
+        group_started = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
         if not (
             (fp.finished or cfg.print_dnf)
-            and (fp.n_laps_finished != 0 or cfg.print_dns)
+            and (
+                fp.n_laps_finished != 0
+                or cfg.print_dns
+                or (cfg.print_dnf and group_started)
+            )
             and (not fp.disqualified or cfg.print_dsq)
         ):
             continue
