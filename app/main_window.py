@@ -38,6 +38,7 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+from app.models import GroupStartElement
 
 
 class _FTPWorker(QThread):
@@ -179,6 +180,14 @@ class _GenerateWorker(QThread):
 
             self.log_message.emit("Reading group times...")
             group_list = read_group_times(cfg.group_time_file)
+            known_group_ids = {gs.group_id for gs in group_list}
+            seen_extra: set[str] = set()
+            for s in start_list:
+                if s.group_id not in known_group_ids and s.group_id not in seen_extra:
+                    seen_extra.add(s.group_id)
+                    group_list.append(
+                        GroupStartElement(group_id=s.group_id, seconds=0.0)
+                    )
             self.log_message.emit(f"  {len(group_list)} groups loaded")
 
             self.log_message.emit("Reading finish times...")
