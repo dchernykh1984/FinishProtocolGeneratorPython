@@ -131,6 +131,42 @@ class _GenerateWorker(QThread):
         super().__init__()
         self._cfg = cfg
 
+    def _do_uploads(self, cfg: RaceConfig) -> tuple[bool, list[str]]:
+        """Attempt configured FTP uploads. Returns (any_failed, error_messages)."""
+        failed = False
+        errors: list[str] = []
+        if cfg.upload_groups:
+            self.log_message.emit("Uploading group protocol...")
+            if (
+                upload_file(
+                    cfg.ftp_path,
+                    cfg.ftp_login,
+                    cfg.ftp_password,
+                    cfg.group_protocol_file,
+                    errors,
+                )
+                == -1
+            ):
+                failed = True
+            else:
+                self.log_message.emit("  Group protocol: uploaded")
+        if cfg.upload_absolute and not cfg.is_eliminator_finals():
+            self.log_message.emit("Uploading absolute protocol...")
+            if (
+                upload_file(
+                    cfg.ftp_path,
+                    cfg.ftp_login,
+                    cfg.ftp_password,
+                    cfg.absolute_protocol_file,
+                    errors,
+                )
+                == -1
+            ):
+                failed = True
+            else:
+                self.log_message.emit("  Absolute protocol: uploaded")
+        return failed, errors
+
     def run(self) -> None:
         cfg = self._cfg
         log: list[str] = []
@@ -186,35 +222,7 @@ class _GenerateWorker(QThread):
                 cfg.absolute_protocol_file, sorted_proto, group_list, cfg, n_points
             )
 
-            if cfg.upload_groups:
-                self.log_message.emit("Uploading group protocol...")
-                if (
-                    upload_file(
-                        cfg.ftp_path,
-                        cfg.ftp_login,
-                        cfg.ftp_password,
-                        cfg.group_protocol_file,
-                    )
-                    == -1
-                ):
-                    self.log_message.emit("  ERROR: upload group protocol")
-                else:
-                    self.log_message.emit("  Group protocol: uploaded")
-
-            if cfg.upload_absolute and not cfg.is_eliminator_finals():
-                self.log_message.emit("Uploading absolute protocol...")
-                if (
-                    upload_file(
-                        cfg.ftp_path,
-                        cfg.ftp_login,
-                        cfg.ftp_password,
-                        cfg.absolute_protocol_file,
-                    )
-                    == -1
-                ):
-                    self.log_message.emit("  ERROR: upload absolute protocol")
-                else:
-                    self.log_message.emit("  Absolute protocol: uploaded")
+            upload_failed, upload_errors = self._do_uploads(cfg)
 
             self.log_message.emit("Checking protocol...")
             check_start_protocol(
@@ -223,7 +231,12 @@ class _GenerateWorker(QThread):
 
             for msg in log:
                 self.log_message.emit(msg)
-            self.log_message.emit("Done.")
+
+            if upload_failed:
+                for err in upload_errors:
+                    self.log_message.emit(f"  ERROR: {err}")
+            else:
+                self.log_message.emit("Done.")
             self.finished_ok.emit()
         except Exception as exc:
             self.error.emit(str(exc))

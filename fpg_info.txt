@@ -31,6 +31,8 @@ Lap Finish Info
 Lap Finish
 Hide Empty Columns
 All Buttons
+UploadGroups
+UploadAbsolute
 None
 None
 None

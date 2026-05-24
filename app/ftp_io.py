@@ -124,23 +124,30 @@ def _parse_ftp_url(ftp_path: str) -> tuple[str, int, str]:
     return host, port, base
 
 
-def upload_file(  # pragma: no cover
+def upload_file(
     ftp_path: str,
     login: str,
     password: str,
     local_path: str,
+    errors_out: list[str] | None = None,
 ) -> int:
     """Upload *local_path* to the FTP server at *ftp_path*.
 
     Returns 0 on success, -1 on error.
+    When *errors_out* is provided, a human-readable error message is appended
+    on failure (includes FTP URL and exception text).
     """
     if not ftp_path or not local_path:
+        if errors_out is not None:
+            errors_out.append("FTP path or local file path is empty")
         return -1
 
     filename = Path(local_path.replace("\\", "/")).name
     try:
         host, port, base = _parse_ftp_url(ftp_path)
-    except Exception:
+    except Exception as exc:
+        if errors_out is not None:
+            errors_out.append(f"Invalid FTP URL '{ftp_path}': {exc}")
         return -1
 
     remote_path = base + filename
@@ -151,7 +158,9 @@ def upload_file(  # pragma: no cover
             with Path(local_path).open("rb") as f:
                 ftp.storbinary(f"STOR {remote_path}", f)
         return 0
-    except Exception:
+    except Exception as exc:
+        if errors_out is not None:
+            errors_out.append(f"Upload to {ftp_path}/{filename} failed: {exc}")
         return -1
 
 
