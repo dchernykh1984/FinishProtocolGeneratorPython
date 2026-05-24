@@ -408,3 +408,23 @@ def check_start_protocol(  # noqa: C901
             log.append(
                 f"ERROR: {fp.competitor_id} has {crossings} crossings, expected {expected}"  # noqa: E501
             )
+
+    if cfg.check_laps_difference and cfg.laps_difference_pct > 0:
+        threshold = cfg.laps_difference_pct / 100.0
+        for fp in protocol:
+            if fp.n_laps_finished < 2:
+                continue
+            lap_times = [
+                fp.cross_line_times[i + 1] - fp.cross_line_times[i]
+                for i in range(fp.n_laps_finished)
+            ]
+            avg = sum(lap_times) / len(lap_times)
+            if avg <= 0:
+                continue
+            for i, lt in enumerate(lap_times):
+                if lt > avg * (1.0 + threshold) or lt < avg / (1.0 + threshold):
+                    log.append(
+                        f"ERROR: {fp.competitor_id} lap {i + 1} time {lt:.1f}s "
+                        f"deviates more than {cfg.laps_difference_pct}% from "
+                        f"average {avg:.1f}s"
+                    )

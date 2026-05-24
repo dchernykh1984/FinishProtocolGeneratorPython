@@ -8,6 +8,7 @@ from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -244,7 +245,24 @@ class MainWindow(QMainWindow):
         self._combo_rp_action: QComboBox
         self._btn_ftp_download: QPushButton
         self._combo_scl_action: QComboBox
+        self._spin_srp: QDoubleSpinBox
+        self._log_file_path: str | None = None
         self._setup_ui()
+        self._try_auto_load()
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]  # noqa: N802
+        reply = QMessageBox.question(
+            self,
+            "Exit",
+            "Are you sure to exit?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._save_race_info_to_path("fpg_info.txt")
+            event.accept()
+        else:
+            event.ignore()
 
     # ------------------------------------------------------------------
     # UI setup
@@ -335,14 +353,13 @@ class MainWindow(QMainWindow):
         self._chk_use_scl = QCheckBox("Use start check list:")
         self._chk_use_scl.setObjectName("use_start_check_list")
         self._chk_use_scl.setChecked(self._cfg.use_start_check_list)
-        self._chk_use_scl.toggled.connect(
-            lambda v: setattr(self._cfg, "use_start_check_list", v)
-        )
+        self._chk_use_scl.toggled.connect(self._on_scl_toggled)
         row_scl.addWidget(self._chk_use_scl)
         self._combo_scl_action = QComboBox()
         self._combo_scl_action.setObjectName("start_check_list_action")
         self._combo_scl_action.addItems(DOWNLOAD_ACTIONS)
         self._combo_scl_action.setCurrentText(self._cfg.start_check_list_action)
+        self._combo_scl_action.setEnabled(self._cfg.use_start_check_list)
         self._combo_scl_action.currentTextChanged.connect(
             lambda t: setattr(self._cfg, "start_check_list_action", t)
         )
@@ -364,6 +381,22 @@ class MainWindow(QMainWindow):
         btn_scl.clicked.connect(_pick_scl)
         row_scl.addWidget(btn_scl)
         ly.addLayout(row_scl)
+
+        # start registration period (used with start check list)
+        row_srp = QHBoxLayout()
+        row_srp.addWidget(QLabel("  Registration period (sec):"))
+        self._spin_srp = QDoubleSpinBox()
+        self._spin_srp.setObjectName("start_registration_period")
+        self._spin_srp.setRange(0.0, 9999.0)
+        self._spin_srp.setDecimals(3)
+        self._spin_srp.setValue(self._cfg.start_registration_period)
+        self._spin_srp.setEnabled(self._cfg.use_start_check_list)
+        self._spin_srp.valueChanged.connect(
+            lambda v: setattr(self._cfg, "start_registration_period", v)
+        )
+        row_srp.addWidget(self._spin_srp)
+        row_srp.addStretch()
+        ly.addLayout(row_srp)
 
         # race type
         row = QHBoxLayout()
@@ -396,6 +429,8 @@ class MainWindow(QMainWindow):
             ("Weather:", "weather"),
             ("Main referee:", "main_referee"),
             ("Additional referee:", "additional_referee"),
+            ("Referee column header:", "referee_label"),
+            ("Secretary column header:", "secretary_label"),
             ("Organizer:", "organizer"),
             ("Track conditions:", "track_conditions"),
             ("Sponsor:", "sponsor"),
@@ -441,30 +476,62 @@ class MainWindow(QMainWindow):
     def _make_columns_tab(self) -> QWidget:
         w = QWidget()
         ly = QVBoxLayout(w)
-        checks = [
-            ("Show place", "show_place"),
-            ("Show number (ID)", "show_id"),
-            ("Show name", "show_name"),
-            ("Show year of birth", "show_age"),
-            ("Show team", "show_team"),
-            ("Show city", "show_city"),
-            ("Show group (absolute protocol)", "show_group"),
+
+        def _check_label_row(
+            chk_text: str, chk_attr: str, lbl_attr: str | None = None
+        ) -> QHBoxLayout:
+            row = QHBoxLayout()
+            cb = QCheckBox(chk_text)
+            cb.setObjectName(chk_attr)
+            cb.setChecked(bool(getattr(self._cfg, chk_attr)))
+            cb.toggled.connect(lambda v, a=chk_attr: setattr(self._cfg, a, v))
+            row.addWidget(cb, 1)
+            if lbl_attr:
+                edit = QLineEdit(getattr(self._cfg, lbl_attr))
+                edit.setObjectName(lbl_attr)
+                edit.textChanged.connect(lambda t, a=lbl_attr: setattr(self._cfg, a, t))
+                row.addWidget(edit, 2)
+            return row
+
+        ly.addLayout(_check_label_row("Show place", "show_place", "place_label"))
+        ly.addLayout(_check_label_row("Show number (ID)", "show_id", "id_label"))
+        ly.addLayout(_check_label_row("Show name", "show_name", "name_label"))
+        ly.addLayout(_check_label_row("Show year of birth", "show_age", "age_label"))
+        ly.addLayout(_check_label_row("Show team", "show_team", "team_label"))
+        ly.addLayout(_check_label_row("Show city", "show_city", "city_label"))
+        ly.addLayout(
+            _check_label_row(
+                "Show group (absolute protocol)", "show_group", "group_label"
+            )
+        )
+        ly.addLayout(
+            _check_label_row(
+                "Show additional info", "show_additional_info", "additional_info_label"
+            )
+        )
+        ly.addLayout(
+            _check_label_row(
+                "Show start time / time shift", "show_time_shift", "time_shift_label"
+            )
+        )
+
+        for chk_text, attr in [
             ("Show lap times", "show_lap_times"),
             ("Show finish time", "show_finish_time"),
             ("Show time difference", "show_time_difference"),
-            ("Show additional info", "show_additional_info"),
-            ("Show start time / time shift", "show_time_shift"),
             ("Show number of finished laps", "show_n_finished_laps"),
             ("Show lap finish cumulative time", "show_lap_finish"),
             ("Hide empty lap columns", "hide_empty_columns"),
             ("Stretch table to page width", "stretch"),
-        ]
-        for label, attr in checks:
-            cb = QCheckBox(label)
+            ("Show buttons", "use_buttons"),
+            ("Show all buttons", "use_all_buttons"),
+        ]:
+            cb = QCheckBox(chk_text)
             cb.setObjectName(attr)
             cb.setChecked(bool(getattr(self._cfg, attr)))
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
             ly.addWidget(cb)
+
         ly.addStretch()
         return w
 
@@ -525,6 +592,25 @@ class MainWindow(QMainWindow):
         row_ar.addStretch()
         self._chk_refresh.toggled.connect(self._on_refresh_toggled)
         ly.addLayout(row_ar)
+
+        # laps difference check
+        row_ld = QHBoxLayout()
+        chk_ld = QCheckBox("Check laps difference")
+        chk_ld.setObjectName("check_laps_difference")
+        chk_ld.setChecked(self._cfg.check_laps_difference)
+        chk_ld.toggled.connect(lambda v: setattr(self._cfg, "check_laps_difference", v))
+        row_ld.addWidget(chk_ld)
+        row_ld.addWidget(QLabel("Max deviation (%):"))
+        spin_ld = QSpinBox()
+        spin_ld.setObjectName("laps_difference_pct")
+        spin_ld.setRange(0, 100)
+        spin_ld.setValue(self._cfg.laps_difference_pct)
+        spin_ld.valueChanged.connect(
+            lambda v: setattr(self._cfg, "laps_difference_pct", v)
+        )
+        row_ld.addWidget(spin_ld)
+        row_ld.addStretch()
+        ly.addLayout(row_ld)
 
         ly.addStretch()
         return w
@@ -603,6 +689,18 @@ class MainWindow(QMainWindow):
         btn.clicked.connect(self._search_log)
         row.addWidget(btn)
         ly.addLayout(row)
+
+        for chk_text, attr in [
+            ("Show log in window", "use_interface_logger"),
+            ("Write log to file", "use_file_logger"),
+            ("Errors and warnings only", "errors_warnings_only"),
+        ]:
+            cb = QCheckBox(chk_text)
+            cb.setObjectName(attr)
+            cb.setChecked(bool(getattr(self._cfg, attr)))
+            cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
+            ly.addWidget(cb)
+
         return w
 
     # ------------------------------------------------------------------
@@ -642,6 +740,9 @@ class MainWindow(QMainWindow):
             )
             return
         self._log_list.clear()
+        self._log_file_path = (
+            self._init_log_file() if self._cfg.use_file_logger else None
+        )
         self._set_buttons_enabled(False)
         if self._ftp_configured():
             self._ftp_worker = _FTPWorker(self._cfg)
@@ -660,6 +761,18 @@ class MainWindow(QMainWindow):
         self._worker.start()
 
     def _append_log(self, msg: str) -> None:
+        is_err_wrn = "ERROR" in msg.upper() or "WARNING" in msg.upper()
+        if self._cfg.use_file_logger and self._log_file_path:
+            if not self._cfg.errors_warnings_only or is_err_wrn:
+                try:
+                    with Path(self._log_file_path).open("a", encoding="utf-8") as f:
+                        f.write(msg + "\n")
+                except OSError:
+                    pass
+        if not self._cfg.use_interface_logger:
+            return
+        if self._cfg.errors_warnings_only and not is_err_wrn:
+            return
         self._log_list.addItem(msg)
         self._log_list.scrollToBottom()
 
@@ -684,6 +797,9 @@ class MainWindow(QMainWindow):
             )
             return
         self._log_list.clear()
+        self._log_file_path = (
+            self._init_log_file() if self._cfg.use_file_logger else None
+        )
         self._set_buttons_enabled(False)
         self._ftp_worker = _FTPWorker(self._cfg)
         self._ftp_worker.log_message.connect(self._append_log)
@@ -696,8 +812,22 @@ class MainWindow(QMainWindow):
         self._set_buttons_enabled(True)
 
     def _on_error(self, msg: str) -> None:
+        self._append_log(f"ERROR: {msg}")
         self._set_buttons_enabled(True)
         QMessageBox.critical(self, "Error", msg)
+
+    def _init_log_file(self) -> str:
+        log_dir = Path("temp")
+        log_dir.mkdir(exist_ok=True)
+        n = 1
+        while (log_dir / f"fpg{n}.txt").exists():
+            n += 1
+        return str(log_dir / f"fpg{n}.txt")
+
+    def _on_scl_toggled(self, checked: bool) -> None:
+        self._cfg.use_start_check_list = checked
+        self._combo_scl_action.setEnabled(checked)
+        self._spin_srp.setEnabled(checked)
 
     def _on_refresh_toggled(self, checked: bool) -> None:
         self._cfg.auto_refresh_enabled = checked
@@ -711,12 +841,7 @@ class MainWindow(QMainWindow):
             if self._timer is not None:
                 self._timer.stop()
 
-    def _on_save_race_info(self) -> None:  # noqa: C901
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save race info", "fpg_info.txt", "Text files (*.txt)"
-        )
-        if not path:
-            return
+    def _save_race_info_to_path(self, path: str) -> None:  # noqa: C901
         cfg = self._cfg
         lines: list[str] = []
 
@@ -841,7 +966,7 @@ class MainWindow(QMainWindow):
             lines += [
                 "UseStartCheckList",
                 cfg.start_check_list_action,
-                str(int(cfg.start_registration_period)),
+                f"{cfg.start_registration_period:g}",
             ]
 
         # always: bottom text (last field)
@@ -850,17 +975,18 @@ class MainWindow(QMainWindow):
         try:
             with Path(path).open("w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + "\n")
-
         except Exception as exc:
             QMessageBox.critical(self, "Error", f"Failed to save: {exc}")
 
-    def _on_load_race_info(self) -> None:  # noqa: C901
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Load race info", "", "Text files (*.txt)"
+    def _on_save_race_info(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save race info", "fpg_info.txt", "Text files (*.txt)"
         )
         if not path:
             return
+        self._save_race_info_to_path(path)
 
+    def _load_race_info_from_path(self, path: str) -> None:  # noqa: C901
         # Auto-detect encoding and peek at first line to identify format
         text: str | None = None
         for enc in ("utf-8", "cp1251", "latin-1"):
@@ -989,6 +1115,50 @@ class MainWindow(QMainWindow):
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
+
+            # Reset all optional flags -- C++ clears all controls before parsing,
+            # so absent tags mean the feature is OFF, regardless of RaceConfig defaults.
+            cfg.show_additional_info = False
+            cfg.auto_refresh_interval = 0
+            cfg.auto_refresh_enabled = False
+            cfg.show_id = False
+            cfg.show_name = False
+            cfg.show_age = False
+            cfg.show_team = False
+            cfg.show_city = False
+            cfg.show_lap_times = False
+            cfg.show_lap_finish = False
+            cfg.hide_empty_columns = False
+            cfg.use_buttons = False
+            cfg.use_all_buttons = False
+            cfg.upload_groups = False
+            cfg.upload_absolute = False
+            cfg.show_finish_time = False
+            cfg.show_time_difference = False
+            cfg.show_n_finished_laps = False
+            cfg.show_group = False
+            cfg.show_place = False
+            cfg.show_time_shift = False
+            cfg.stretch = False
+            cfg.print_dnf = False
+            cfg.print_dns = False
+            cfg.print_dsq = False
+            cfg.disable_dnf = False
+            cfg.disable_dsq = False
+            cfg.use_file_logger = False
+            cfg.use_interface_logger = False
+            cfg.errors_warnings_only = False
+            cfg.check_laps_difference = False
+            cfg.use_start_check_list = False
+            cfg.id_label = ""
+            cfg.name_label = ""
+            cfg.age_label = ""
+            cfg.team_label = ""
+            cfg.city_label = ""
+            cfg.group_label = ""
+            cfg.place_label = ""
+            cfg.time_shift_label = ""
+            cfg.additional_info_label = ""
 
             def _ds(k: str, default: str = "") -> str:
                 return d.get(k, default)
@@ -1131,8 +1301,20 @@ class MainWindow(QMainWindow):
 
         self._sync_ui_from_cfg()
 
-    def _sync_ui_from_cfg(self) -> None:
-        cfg = self._cfg
+    def _on_load_race_info(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load race info", "", "Text files (*.txt)"
+        )
+        if not path:
+            return
+        self._load_race_info_from_path(path)
+
+    def _try_auto_load(self) -> None:
+        auto_path = Path("fpg_info.txt")
+        if auto_path.exists():
+            self._load_race_info_from_path(str(auto_path))
+
+    def _sync_named_widgets(self, cfg: RaceConfig) -> None:
         for w in self.findChildren(QLineEdit):
             name = w.objectName()
             if name and hasattr(cfg, name):
@@ -1145,12 +1327,22 @@ class MainWindow(QMainWindow):
                 w.blockSignals(True)
                 w.setValue(int(getattr(cfg, name) or 0))
                 w.blockSignals(False)
+        for w in self.findChildren(QDoubleSpinBox):
+            name = w.objectName()
+            if name and hasattr(cfg, name):
+                w.blockSignals(True)
+                w.setValue(float(getattr(cfg, name) or 0.0))
+                w.blockSignals(False)
         for w in self.findChildren(QCheckBox):
             name = w.objectName()
             if name and hasattr(cfg, name):
                 w.blockSignals(True)
                 w.setChecked(bool(getattr(cfg, name)))
                 w.blockSignals(False)
+
+    def _sync_ui_from_cfg(self) -> None:
+        cfg = self._cfg
+        self._sync_named_widgets(cfg)
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)
             self._combo_race_type.setCurrentText(cfg.race_type)
@@ -1161,6 +1353,10 @@ class MainWindow(QMainWindow):
             self._spin_refresh.blockSignals(False)
         if hasattr(self, "_chk_refresh"):
             self._chk_refresh.setChecked(cfg.auto_refresh_enabled)
+        if hasattr(self, "_combo_scl_action"):
+            self._combo_scl_action.setEnabled(cfg.use_start_check_list)
+        if hasattr(self, "_spin_srp"):
+            self._spin_srp.setEnabled(cfg.use_start_check_list)
         self._sync_ftp_combos_from_cfg(cfg)
 
     def _sync_ftp_combos_from_cfg(self, cfg: RaceConfig) -> None:
