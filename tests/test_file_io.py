@@ -6,6 +6,7 @@ import tempfile
 
 from app.file_io import (
     load_config_file,
+    load_template,
     read_finish_times,
     read_group_times,
     read_start_protocol,
@@ -441,6 +442,10 @@ class TestLoadConfigFile:
             "Finish time",
             "TimeDifferenceLabel",
             "(gap from ldr)",
+            "NFinishedLapsLabel",
+            "(rounds)",
+            "TemplateFile",
+            "custom_template.html",
         ]
         path = _tmp("\n".join(lines) + "\n")
         cfg = load_config_file(path)
@@ -493,3 +498,50 @@ class TestLoadConfigFile:
         assert cfg["start_check_list_action"] == "Download"
         assert cfg["start_registration_period"] == "300"
         assert cfg["bottom_text"] == "Footer text"
+        assert cfg["finish_time_label"] == "Finish time"
+        assert cfg["time_difference_label"] == "(gap from ldr)"
+        assert cfg["n_finished_laps_label"] == "(rounds)"
+        assert cfg["template_file"] == "custom_template.html"
+
+
+class TestLoadTemplate:
+    def test_all_fields(self) -> None:
+        content = "\n".join(
+            [
+                "width:100%",
+                "top-style",
+                "even-style",
+                "odd-style",
+                "<FONT group>",
+                "<FONT addtop>",
+                "<FONT add>",
+                "<FONT toptxt>",
+                "<FONT infotop>",
+                "<FONT info>",
+                ".common { color: red; }",
+            ]
+        )
+        path = _tmp(content)
+        st = load_template(path)
+        assert st is not None
+        assert st.table_style == "width:100%"
+        assert st.top_line_style == "top-style"
+        assert st.even_line_style == "even-style"
+        assert st.odd_line_style == "odd-style"
+        assert st.group_name_style == "<FONT group>"
+        assert st.additional_text_top_style == "<FONT addtop>"
+        assert st.additional_text_style == "<FONT add>"
+        assert st.top_text_style == "<FONT toptxt>"
+        assert st.additional_info_top_style == "<FONT infotop>"
+        assert st.additional_info_style == "<FONT info>"
+        assert st.common_style_text == ".common { color: red; }"
+
+    def test_missing_file_returns_none(self) -> None:
+        assert load_template("/nonexistent/template.html") is None
+
+    def test_partial_file_pads_with_empty(self) -> None:
+        path = _tmp("only-table-style\n")
+        st = load_template(path)
+        assert st is not None
+        assert st.table_style == "only-table-style"
+        assert st.top_line_style == ""
