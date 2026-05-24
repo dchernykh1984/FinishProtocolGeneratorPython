@@ -1,0 +1,68 @@
+Не нашли спонсора, но тут можно вставлять html код
+Test Race Тестовая Гонка
+2026 май 23
+Кейп Таун
+Как всегда солнечно
+Лучший Судья
+Помощник Лучему Судье не нужен
+Тот же самый Лучший Судья
+Сухо как в хаггиз
+0
+0
+1
+Mass/Splitted
+Главный судья
+Помощник главного судьи
+ID
+Стартовый Номер
+Name
+Фамилия Имя
+Age
+Год Рождения
+Team
+Команда
+City
+Город
+Laps
+Lap Name
+Время круга
+Lap Finish Info
+Время финиша круга
+Lap Finish
+Hide Empty Columns
+All Buttons
+None
+None
+None
+None
+ftp://my.address.com
+ftp_login
+ftp_password
+Finish
+Time Difference
+Group
+Группа
+Place
+Место
+Stratch
+Print DNF
+Print DNS
+Print DSQ
+data/start.txt
+data/groups.txt
+data/results.txt
+data/grp_prot.html
+data/abs_python.html
+
+0
+Use Interface Logger
+Err and Wrn only
+Сгенерировано автоматически программой хронометража соревнований
+FinishTimeLabel
+Время финиша
+TimeDifferenceLabel
+Отставание от лидера
+TemplateFile
+data/template.html
+AllButtonsLabel
+Показать/Скрыть<BR>Доп.статистику
