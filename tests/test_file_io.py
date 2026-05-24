@@ -446,6 +446,10 @@ class TestLoadConfigFile:
             "(rounds)",
             "TemplateFile",
             "custom_template.html",
+            "ButtonsLabel",
+            "My splits btn",
+            "AllButtonsLabel",
+            "My stats btn",
         ]
         path = _tmp("\n".join(lines) + "\n")
         cfg = load_config_file(path)
@@ -502,6 +506,53 @@ class TestLoadConfigFile:
         assert cfg["time_difference_label"] == "(gap from ldr)"
         assert cfg["n_finished_laps_label"] == "(rounds)"
         assert cfg["template_file"] == "custom_template.html"
+        assert cfg["use_buttons_label"] == "My splits btn"
+        assert cfg["use_all_buttons_label"] == "My stats btn"
+
+    def test_buttons_labels(self) -> None:
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "TemplateFile",
+            "tmpl.html",
+            "ButtonsLabel",
+            "Show splits",
+            "AllButtonsLabel",
+            "Show stats",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["use_buttons_label"] == "Show splits"
+        assert cfg["use_all_buttons_label"] == "Show stats"
+
+    def test_buttons_label_only(self) -> None:
+        """AllButtonsLabel absent - only ButtonsLabel present."""
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "ButtonsLabel",
+            "My btn",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["use_buttons_label"] == "My btn"
+        assert "use_all_buttons_label" not in cfg
 
 
 class TestLoadTemplate:

@@ -548,14 +548,26 @@ class MainWindow(QMainWindow):
             ("Show lap finish cumulative time", "show_lap_finish"),
             ("Hide empty lap columns", "hide_empty_columns"),
             ("Stretch table to page width", "stretch"),
-            ("Show buttons", "use_buttons"),
-            ("Show all buttons", "use_all_buttons"),
         ]:
             cb = QCheckBox(chk_text)
             cb.setObjectName(attr)
             cb.setChecked(bool(getattr(self._cfg, attr)))
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
             ly.addWidget(cb)
+        ly.addLayout(
+            _check_label_row(
+                "Show intermediate splits button",
+                "use_buttons",
+                "use_buttons_label",
+            )
+        )
+        ly.addLayout(
+            _check_label_row(
+                "Show lap stats button",
+                "use_all_buttons",
+                "use_all_buttons_label",
+            )
+        )
 
         ly.addStretch()
         return w
@@ -1006,6 +1018,10 @@ class MainWindow(QMainWindow):
         if cfg.show_n_finished_laps:
             lines += ["NFinishedLapsLabel", cfg.n_finished_laps_label]
         lines += ["TemplateFile", cfg.template_file]
+        if cfg.use_buttons:
+            lines += ["ButtonsLabel", cfg.use_buttons_label]
+        if cfg.use_all_buttons:
+            lines += ["AllButtonsLabel", cfg.use_all_buttons_label]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1155,6 +1171,10 @@ class MainWindow(QMainWindow):
             cfg.lap_additional_info = _str("LapAdditionalInfo", cfg.lap_additional_info)
             cfg.bottom_text = _str("BottomText", cfg.bottom_text)
             cfg.template_file = _str("TemplateFile", cfg.template_file)
+            cfg.use_buttons_label = _str("ButtonsLabel", cfg.use_buttons_label)
+            cfg.use_all_buttons_label = _str(
+                "AllButtonsLabel", cfg.use_all_buttons_label
+            )
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
@@ -1205,6 +1225,8 @@ class MainWindow(QMainWindow):
             cfg.finish_time_label = "Time"
             cfg.time_difference_label = "(gap)"
             cfg.n_finished_laps_label = "(laps)"
+            cfg.use_buttons_label = RaceConfig().use_buttons_label
+            cfg.use_all_buttons_label = RaceConfig().use_all_buttons_label
 
             def _ds(k: str, default: str = "") -> str:
                 return d.get(k, default)
@@ -1352,6 +1374,10 @@ class MainWindow(QMainWindow):
             )
             cfg.bottom_text = _ds("bottom_text", cfg.bottom_text)
             cfg.template_file = _ds("template_file", cfg.template_file)
+            cfg.use_buttons_label = _ds("use_buttons_label", cfg.use_buttons_label)
+            cfg.use_all_buttons_label = _ds(
+                "use_all_buttons_label", cfg.use_all_buttons_label
+            )
 
         self._apply_template()
         self._sync_ui_from_cfg()

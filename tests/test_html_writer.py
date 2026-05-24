@@ -11,7 +11,12 @@ from app.config import (
     RACE_TYPE_ELIMINATOR_QUALIFICATION,
     RaceConfig,
 )
-from app.html_writer import _format_time, write_absolute_protocol, write_group_protocol
+from app.html_writer import (
+    _draw_button,
+    _format_time,
+    write_absolute_protocol,
+    write_group_protocol,
+)
 from app.models import (
     FinishCompetitorElement,
     GroupStartElement,
@@ -349,8 +354,7 @@ class TestControlPointRendering:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, n_points)
         content = Path(path).read_text(encoding="utf-8")
-        assert "CP1" in content
-        assert "Time" in content
+        assert "(1 split)" in content
 
     def test_group_cp_time_rendered(self) -> None:
         sorted_proto, group_list, cfg, n_points = _make_cp_scenario(n_cp=1)
@@ -376,7 +380,7 @@ class TestControlPointRendering:
             path = f.name
         write_absolute_protocol(path, sorted_proto, group_list, cfg, n_points)
         content = Path(path).read_text(encoding="utf-8")
-        assert "CP1" in content
+        assert "(1 split)" in content
 
     def test_absolute_cp_time_rendered(self) -> None:
         sorted_proto, group_list, cfg, n_points = _make_cp_scenario(n_cp=1)
@@ -395,8 +399,8 @@ class TestControlPointRendering:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, n_points)
         content = Path(path).read_text(encoding="utf-8")
-        # CP1 header NOT rendered for NumberOfTries
-        assert "CP1" not in content
+        # CP split header NOT rendered for NumberOfTries
+        assert "(1 split)" not in content
         # COLSPAN=2 (n_points+1) used instead
         assert "COLSPAN=2" in content
 
@@ -515,7 +519,7 @@ class TestControlPointRendering:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, 1)
         content = Path(path).read_text(encoding="utf-8")
-        assert "CP1" in content
+        assert "(1 split)" in content
         assert "charset=utf-8" in content
 
 
@@ -760,3 +764,185 @@ class TestHtmlWriterEdgeCases:
         write_group_protocol(path, sorted_proto, group_list, cfg)
         content = Path(path).read_text(encoding="utf-8")
         assert "NOT STARTED" in content
+
+
+# ---------------------------------------------------------------------------
+# collapsible buttons (use_buttons / use_all_buttons)
+# ---------------------------------------------------------------------------
+
+
+def _make_two_lap_scenario(n_cp: int = 0):
+    """Two competitors, same group, 2 laps each."""
+    t0 = _CP_BASE + 3600
+    start_list = [
+        StartProtocolElement.from_line("1#Alice#G#2#1#1990#TA#CA##0 00:00:00.000#"),
+        StartProtocolElement.from_line("2#Bob#G#2#1#1985#TB#CB##0 00:00:00.000#"),
+    ]
+    group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+    finish_list = [
+        FinishCompetitorElement(competitor_id="1", seconds=t0 + 300, action="nextLap"),
+        FinishCompetitorElement(competitor_id="1", seconds=t0 + 650, action="finish"),
+        FinishCompetitorElement(competitor_id="2", seconds=t0 + 320, action="nextLap"),
+        FinishCompetitorElement(competitor_id="2", seconds=t0 + 700, action="finish"),
+    ]
+    remote_points: list[list] = []
+    if n_cp > 0:
+        cp_list = [
+            FinishCompetitorElement(competitor_id="1", seconds=t0 + 150, action="cp1"),
+            FinishCompetitorElement(competitor_id="2", seconds=t0 + 160, action="cp1"),
+        ]
+        remote_points = [cp_list]
+    cfg = RaceConfig()
+    cfg.show_lap_times = True
+    log: list[str] = []
+    protocol = calculate_protocol(
+        start_list, group_list, finish_list, remote_points, [], cfg, log
+    )
+    sorted_proto = generate_sorted_protocol(protocol, cfg, n_cp)
+    return sorted_proto, group_list, cfg
+
+
+class TestDrawButton:
+    def test_button_output(self) -> None:
+        from io import StringIO
+
+        buf = StringIO()
+        _draw_button(buf, "MyBtn", "Col ", " data", 2, 3)
+        out = buf.getvalue()
+        assert "MyBtn" in out
+        assert "showhideall(0, 'Col 0 data', 1)" in out
+        assert "showhideall(1, 'Col 2 data', 1)" in out
+        assert out.startswith("<button")
+
+
+class TestUseAllButtons:
+    def test_group_use_all_buttons_header_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Additional 0 Laps_0" in content
+        assert "Rank(Lap)" in content
+        assert "showhideall" in content
+
+    def test_group_use_all_buttons_data_row_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Additional 0 Laps_1" in content
+        assert "Additional 0 Laps_2" in content
+
+    def test_group_use_all_buttons_lap_finish_header(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        cfg.show_lap_finish = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Lap " in content
+        assert "Rank(Lap)" in content
+
+    def test_group_use_buttons_center_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario(n_cp=1)
+        cfg.use_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Lap 0 splits" in content
+        assert "showhideall" in content
+
+    def test_group_use_all_buttons_empty_lap_cell(self) -> None:
+        t0 = _CP_BASE + 3600
+        start_list = [
+            StartProtocolElement.from_line("1#Alice#G#2#1#1990#T#C##0 00:00:00.000#"),
+            StartProtocolElement.from_line("2#Bob#G#2#1#1985#T#C##0 00:00:00.000#"),
+        ]
+        group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+        finish_list = [
+            FinishCompetitorElement(
+                competitor_id="1", seconds=t0 + 300, action="nextLap"
+            ),
+            FinishCompetitorElement(
+                competitor_id="1", seconds=t0 + 650, action="finish"
+            ),
+            # Bob finishes only lap 1 (DNF after)
+            FinishCompetitorElement(
+                competitor_id="2", seconds=t0 + 310, action="nextLap"
+            ),
+        ]
+        cfg = RaceConfig()
+        cfg.show_lap_times = True
+        cfg.use_all_buttons = True
+        cfg.print_dnf = True
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        # Bob DNF: lap 2 additional-stats cell should exist but be empty
+        assert "Additional 1 Laps" in content
+
+    def test_absolute_use_all_buttons_header_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "0_Additional 0 Laps_0" in content
+        assert "Rank(Lap)" in content
+
+    def test_absolute_use_all_buttons_data_row_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "0_Additional 0 Laps_1" in content
+
+    def test_absolute_use_all_buttons_lap_finish(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario()
+        cfg.use_all_buttons = True
+        cfg.show_lap_finish = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Rank(Lap)" in content
+
+    def test_group_cp_splits_id_in_data_row(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario(n_cp=1)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "0_Lap 0 splits_1" in content
+
+    def test_absolute_cp_splits_id_in_data_row(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario(n_cp=1)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "0_Lap 0 splits_1" in content
+
+    def test_absolute_use_buttons_center_rendered(self) -> None:
+        sorted_proto, group_list, cfg = _make_two_lap_scenario(n_cp=1)
+        cfg.use_buttons = True
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "Lap 0 splits" in content
