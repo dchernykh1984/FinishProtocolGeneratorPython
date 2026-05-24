@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QThread, QTimer, Signal
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -255,6 +256,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Finish Protocol Generator")
+        self.setWindowIcon(QIcon(str(Path(__file__).parent / "app.ico")))
         self._cfg = RaceConfig()
         self._worker: _GenerateWorker | None = None
         self._ftp_worker: _FTPWorker | None = None
