@@ -497,5 +497,37 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["use_all_buttons_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "WeatherLabel":
+        v = nxt()
+        if v is not None:
+            result["weather_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "TrackLabel":
+        v = nxt()
+        if v is not None:
+            result["track_conditions_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "OrganizerLabel":
+        v = nxt()
+        if v is not None:
+            result["organizer_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "OverallResultsLabel":
+        v = nxt()
+        if v is not None:
+            result["overall_results_label"] = v
 
     return result

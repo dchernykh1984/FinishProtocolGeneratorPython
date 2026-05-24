@@ -59,6 +59,10 @@ class RaceConfig:
     bottom_text: str = ""
     referee_label: str = "Referee"
     secretary_label: str = "Secretary"
+    weather_label: str = "Weather"
+    track_conditions_label: str = "Track"
+    overall_results_label: str = "Overall results"
+    organizer_label: str = "Organizer"
 
     n_signs_after_point: int = 1
     minimal_time_for_lap: int = 0
