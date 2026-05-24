@@ -82,7 +82,9 @@ class RaceConfig:
     show_group: bool = True
     show_lap_times: bool = True
     show_finish_time: bool = True
+    finish_time_label: str = "Time"
     show_time_difference: bool = True
+    time_difference_label: str = "(gap)"
     show_additional_info: bool = False
     show_time_shift: bool = False
     show_n_finished_laps: bool = False

@@ -267,9 +267,12 @@ def write_group_protocol(  # noqa: C901
                 buf.write("</B></td>\n")
         if cfg.show_finish_time:
             buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-            buf.write("<B><NOBR>Time<BR>")
+            buf.write(f"<B><NOBR>{cfg.finish_time_label}<BR>")
             if cfg.show_time_difference:
-                buf.write(f"{st.additional_text_top_style}(gap)</FONT></NOBR><BR>")
+                buf.write(
+                    f"{st.additional_text_top_style}"
+                    f"{cfg.time_difference_label}</FONT></NOBR><BR>"
+                )
             if cfg.show_n_finished_laps:
                 buf.write('<FONT SIZE="3">(laps)</FONT></NOBR>')
             buf.write("</B></td>\n")
@@ -580,9 +583,11 @@ def write_absolute_protocol(  # noqa: C901
             buf.write("</B></td>\n")
     if cfg.show_finish_time:
         buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-        buf.write("<B>Time<BR>")
+        buf.write(f"<B>{cfg.finish_time_label}<BR>")
         if cfg.show_time_difference:
-            buf.write(f"{st.additional_text_top_style}(gap)</FONT></B>")
+            buf.write(
+                f"{st.additional_text_top_style}{cfg.time_difference_label}</FONT></B>"
+            )
         if cfg.show_n_finished_laps:
             buf.write('<FONT SIZE="3">(laps)</FONT></NOBR>')
         buf.write("</B></td>\n")

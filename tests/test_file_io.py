@@ -343,6 +343,31 @@ class TestLoadConfigFile:
         cfg = load_config_file(path)
         assert cfg["race_type"] == "Mass/Splitted (Spiridonov)"
 
+    def test_finish_time_labels(self) -> None:
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "Time Difference",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "FinishTimeLabel",
+            "My Time Label",
+            "TimeDifferenceLabel",
+            "My Gap Label",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["show_finish_time"] == "1"
+        assert cfg["finish_time_label"] == "My Time Label"
+        assert cfg["show_time_difference"] == "1"
+        assert cfg["time_difference_label"] == "My Gap Label"
+
     def test_full_cpp_format(self) -> None:
         """Exercise all optional sections in a single complete-format file."""
         lines = [
@@ -412,6 +437,10 @@ class TestLoadConfigFile:
             "Download",
             "300",
             "Footer text",
+            "FinishTimeLabel",
+            "Finish time",
+            "TimeDifferenceLabel",
+            "(gap from ldr)",
         ]
         path = _tmp("\n".join(lines) + "\n")
         cfg = load_config_file(path)
@@ -436,7 +465,9 @@ class TestLoadConfigFile:
         assert cfg["upload_groups"] == "1"
         assert cfg["upload_absolute"] == "1"
         assert cfg["show_finish_time"] == "1"
+        assert cfg["finish_time_label"] == "Finish time"
         assert cfg["show_time_difference"] == "1"
+        assert cfg["time_difference_label"] == "(gap from ldr)"
         assert cfg["show_n_finished_laps"] == "1"
         assert cfg["show_group"] == "1"
         assert cfg["group_label"] == "Grp"
