@@ -274,7 +274,7 @@ def write_group_protocol(  # noqa: C901
                     f"{cfg.time_difference_label}</FONT></NOBR><BR>"
                 )
             if cfg.show_n_finished_laps:
-                buf.write('<FONT SIZE="3">(laps)</FONT></NOBR>')
+                buf.write(f'<FONT SIZE="3">{cfg.n_finished_laps_label}</FONT>')
             buf.write("</B></td>\n")
         if cfg.show_additional_info:
             buf.write(
@@ -589,7 +589,8 @@ def write_absolute_protocol(  # noqa: C901
                 f"{st.additional_text_top_style}{cfg.time_difference_label}</FONT></B>"
             )
         if cfg.show_n_finished_laps:
-            buf.write('<FONT SIZE="3">(laps)</FONT></NOBR>')
+            prefix = "<BR>" if cfg.show_time_difference else ""
+            buf.write(f'{prefix}<FONT SIZE="3">{cfg.n_finished_laps_label}</FONT>')
         buf.write("</B></td>\n")
     if cfg.show_additional_info:
         buf.write(

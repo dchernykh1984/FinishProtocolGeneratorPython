@@ -429,5 +429,13 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["time_difference_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "NFinishedLapsLabel":
+        v = nxt()
+        if v is not None:
+            result["n_finished_laps_label"] = v
 
     return result
