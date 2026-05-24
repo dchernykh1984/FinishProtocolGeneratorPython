@@ -1458,30 +1458,30 @@ class MainWindow(QMainWindow):
             self._apply_template()
 
     def _sync_named_widgets(self, cfg: RaceConfig) -> None:
-        for w in self.findChildren(QLineEdit):
-            name = w.objectName()
+        for w_le in self.findChildren(QLineEdit):
+            name = w_le.objectName()
             if name and hasattr(cfg, name):
-                w.blockSignals(True)
-                w.setText(str(getattr(cfg, name) or ""))
-                w.blockSignals(False)
-        for w in self.findChildren(QSpinBox):
-            name = w.objectName()
+                w_le.blockSignals(True)
+                w_le.setText(str(getattr(cfg, name) or ""))
+                w_le.blockSignals(False)
+        for w_sb in self.findChildren(QSpinBox):
+            name = w_sb.objectName()
             if name and hasattr(cfg, name):
-                w.blockSignals(True)
-                w.setValue(int(getattr(cfg, name) or 0))
-                w.blockSignals(False)
-        for w in self.findChildren(QDoubleSpinBox):
-            name = w.objectName()
+                w_sb.blockSignals(True)
+                w_sb.setValue(int(getattr(cfg, name) or 0))
+                w_sb.blockSignals(False)
+        for w_dsb in self.findChildren(QDoubleSpinBox):
+            name = w_dsb.objectName()
             if name and hasattr(cfg, name):
-                w.blockSignals(True)
-                w.setValue(float(getattr(cfg, name) or 0.0))
-                w.blockSignals(False)
-        for w in self.findChildren(QCheckBox):
-            name = w.objectName()
+                w_dsb.blockSignals(True)
+                w_dsb.setValue(float(getattr(cfg, name) or 0.0))
+                w_dsb.blockSignals(False)
+        for w_cb in self.findChildren(QCheckBox):
+            name = w_cb.objectName()
             if name and hasattr(cfg, name):
-                w.blockSignals(True)
-                w.setChecked(bool(getattr(cfg, name)))
-                w.blockSignals(False)
+                w_cb.blockSignals(True)
+                w_cb.setChecked(bool(getattr(cfg, name)))
+                w_cb.blockSignals(False)
 
     def _sync_ui_from_cfg(self) -> None:
         cfg = self._cfg
@@ -1495,7 +1495,9 @@ class MainWindow(QMainWindow):
             self._spin_refresh.setValue(cfg.auto_refresh_interval or 30)
             self._spin_refresh.blockSignals(False)
         if hasattr(self, "_chk_refresh"):
+            self._chk_refresh.blockSignals(True)
             self._chk_refresh.setChecked(cfg.auto_refresh_enabled)
+            self._chk_refresh.blockSignals(False)
         if hasattr(self, "_combo_scl_action"):
             self._combo_scl_action.setEnabled(cfg.use_start_check_list)
         if hasattr(self, "_spin_srp"):
