@@ -576,7 +576,7 @@ def write_group_protocol(  # noqa: C901
     _write_footer(buf, cfg)
 
     with Path(path).open("w", encoding="utf-8") as out:
-        out.write(buf.getvalue())
+        out.write(buf.getvalue() + "\n")
 
     if cfg.generate_text_protocol_effective():
         txt_path = path + ".txt"
@@ -996,4 +996,4 @@ def write_absolute_protocol(  # noqa: C901
     _write_footer(buf, cfg)
 
     with Path(path).open("w", encoding="utf-8") as out:
-        out.write(buf.getvalue())
+        out.write(buf.getvalue() + "\n")
