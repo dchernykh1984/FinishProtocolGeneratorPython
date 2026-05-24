@@ -74,7 +74,7 @@ class _FTPWorker(QThread):
                 if not cfg.n_remote_points or not cfg.remote_points_path:
                     continue
                 for i in range(1, cfg.n_remote_points + 1):
-                    local = cfg.remote_points_path + f"results_{i}.txt"
+                    local = str(Path(cfg.remote_points_path) / f"results_{i}.txt")
                     self.log_message.emit(f"Downloading remote point {i}...")
                     if (
                         download_file(
@@ -199,7 +199,9 @@ class _GenerateWorker(QThread):
             if cfg.n_remote_points > 0 and cfg.remote_points_path:
                 self.log_message.emit("Reading remote control points...")
                 for i in range(1, cfg.n_remote_points + 1):
-                    pts = read_finish_times(cfg.remote_points_path + f"results_{i}.txt")
+                    pts = read_finish_times(
+                        str(Path(cfg.remote_points_path) / f"results_{i}.txt")
+                    )
                     remote_points.append(pts)
                     self.log_message.emit(f"  Point {i}: {len(pts)} records")
 
@@ -366,7 +368,7 @@ class MainWindow(QMainWindow):
                 self, "Select directory for remote points"
             )
             if p:
-                e.setText(p + "/")
+                e.setText(str(Path(p)))
 
         btn_rp = QPushButton("Open")
         btn_rp.setFixedWidth(60)
