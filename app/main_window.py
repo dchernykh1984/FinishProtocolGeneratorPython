@@ -428,12 +428,15 @@ class MainWindow(QMainWindow):
             ("Race name:", "race_name"),
             ("Date:", "race_date"),
             ("Place:", "race_place"),
+            ("Weather label:", "weather_label"),
             ("Weather:", "weather"),
             ("Main referee:", "main_referee"),
             ("Additional referee:", "additional_referee"),
             ("Referee column header:", "referee_label"),
             ("Secretary column header:", "secretary_label"),
+            ("Organizer label:", "organizer_label"),
             ("Organizer:", "organizer"),
+            ("Track conditions label:", "track_conditions_label"),
             ("Track conditions:", "track_conditions"),
             ("Sponsor:", "sponsor"),
             ("Bottom text:", "bottom_text"),
@@ -504,6 +507,15 @@ class MainWindow(QMainWindow):
                 "Show group (absolute protocol)", "show_group", "group_label"
             )
         )
+        row_orl = QHBoxLayout()
+        row_orl.addWidget(QLabel("Absolute protocol title:"), 1)
+        edit_orl = QLineEdit(self._cfg.overall_results_label)
+        edit_orl.setObjectName("overall_results_label")
+        edit_orl.textChanged.connect(
+            lambda t: setattr(self._cfg, "overall_results_label", t)
+        )
+        row_orl.addWidget(edit_orl, 2)
+        ly.addLayout(row_orl)
         ly.addLayout(
             _check_label_row(
                 "Show additional info", "show_additional_info", "additional_info_label"
@@ -1022,6 +1034,10 @@ class MainWindow(QMainWindow):
             lines += ["ButtonsLabel", cfg.use_buttons_label]
         if cfg.use_all_buttons:
             lines += ["AllButtonsLabel", cfg.use_all_buttons_label]
+        lines += ["WeatherLabel", cfg.weather_label]
+        lines += ["TrackLabel", cfg.track_conditions_label]
+        lines += ["OrganizerLabel", cfg.organizer_label]
+        lines += ["OverallResultsLabel", cfg.overall_results_label]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1175,6 +1191,12 @@ class MainWindow(QMainWindow):
             cfg.use_all_buttons_label = _str(
                 "AllButtonsLabel", cfg.use_all_buttons_label
             )
+            cfg.weather_label = _str("WeatherLabel", cfg.weather_label)
+            cfg.track_conditions_label = _str("TrackLabel", cfg.track_conditions_label)
+            cfg.organizer_label = _str("OrganizerLabel", cfg.organizer_label)
+            cfg.overall_results_label = _str(
+                "OverallResultsLabel", cfg.overall_results_label
+            )
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
@@ -1227,6 +1249,10 @@ class MainWindow(QMainWindow):
             cfg.n_finished_laps_label = "(laps)"
             cfg.use_buttons_label = RaceConfig().use_buttons_label
             cfg.use_all_buttons_label = RaceConfig().use_all_buttons_label
+            cfg.weather_label = RaceConfig().weather_label
+            cfg.track_conditions_label = RaceConfig().track_conditions_label
+            cfg.organizer_label = RaceConfig().organizer_label
+            cfg.overall_results_label = RaceConfig().overall_results_label
 
             def _ds(k: str, default: str = "") -> str:
                 return d.get(k, default)
@@ -1377,6 +1403,14 @@ class MainWindow(QMainWindow):
             cfg.use_buttons_label = _ds("use_buttons_label", cfg.use_buttons_label)
             cfg.use_all_buttons_label = _ds(
                 "use_all_buttons_label", cfg.use_all_buttons_label
+            )
+            cfg.weather_label = _ds("weather_label", cfg.weather_label)
+            cfg.track_conditions_label = _ds(
+                "track_conditions_label", cfg.track_conditions_label
+            )
+            cfg.organizer_label = _ds("organizer_label", cfg.organizer_label)
+            cfg.overall_results_label = _ds(
+                "overall_results_label", cfg.overall_results_label
             )
 
         self._apply_template()

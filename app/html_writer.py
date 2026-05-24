@@ -124,15 +124,19 @@ def _write_header(
             f"{s}<B><CENTER>{cfg.race_date}, {cfg.race_place}</CENTER></B></FONT><BR>"
         )
     if cfg.track_conditions:
-        f.write(f"{s}<B><CENTER>Track: {cfg.track_conditions}</CENTER></B></FONT><BR>")
+        f.write(
+            f"{s}<B><CENTER>{cfg.track_conditions_label}: {cfg.track_conditions}</CENTER></B></FONT><BR>"  # noqa: E501
+        )
     if cfg.weather:
-        f.write(f"{s}<B><CENTER>Weather: {cfg.weather}</CENTER></B></FONT><BR>")
+        f.write(
+            f"{s}<B><CENTER>{cfg.weather_label}: {cfg.weather}</CENTER></B></FONT><BR>"
+        )
 
 
 def _write_footer(f: TextIO, cfg: RaceConfig) -> None:
     if cfg.organizer:
         f.write(
-            f'<FONT SIZE="3" COLOR=""><B><p align="right">Organizer: {cfg.organizer}</p></B></FONT><BR>\n\n'  # noqa: E501
+            f'<FONT SIZE="3" COLOR=""><B><p align="right">{cfg.organizer_label}: {cfg.organizer}</p></B></FONT>\n'  # noqa: E501
         )
     if cfg.main_referee:
         f.write(
@@ -695,7 +699,7 @@ def write_absolute_protocol(  # noqa: C901
     gns = st.group_name_style
     ts = st.table_style
     buf.write(
-        f"<BR>{gns}<B><CENTER><U>Overall results</U></CENTER></B></FONT>"
+        f"<BR>{gns}<B><CENTER><U>{cfg.overall_results_label}</U></CENTER></B></FONT>"
         f'<BR><table style="{ts}"'
     )
     if cfg.stretch:

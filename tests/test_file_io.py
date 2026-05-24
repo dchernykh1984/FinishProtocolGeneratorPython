@@ -554,6 +554,56 @@ class TestLoadConfigFile:
         assert cfg["use_buttons_label"] == "My btn"
         assert "use_all_buttons_label" not in cfg
 
+    def test_header_labels(self) -> None:
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "WeatherLabel",
+            "Pogoda",
+            "TrackLabel",
+            "Trassa",
+            "OrganizerLabel",
+            "Organizator",
+            "OverallResultsLabel",
+            "Absolut",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["weather_label"] == "Pogoda"
+        assert cfg["track_conditions_label"] == "Trassa"
+        assert cfg["organizer_label"] == "Organizator"
+        assert cfg["overall_results_label"] == "Absolut"
+
+    def test_header_labels_partial(self) -> None:
+        """Only WeatherLabel present - rest absent (EOF paths)."""
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "WeatherLabel",
+            "Mypogoda",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["weather_label"] == "Mypogoda"
+        assert "track_conditions_label" not in cfg
+        assert "overall_results_label" not in cfg
+
 
 class TestLoadTemplate:
     def test_all_fields(self) -> None:

@@ -66,3 +66,11 @@ TemplateFile
 data/template.html
 AllButtonsLabel
 Показать/Скрыть<BR>Доп.статистику
+WeatherLabel
+Погодные условия
+TrackLabel
+Состояние трассы
+OrganizerLabel
+Организатор соревнований
+OverallResultsLabel
+Абсолютный протокол
