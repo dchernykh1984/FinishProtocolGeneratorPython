@@ -434,8 +434,6 @@ class MainWindow(QMainWindow):
             ("Organizer:", "organizer"),
             ("Track conditions:", "track_conditions"),
             ("Sponsor:", "sponsor"),
-            ("Lap name:", "lap_name"),
-            ("Lap additional info:", "lap_additional_info"),
             ("Bottom text:", "bottom_text"),
         ]
         for label, attr in fields:
@@ -526,8 +524,18 @@ class MainWindow(QMainWindow):
             )
         )
 
+        ly.addLayout(_check_label_row("Show lap times", "show_lap_times", "lap_name"))
+        row_lai = QHBoxLayout()
+        row_lai.addWidget(QLabel("Lap additional info label:"), 1)
+        edit_lai = QLineEdit(self._cfg.lap_additional_info)
+        edit_lai.setObjectName("lap_additional_info")
+        edit_lai.textChanged.connect(
+            lambda t: setattr(self._cfg, "lap_additional_info", t)
+        )
+        row_lai.addWidget(edit_lai, 2)
+        ly.addLayout(row_lai)
+
         for chk_text, attr in [
-            ("Show lap times", "show_lap_times"),
             ("Show number of finished laps", "show_n_finished_laps"),
             ("Show lap finish cumulative time", "show_lap_finish"),
             ("Hide empty lap columns", "hide_empty_columns"),
