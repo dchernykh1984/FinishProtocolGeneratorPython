@@ -254,7 +254,7 @@ class _GenerateWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Finish Protocol Generator (pulse-sports.ru)")
+        self.setWindowTitle("Finish Protocol Generator")
         self._cfg = RaceConfig()
         self._worker: _GenerateWorker | None = None
         self._ftp_worker: _FTPWorker | None = None
