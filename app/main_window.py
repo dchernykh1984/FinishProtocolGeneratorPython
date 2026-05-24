@@ -28,9 +28,10 @@ from app.calculator import (
     check_start_protocol,
     generate_sorted_protocol,
 )
-from app.config import ALL_RACE_TYPES, RaceConfig
+from app.config import ALL_RACE_TYPES, HtmlStyles, RaceConfig
 from app.file_io import (
     load_config_file,
+    load_template,
     read_finish_times,
     read_group_times,
     read_start_protocol,
@@ -316,6 +317,7 @@ class MainWindow(QMainWindow):
         ly.addLayout(
             _file_row("Absolute protocol (output):", "absolute_protocol_file", True)
         )
+        ly.addLayout(_file_row("HTML styles template:", "template_file"))
 
         # remote control points
         row_rp = QHBoxLayout()
@@ -762,6 +764,7 @@ class MainWindow(QMainWindow):
                 "Download actions are set but FTP address is empty.",
             )
             return
+        self._apply_template()
         self._log_list.clear()
         self._log_file_path = (
             self._init_log_file() if self._cfg.use_file_logger else None
@@ -1002,6 +1005,7 @@ class MainWindow(QMainWindow):
                 lines += ["TimeDifferenceLabel", cfg.time_difference_label]
         if cfg.show_n_finished_laps:
             lines += ["NFinishedLapsLabel", cfg.n_finished_laps_label]
+        lines += ["TemplateFile", cfg.template_file]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1150,6 +1154,7 @@ class MainWindow(QMainWindow):
             cfg.lap_name = _str("LapName", cfg.lap_name)
             cfg.lap_additional_info = _str("LapAdditionalInfo", cfg.lap_additional_info)
             cfg.bottom_text = _str("BottomText", cfg.bottom_text)
+            cfg.template_file = _str("TemplateFile", cfg.template_file)
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
@@ -1346,7 +1351,9 @@ class MainWindow(QMainWindow):
                 "start_registration_period", cfg.start_registration_period
             )
             cfg.bottom_text = _ds("bottom_text", cfg.bottom_text)
+            cfg.template_file = _ds("template_file", cfg.template_file)
 
+        self._apply_template()
         self._sync_ui_from_cfg()
 
     def _on_load_race_info(self) -> None:
@@ -1361,6 +1368,8 @@ class MainWindow(QMainWindow):
         auto_path = Path("fpg_info.txt")
         if auto_path.exists():
             self._load_race_info_from_path(str(auto_path))
+        else:
+            self._apply_template()
 
     def _sync_named_widgets(self, cfg: RaceConfig) -> None:
         for w in self.findChildren(QLineEdit):
@@ -1420,6 +1429,10 @@ class MainWindow(QMainWindow):
                 combo.blockSignals(True)
                 combo.setCurrentText(getattr(cfg, attr))
                 combo.blockSignals(False)
+
+    def _apply_template(self) -> None:
+        st = load_template(self._cfg.template_file) if self._cfg.template_file else None
+        self._cfg.styles = st if st is not None else HtmlStyles()
 
     def _search_log(self) -> None:
         term = self._log_search.text().lower()

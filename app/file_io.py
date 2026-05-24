@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.config import HtmlStyles
 from app.models import (
     FinishCompetitorElement,
     GroupStartElement,
@@ -32,6 +33,41 @@ def _read_all_lines(path: str) -> list[str]:
         except UnicodeDecodeError:
             continue
     return []
+
+
+_TEMPLATE_FIELDS = (
+    "table_style",
+    "top_line_style",
+    "even_line_style",
+    "odd_line_style",
+    "group_name_style",
+    "additional_text_top_style",
+    "additional_text_style",
+    "top_text_style",
+    "additional_info_top_style",
+    "additional_info_style",
+    "common_style_text",
+)
+
+
+def load_template(path: str) -> HtmlStyles | None:
+    """Load an HTML styles template file (C++ positional format, 11 lines)."""
+    p = Path(path)
+    lines: list[str] = []
+    for enc in ("utf-8", "cp1251", "latin-1"):
+        try:
+            lines = p.read_text(encoding=enc).splitlines()
+            break
+        except UnicodeDecodeError, OSError:
+            continue
+    else:
+        return None
+    while len(lines) < len(_TEMPLATE_FIELDS):
+        lines.append("")
+    st = HtmlStyles()
+    for field, value in zip(_TEMPLATE_FIELDS, lines, strict=False):
+        setattr(st, field, value)
+    return st
 
 
 def read_start_protocol(
@@ -437,5 +473,13 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["n_finished_laps_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "TemplateFile":
+        v = nxt()
+        if v is not None:
+            result["template_file"] = v
 
     return result

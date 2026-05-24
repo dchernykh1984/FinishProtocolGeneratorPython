@@ -45,6 +45,7 @@ class RaceConfig:
     finish_time_file: str = "results.txt"
     group_protocol_file: str = "gr.html"
     absolute_protocol_file: str = "abs.html"
+    template_file: str = "template.html"
 
     race_name: str = ""
     race_date: str = ""
