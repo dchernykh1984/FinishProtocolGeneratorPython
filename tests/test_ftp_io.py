@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import ftplib
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.ftp_io import merge_files, similar_strings
+from app.ftp_io import merge_files, similar_strings, upload_file
 
 
 class TestSimilarStrings:
@@ -146,3 +148,108 @@ class TestMergeFiles:
         content = Path(to_f).read_text(encoding="utf-8")
         assert ivan in content
         assert maria in content
+
+
+class TestUploadFile:
+    """Unit tests for upload_file \u2014 ftplib calls are mocked, no real network."""
+
+    def _local(self, content: str = "data") -> str:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+            f.write(content)
+            return f.name
+
+    def test_returns_minus1_when_ftp_path_empty(self) -> None:
+        assert upload_file("", "user", "pass", self._local()) == -1
+
+    def test_returns_minus1_when_local_path_empty(self) -> None:
+        assert upload_file("ftp://host", "user", "pass", "") == -1
+
+    def test_returns_minus1_on_connect_error(self) -> None:
+        local = self._local()
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(
+                side_effect=OSError("connection refused")
+            )
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            result = upload_file("ftp://bad.host", "user", "pass", local)
+        assert result == -1
+
+    def test_returns_minus1_on_login_error(self) -> None:
+        local = self._local()
+        mock_ftp = MagicMock()
+        mock_ftp.connect.return_value = None
+        mock_ftp.login.side_effect = ftplib.error_perm("530 Login incorrect")  # noqa: S321
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(return_value=mock_ftp)
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            result = upload_file("ftp://host", "bad_user", "bad_pass", local)
+        assert result == -1
+
+    def test_returns_minus1_on_missing_local_file(self) -> None:
+        result = upload_file(
+            "ftp://host", "user", "pass", "/nonexistent/path/file.html"
+        )
+        assert result == -1
+
+    def test_returns_0_on_success(self) -> None:
+        local = self._local()
+        mock_ftp = MagicMock()
+        mock_ftp.connect.return_value = None
+        mock_ftp.login.return_value = None
+        mock_ftp.storbinary.return_value = None
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(return_value=mock_ftp)
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            result = upload_file("ftp://host/remote/", "user", "pass", local)
+        assert result == 0
+        mock_ftp.storbinary.assert_called_once()
+
+    def test_invalid_url_returns_minus1(self) -> None:
+        local = self._local()
+        result = upload_file("not_a_url\x00\x01", "user", "pass", local)
+        assert result == -1
+
+    def test_errors_out_populated_with_host_and_exception(self) -> None:
+        local = self._local()
+        errors: list[str] = []
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(
+                side_effect=OSError("connection refused")
+            )
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            upload_file("ftp://bad.host/uploads/", "user", "pass", local, errors)
+        assert len(errors) == 1
+        assert "bad.host" in errors[0]
+        assert "connection refused" in errors[0]
+
+    def test_errors_out_contains_filename(self) -> None:
+        local = self._local()
+        errors: list[str] = []
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(
+                side_effect=OSError("550 No such file")
+            )
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            upload_file("ftp://host/remote/", "user", "pass", local, errors)
+        assert len(errors) == 1
+        assert ".html" in errors[0]
+
+    def test_errors_out_empty_on_success(self) -> None:
+        local = self._local()
+        errors: list[str] = []
+        mock_ftp = MagicMock()
+        mock_ftp.connect.return_value = None
+        mock_ftp.login.return_value = None
+        mock_ftp.storbinary.return_value = None
+        with patch("ftplib.FTP") as mock_ftp_cls:
+            mock_ftp_cls.return_value.__enter__ = MagicMock(return_value=mock_ftp)
+            mock_ftp_cls.return_value.__exit__ = MagicMock(return_value=False)
+            result = upload_file("ftp://host/remote/", "user", "pass", local, errors)
+        assert result == 0
+        assert errors == []
+
+    def test_errors_out_empty_path_message(self) -> None:
+        errors: list[str] = []
+        upload_file("", "user", "pass", self._local(), errors)
+        assert len(errors) == 1
+        assert "empty" in errors[0].lower()
