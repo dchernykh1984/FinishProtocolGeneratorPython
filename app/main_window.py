@@ -535,8 +535,14 @@ class MainWindow(QMainWindow):
         row_lai.addWidget(edit_lai, 2)
         ly.addLayout(row_lai)
 
+        ly.addLayout(
+            _check_label_row(
+                "Show number of finished laps",
+                "show_n_finished_laps",
+                "n_finished_laps_label",
+            )
+        )
         for chk_text, attr in [
-            ("Show number of finished laps", "show_n_finished_laps"),
             ("Show lap finish cumulative time", "show_lap_finish"),
             ("Hide empty lap columns", "hide_empty_columns"),
             ("Stretch table to page width", "stretch"),
@@ -994,6 +1000,8 @@ class MainWindow(QMainWindow):
             lines += ["FinishTimeLabel", cfg.finish_time_label]
             if cfg.show_time_difference:
                 lines += ["TimeDifferenceLabel", cfg.time_difference_label]
+        if cfg.show_n_finished_laps:
+            lines += ["NFinishedLapsLabel", cfg.n_finished_laps_label]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1124,6 +1132,9 @@ class MainWindow(QMainWindow):
             cfg.show_n_finished_laps = _bool(
                 "ShowNFinishedLaps", cfg.show_n_finished_laps
             )
+            cfg.n_finished_laps_label = _str(
+                "NFinishedLapsLabel", cfg.n_finished_laps_label
+            )
             cfg.show_lap_finish = _bool("ShowLapFinish", cfg.show_lap_finish)
             cfg.hide_empty_columns = _bool("HideEmptyColumns", cfg.hide_empty_columns)
             cfg.stretch = _bool("Stretch", cfg.stretch)
@@ -1188,6 +1199,7 @@ class MainWindow(QMainWindow):
             cfg.additional_info_label = ""
             cfg.finish_time_label = "Time"
             cfg.time_difference_label = "(gap)"
+            cfg.n_finished_laps_label = "(laps)"
 
             def _ds(k: str, default: str = "") -> str:
                 return d.get(k, default)
@@ -1268,6 +1280,9 @@ class MainWindow(QMainWindow):
             )
             cfg.show_n_finished_laps = _db(
                 "show_n_finished_laps", cfg.show_n_finished_laps
+            )
+            cfg.n_finished_laps_label = _ds(
+                "n_finished_laps_label", cfg.n_finished_laps_label
             )
             cfg.show_group = _db("show_group", cfg.show_group)
             cfg.group_label = _ds("group_label", cfg.group_label)

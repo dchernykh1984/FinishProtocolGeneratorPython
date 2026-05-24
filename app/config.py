@@ -88,6 +88,7 @@ class RaceConfig:
     show_additional_info: bool = False
     show_time_shift: bool = False
     show_n_finished_laps: bool = False
+    n_finished_laps_label: str = "(laps)"
     show_lap_finish: bool = False
     hide_empty_columns: bool = False
     stretch: bool = False
