@@ -275,7 +275,6 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
             tok = nxt()
             if tok is None:
                 return result
-
     # optional "Group" block
     if tok == "Group":
         result["show_group"] = "1"
@@ -412,7 +411,23 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if tok is None:
             return result
 
-    # always: bottom_text (last field)
+    # always: bottom_text (last C++ field)
     result["bottom_text"] = tok
+
+    # Python-only label extensions (after bottom_text so C++ ignores them)
+    tok = nxt()
+    if tok is None:
+        return result
+    if tok == "FinishTimeLabel":
+        v = nxt()
+        if v is not None:
+            result["finish_time_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+    if tok == "TimeDifferenceLabel":
+        v = nxt()
+        if v is not None:
+            result["time_difference_label"] = v
 
     return result

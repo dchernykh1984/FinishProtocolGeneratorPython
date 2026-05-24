@@ -515,10 +515,19 @@ class MainWindow(QMainWindow):
             )
         )
 
+        ly.addLayout(
+            _check_label_row(
+                "Show finish time", "show_finish_time", "finish_time_label"
+            )
+        )
+        ly.addLayout(
+            _check_label_row(
+                "Show time difference", "show_time_difference", "time_difference_label"
+            )
+        )
+
         for chk_text, attr in [
             ("Show lap times", "show_lap_times"),
-            ("Show finish time", "show_finish_time"),
-            ("Show time difference", "show_time_difference"),
             ("Show number of finished laps", "show_n_finished_laps"),
             ("Show lap finish cumulative time", "show_lap_finish"),
             ("Hide empty lap columns", "hide_empty_columns"),
@@ -969,8 +978,14 @@ class MainWindow(QMainWindow):
                 f"{cfg.start_registration_period:g}",
             ]
 
-        # always: bottom text (last field)
+        # always: bottom text (last C++ field)
         lines.append(cfg.bottom_text)
+
+        # Python-only label extensions (after bottom_text so C++ ignores them)
+        if cfg.show_finish_time:
+            lines += ["FinishTimeLabel", cfg.finish_time_label]
+            if cfg.show_time_difference:
+                lines += ["TimeDifferenceLabel", cfg.time_difference_label]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1087,8 +1102,12 @@ class MainWindow(QMainWindow):
             cfg.show_group = _bool("ShowGroup", cfg.show_group)
             cfg.show_lap_times = _bool("ShowLapTimes", cfg.show_lap_times)
             cfg.show_finish_time = _bool("ShowFinishTime", cfg.show_finish_time)
+            cfg.finish_time_label = _str("FinishTimeLabel", cfg.finish_time_label)
             cfg.show_time_difference = _bool(
                 "ShowTimeDifference", cfg.show_time_difference
+            )
+            cfg.time_difference_label = _str(
+                "TimeDifferenceLabel", cfg.time_difference_label
             )
             cfg.show_additional_info = _bool(
                 "ShowAdditionalInfo", cfg.show_additional_info
@@ -1159,6 +1178,8 @@ class MainWindow(QMainWindow):
             cfg.place_label = ""
             cfg.time_shift_label = ""
             cfg.additional_info_label = ""
+            cfg.finish_time_label = "Time"
+            cfg.time_difference_label = "(gap)"
 
             def _ds(k: str, default: str = "") -> str:
                 return d.get(k, default)
@@ -1230,8 +1251,12 @@ class MainWindow(QMainWindow):
             cfg.upload_groups = _db("upload_groups", cfg.upload_groups)
             cfg.upload_absolute = _db("upload_absolute", cfg.upload_absolute)
             cfg.show_finish_time = _db("show_finish_time", cfg.show_finish_time)
+            cfg.finish_time_label = _ds("finish_time_label", cfg.finish_time_label)
             cfg.show_time_difference = _db(
                 "show_time_difference", cfg.show_time_difference
+            )
+            cfg.time_difference_label = _ds(
+                "time_difference_label", cfg.time_difference_label
             )
             cfg.show_n_finished_laps = _db(
                 "show_n_finished_laps", cfg.show_n_finished_laps
