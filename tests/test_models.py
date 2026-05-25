@@ -83,9 +83,9 @@ class TestStartProtocolElement:
         assert sp.start_delay == 0.0
         assert sp.number == 173
 
-    def test_skip_first_lap_increments_laps(self) -> None:
+    def test_skip_first_lap_does_not_change_laps(self) -> None:
         sp = StartProtocolElement.from_line(self._LINE, skip_first_lap=True)
-        assert sp.n_laps == 7
+        assert sp.n_laps == 6
 
     def test_non_numeric_id(self) -> None:
         line = "ABC#Name#Group#3#1#1990#Team#City##0 00:00:00.000#"

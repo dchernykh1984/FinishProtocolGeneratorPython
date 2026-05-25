@@ -82,8 +82,6 @@ class StartProtocolElement:
     ) -> StartProtocolElement:
         f = lambda i: get_field(line, i, sep)  # noqa: E731
         n_laps = to_int(f(3)) or 1
-        if skip_first_lap:
-            n_laps += 1
         try:
             number = int(f(0))
         except ValueError:
