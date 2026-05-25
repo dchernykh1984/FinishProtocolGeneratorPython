@@ -636,12 +636,35 @@ class TestNumberOfTries:
         assert len(protocol) == 1
         return protocol[0]
 
-    def test_exact_tries_no_selection(self) -> None:
-        # n_laps=2 -> n_to_find=4 crossings -> 2 attempts of 10s and 20s
-        # no extra_info -> n_tries_for_result=2, total = 10+20 = 30
-        fp = self._run(n_laps=2, crossing_gaps=[10, 10, 20, 20])
+    def test_exact_tries_all_selected(self) -> None:
+        # n_laps=2, extra_info "2:1,2" -> n_tries_for_result=2, all attempts selected
+        # 2 attempts of 10s and 20s -> total = 10+20 = 30
+        fp = self._run(n_laps=2, crossing_gaps=[10, 10, 20, 20], extra_info="2:1,2")
         assert fp.n_laps_finished == 2
         assert abs(fp.get_total_time() - 30.0) < 0.01
+
+    def test_invalid_extra_info_produces_error(self) -> None:
+        # empty extra_info is invalid in NumberOfTries mode (C++ checkAttemptsString())
+        # calculator overrides n_tries_for_result=0; get_total_time() returns 0
+        from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+        start_t = BASE_T + 3600
+        start_list = [_start_not("1", "G", n_laps=2, extra_info="")]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 10, "nextLap"),
+            _finish("1", start_t + 20, "nextLap"),
+            _finish("1", start_t + 30, "nextLap"),
+            _finish("1", start_t + 50, "nextLap"),
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES)
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        assert any("invalid NumberOfTries" in m for m in log)
+        assert protocol[0].n_tries_for_result == 0
+        assert protocol[0].get_total_time() == 0.0
 
     def test_best_1_of_3(self) -> None:
         # n_laps=3 -> n_to_find=6 -> 3 attempts (30, 10, 20)

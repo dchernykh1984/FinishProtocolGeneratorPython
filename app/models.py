@@ -166,12 +166,26 @@ class FinishProtocolElement:
         self.n_laps_finished: int = 0
 
         # NumberOfTries: extra_info may encode "N:a1,a2,...,ak"
-        _m = re.match(r"^(\d+):", str(start.extra_info))
-        self.n_tries_for_result: int = int(_m.group(1)) if _m else start.n_laps
-        _m2 = re.match(r"^\d+:(.+)$", str(start.extra_info))
-        self._attempt_indices: list[int] = (
-            [int(x) - 1 for x in _m2.group(1).split(",") if x.strip()] if _m2 else []
-        )
+        _attempts_str = str(start.extra_info)
+        _strict = re.match(r"^\d+:\d+(,\d+)*$", _attempts_str)
+        _m = re.match(r"^(\d+):", _attempts_str)
+        if _strict:
+            self.n_tries_for_result: int = int(_m.group(1))  # type: ignore[union-attr]
+            _m2 = re.match(r"^\d+:(.+)$", _attempts_str)
+            self._attempt_indices: list[int] = (
+                [int(x) - 1 for x in _m2.group(1).split(",") if x.strip()]
+                if _m2
+                else []
+            )
+            self._attempts_string_valid: bool = True
+        elif _m:
+            self.n_tries_for_result = 0
+            self._attempt_indices = []
+            self._attempts_string_valid = False
+        else:
+            self.n_tries_for_result = start.n_laps
+            self._attempt_indices = []
+            self._attempts_string_valid = False
 
         sz = start.n_laps + 2
         self.cross_line_times: list[float] = [0.0] * sz
@@ -196,20 +210,26 @@ class FinishProtocolElement:
     def get_total_time(self, _with_penalties: bool = True) -> float:
         if self.n_laps_finished == 0:
             return INF
-        if self.n_laps_finished <= self.n_tries_for_result:
-            return self.finish_lap_times[self.n_laps_finished - 1]
-        # NumberOfTries: pick best N from specific attempt indices or all laps
         if self._attempt_indices:
+            # NumberOfTries explicit list: sum times of completed specified attempts
             times = [
                 self.lap_times[i]
                 for i in self._attempt_indices
                 if 0 <= i < self.n_laps_finished and self.lap_times[i] > 0
             ]
-        else:
-            times = [t for t in self.lap_times[: self.n_laps_finished] if t > 0]
+            return sum(sorted(times)[: self.n_tries_for_result])
+        if self.n_laps_finished <= self.n_tries_for_result:
+            return self.finish_lap_times[self.n_laps_finished - 1]
+        # NumberOfTries without explicit list: sum best N from all completed laps
+        times = [t for t in self.lap_times[: self.n_laps_finished] if t > 0]
         return sum(sorted(times)[: self.n_tries_for_result])
 
     def get_n_successful_tries(self, _with_penalties: bool = True) -> int:
+        if self._attempt_indices:
+            completed = sum(
+                1 for i in self._attempt_indices if i < self.n_laps_finished
+            )
+            return min(completed, self.n_tries_for_result)
         return min(self.n_laps_finished, self.n_tries_for_result)
 
     def get_time_diff(

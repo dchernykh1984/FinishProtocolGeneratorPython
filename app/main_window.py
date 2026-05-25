@@ -169,8 +169,22 @@ class _GenerateWorker(QThread):
                 self.log_message.emit("  Absolute protocol: uploaded")
         return failed, errors
 
+    def _emit_upload_result(
+        self, upload_failed: bool, upload_errors: list[str]
+    ) -> None:
+        if upload_failed:
+            for err in upload_errors:
+                self.log_message.emit(f"  ERROR: {err}")
+        else:
+            self.log_message.emit("Done.")
+
     def run(self) -> None:
         cfg = self._cfg
+        if cfg.is_eliminator_finals():
+            self.error.emit(
+                "Eliminator Finals mode is not implemented in this version."
+            )
+            return
         log: list[str] = []
         try:
             self.log_message.emit("Reading start protocol...")
@@ -244,11 +258,7 @@ class _GenerateWorker(QThread):
             for msg in log:
                 self.log_message.emit(msg)
 
-            if upload_failed:
-                for err in upload_errors:
-                    self.log_message.emit(f"  ERROR: {err}")
-            else:
-                self.log_message.emit("Done.")
+            self._emit_upload_result(upload_failed, upload_errors)
             self.finished_ok.emit()
         except Exception as exc:
             self.error.emit(str(exc))

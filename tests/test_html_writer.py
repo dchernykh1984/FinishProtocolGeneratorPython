@@ -703,10 +703,11 @@ class TestHtmlWriterEdgeCases:
         write_group_protocol(path, sorted_proto, group_list, cfg)
         txt_path = path + ".txt"
         content = Path(txt_path).read_text(encoding="utf-8")
-        assert "Group G" in content
-        assert "A" in content
+        # C++ machine-readable: id#name#group#n_laps#stages#year#team#city#extra#place#
+        assert "1#A#G#1#1#1990#T#C##1#" in content
 
     def test_generate_text_protocol_dsq_dnf(self) -> None:
+        # The text protocol writes ONLY finished, non-DSQ competitors (matching C++)
         start_list = [
             StartProtocolElement.from_line("1#Alice#G#2#1#1990#T#C##0 00:00:00.000#"),
             StartProtocolElement.from_line("2#Bob#G#2#1#1985#T#C##0 00:00:00.000#"),
@@ -734,9 +735,10 @@ class TestHtmlWriterEdgeCases:
         write_group_protocol(path, sorted_proto, group_list, cfg)
         txt_path = path + ".txt"
         content = Path(txt_path).read_text(encoding="utf-8")
+        # Only Alice finished; Bob (DNF) and Eve (DSQ) are excluded from the .txt
         assert "Alice" in content
-        assert "DNF" in content
-        assert "DSQ" in content
+        assert "Bob" not in content
+        assert "Eve" not in content
 
     def test_group_protocol_skip_first_lap_show_time_shift(self) -> None:
         start_list = [
