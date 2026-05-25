@@ -204,6 +204,17 @@ class TestFinishProtocolElement:
         fp.finish_lap_times[2] = 60.0
         assert abs(fp.get_total_time() - 30.0) < 0.01
 
+    def test_get_total_time_attempt_list_partial(self) -> None:
+        # 2:2,3 with only lap 1 done: attempt indices [1,2] not yet reached -> 0.0
+        start = StartProtocolElement.from_line(
+            "1#N#G#3#1#1990#T#C#2:2,3#0 00:00:00.000#"
+        )
+        fp = FinishProtocolElement(start, disable_dnf=False, n_points=0)
+        fp.n_laps_finished = 1
+        fp.lap_times[0] = 30.0
+        fp.finish_lap_times[0] = 30.0
+        assert fp.get_total_time() == 0.0
+
     def test_get_n_successful_tries_capped(self) -> None:
         # n_laps=3, extra_info "2:1,2,3" -> n_tries_for_result=2; 3 finished -> capped at 2  # noqa: E501
         start = StartProtocolElement.from_line(
@@ -214,10 +225,20 @@ class TestFinishProtocolElement:
         assert fp.get_n_successful_tries() == 2
 
     def test_get_n_successful_tries_not_capped(self) -> None:
-        # n_laps=3, no extra_info -> n_tries_for_result=3; 2 finished -> not capped
+        # no extra_info -> _attempt_indices=[], n_tries_for_result=n_laps=3; 2 finished
         start = StartProtocolElement.from_line(
             "1#Name#G#3#1#1990#Team#City##0 00:00:00.000#"
         )
         fp = FinishProtocolElement(start, disable_dnf=False, n_points=0)
         fp.n_laps_finished = 2
         assert fp.get_n_successful_tries() == 2
+
+    def test_get_n_successful_tries_with_attempt_list_partial(self) -> None:
+        # 2:2,3 = best 2 of attempts 2 and 3 (1-indexed -> 0-indexed: [1, 2])
+        # with only 1 lap finished: neither attempt index 1 nor 2 is done -> 0
+        start = StartProtocolElement.from_line(
+            "1#Name#G#3#1#1990#Team#City#2:2,3#0 00:00:00.000#"
+        )
+        fp = FinishProtocolElement(start, disable_dnf=False, n_points=0)
+        fp.n_laps_finished = 1
+        assert fp.get_n_successful_tries() == 0

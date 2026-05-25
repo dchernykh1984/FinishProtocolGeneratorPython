@@ -140,8 +140,20 @@ def calculate_protocol(  # noqa: C901
     n_points = len(remote_points)
     result: list[FinishProtocolElement] = []
 
+    if cfg.use_spiridonov_coefficients() and n_points > 0:
+        log.append(
+            "WARNING: Spiridonov with control points: split times will be incorrect"
+        )
+
     for start in start_list:
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
+
+        if cfg.is_number_of_tries() and not fp._attempts_string_valid:
+            log.append(
+                f"ERROR: {fp.competitor_id} invalid NumberOfTries format: "
+                f"{fp.extra_info!r}"
+            )
+            fp.n_tries_for_result = 0
 
         # --- set crossLineTimes[0] (start time) ---
         if cfg.skip_first_lap_effective():
@@ -178,12 +190,31 @@ def calculate_protocol(  # noqa: C901
                 fp.disqualified = True
 
         # --- DSQ and finish marks ---
+        _finish_count = 0
         for fe in finish_list:
             if fp.is_same_competitor(fe):
                 if fe.action == "DSQ":
                     fp.disqualified = not cfg.disable_dsq
                 if fe.action == "finish":
+                    _finish_count += 1
+                    if _finish_count > 1:
+                        log.append(
+                            f"WARNING: {fp.competitor_id} has multiple finish marks"
+                        )
                     fp.finished = True
+
+        # Log finish events that occur before this competitor's start time
+        if 0.0 < fp.cross_line_times[0] < INF:
+            for fe in finish_list:
+                if (
+                    fp.is_same_competitor(fe)
+                    and fe.action != "DSQ"
+                    and fe.seconds < fp.cross_line_times[0]
+                ):
+                    log.append(
+                        f"WARNING: {fp.competitor_id} crossing at {fe.seconds:.3f}s "
+                        f"before start {fp.cross_line_times[0]:.3f}s"
+                    )
 
         # --- find all line crossings ---
         n_to_find = fp.n_laps * 2 if cfg.is_number_of_tries() else fp.n_laps + 1
@@ -398,12 +429,12 @@ def check_start_protocol(  # noqa: C901
                     "not in start protocol"
                 )
 
-    skip = cfg.skip_first_lap_effective()
     for fp in protocol:
         crossings = sum(1 for fe in finish_list if fp.is_same_competitor(fe))
-        expected = fp.n_laps * (2 if cfg.is_number_of_tries() else 1) + (
-            1 if skip else 0
-        )
+        if cfg.is_number_of_tries():
+            expected = fp.n_laps * 2
+        else:
+            expected = fp.n_laps + (1 if cfg.skip_first_lap_effective() else 0)
         if crossings > expected:
             log.append(
                 f"ERROR: {fp.competitor_id} has {crossings} crossings, expected {expected}"  # noqa: E501

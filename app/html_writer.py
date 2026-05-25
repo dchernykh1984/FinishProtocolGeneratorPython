@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import calendar
-import math
 from io import StringIO
 from pathlib import Path
 from typing import TextIO
@@ -601,42 +600,18 @@ def _write_text_group_protocol(
     lines: list[str] = []
     for gs in group_list:
         group_id = gs.group_id
-        lines.append(f"Group {group_id}")
         place_ctr = 0
         for fp in sorted_protocol:
             if fp.group_id != group_id:
                 continue
-            _gs = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
-            if not (
-                (fp.finished or cfg.print_dnf)
-                and (
-                    fp.n_laps_finished != 0 or cfg.print_dns or (cfg.print_dnf and _gs)
-                )
-                and (not fp.disqualified or cfg.print_dsq)
-            ):
+            if not fp.finished or fp.disqualified:
                 continue
             place_ctr += 1
-            if fp.disqualified:
-                status = "DSQ"
-            elif not fp.finished:
-                status = "DNF"
-            else:
-                status = str(place_ctr)
-            t = (
-                fp.get_total_time()
-                if cfg.is_number_of_tries()
-                else (
-                    fp.finish_lap_times[fp.n_laps_finished - 1]
-                    if fp.n_laps_finished > 0
-                    else math.inf
-                )
-            )
-            t_str = _format_time(t, cfg.n_signs_after_point) if t < math.inf else "DNF"
             lines.append(
-                f"{status}\t{fp.competitor_id}\t{fp.name}\t{fp.year_of_birth}"
-                f"\t{fp.team}\t{fp.city}\t{t_str}"
+                f"{fp.competitor_id}#{fp.name}#{fp.group_id}#{fp.n_laps}"
+                f"#{fp.stages}#{fp.year_of_birth}#{fp.team}#{fp.city}"
+                f"#{fp.extra_info}#{place_ctr}#"
             )
-        lines.append("")
     with Path(path).open("w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
