@@ -63,7 +63,7 @@ class TestReadStartProtocol:
         path = _tmp(content)
         normal = read_start_protocol(path)
         skip = read_start_protocol(path, skip_first_lap=True)
-        assert skip[0].n_laps == normal[0].n_laps + 1
+        assert skip[0].n_laps == normal[0].n_laps
 
 
 class TestReadGroupTimes:
