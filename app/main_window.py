@@ -1441,6 +1441,7 @@ class MainWindow(QMainWindow):
 
         self._apply_template()
         self._sync_ui_from_cfg()
+        self._on_refresh_toggled(self._cfg.auto_refresh_enabled)
 
     def _on_load_race_info(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
