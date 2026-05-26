@@ -113,7 +113,9 @@ def merge_files(to_file: str, from_file: str, merge_by_id: bool) -> int:
 
 
 def _parse_ftp_url(ftp_path: str) -> tuple[str, int, str]:
-    if not ftp_path.startswith(("ftp://", "ftps://")):
+    if ftp_path.startswith("ftps://"):
+        raise ValueError("ftps:// (FTPS/TLS) is not supported; use ftp:// instead")
+    if not ftp_path.startswith("ftp://"):
         ftp_path = "ftp://" + ftp_path
     parsed = urlparse(ftp_path)
     host = parsed.hostname or ""
