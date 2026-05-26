@@ -95,7 +95,7 @@ class TestGenerateWorkerUploadSignals:
             i for i, m in enumerate(log_msgs) if "ERROR" in m and "Upload to" in m
         )
 
-        assert upload_idx < check_idx < error_idx
+        assert check_idx < upload_idx < error_idx
         assert "ftp://host" in log_msgs[error_idx]
         assert "550" in log_msgs[error_idx]
 
