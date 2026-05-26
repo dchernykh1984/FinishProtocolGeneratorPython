@@ -31,7 +31,6 @@ Lap Name
 Lap Finish Info
 Время финиша круга
 Lap Finish
-Hide Empty Columns
 All Buttons
 UploadGroups
 UploadAbsolute
