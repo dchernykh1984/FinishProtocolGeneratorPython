@@ -119,9 +119,10 @@ class _FTPWorker(QThread):
                     self.log_message.emit(f"  {label}: OK")
 
         if failed:
-            self.error.emit("Some downloads failed - see log for details.")
-        else:
-            self.finished_ok.emit()
+            self.log_message.emit(
+                "WARNING: some downloads failed; continuing with local files."
+            )
+        self.finished_ok.emit()
 
 
 class _GenerateWorker(QThread):
