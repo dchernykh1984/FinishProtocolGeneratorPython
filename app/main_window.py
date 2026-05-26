@@ -45,6 +45,7 @@ from app.models import GroupStartElement
 class _FTPWorker(QThread):
     log_message = Signal(str)
     finished_ok = Signal()
+    finished_with_errors = Signal()
     error = Signal(str)
 
     def __init__(self, cfg: RaceConfig) -> None:
@@ -122,7 +123,9 @@ class _FTPWorker(QThread):
             self.log_message.emit(
                 "WARNING: some downloads failed; continuing with local files."
             )
-        self.finished_ok.emit()
+            self.finished_with_errors.emit()
+        else:
+            self.finished_ok.emit()
 
 
 class _GenerateWorker(QThread):
@@ -249,8 +252,6 @@ class _GenerateWorker(QThread):
                 cfg.absolute_protocol_file, sorted_proto, group_list, cfg, n_points
             )
 
-            upload_failed, upload_errors = self._do_uploads(cfg)
-
             self.log_message.emit("Checking protocol...")
             check_start_protocol(
                 protocol, finish_list, start_list, remote_points, cfg, log
@@ -259,6 +260,7 @@ class _GenerateWorker(QThread):
             for msg in log:
                 self.log_message.emit(msg)
 
+            upload_failed, upload_errors = self._do_uploads(cfg)
             self._emit_upload_result(upload_failed, upload_errors)
             self.finished_ok.emit()
         except Exception as exc:
@@ -835,6 +837,7 @@ class MainWindow(QMainWindow):
             self._ftp_worker = _FTPWorker(self._cfg)
             self._ftp_worker.log_message.connect(self._append_log)
             self._ftp_worker.finished_ok.connect(self._start_generate_worker)
+            self._ftp_worker.finished_with_errors.connect(self._start_generate_worker)
             self._ftp_worker.error.connect(self._on_error)
             self._ftp_worker.start()
         else:
@@ -891,11 +894,16 @@ class MainWindow(QMainWindow):
         self._ftp_worker = _FTPWorker(self._cfg)
         self._ftp_worker.log_message.connect(self._append_log)
         self._ftp_worker.finished_ok.connect(self._on_ftp_download_done)
+        self._ftp_worker.finished_with_errors.connect(self._on_ftp_download_partial)
         self._ftp_worker.error.connect(self._on_error)
         self._ftp_worker.start()
 
     def _on_ftp_download_done(self) -> None:
         self._append_log("Download complete.")
+        self._set_buttons_enabled(True)
+
+    def _on_ftp_download_partial(self) -> None:
+        self._append_log("Download finished with errors (see warnings above).")
         self._set_buttons_enabled(True)
 
     def _on_error(self, msg: str) -> None:
