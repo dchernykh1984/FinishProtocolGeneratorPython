@@ -549,6 +549,60 @@ class TestRelayStages:
 # ---------------------------------------------------------------------------
 
 
+class TestDnfBeforeDns:
+    def test_dnf_zero_laps_before_dns(self) -> None:
+        """DNF (group started, 0 laps) must sort before DNS (group not found)."""
+        start_t = BASE_T + 3600
+        # competitor "1": group has no start time (DNS)
+        # competitor "5": group started but 0 laps crossed (DNF)
+        start_list = [_start("1", "NoGroup"), _start("5", "Started")]
+        group_list = [_group("Started", start_t)]
+        finish_list: list[FinishCompetitorElement] = []
+        cfg = _cfg()
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        ids = [fp.competitor_id for fp in sorted_proto]
+        # "5" (DNF, group started) must appear before "1" (DNS, group not found)
+        assert ids == ["5", "1"]
+
+    def test_dnf_zero_laps_before_dns_with_smaller_delay(self) -> None:
+        """DNF (group started) beats DNS even when DNS has a smaller start_delay."""
+        start_t = BASE_T + 3600
+        # id=1: no group start time (DNS), delay=0
+        # id=5: group started (DNF, 0 laps), delay=10
+        start_list = [
+            _start("1", "NoGroup", delay=0.0),
+            _start("5", "Started", delay=10.0),
+        ]
+        group_list = [_group("Started", start_t)]
+        finish_list: list[FinishCompetitorElement] = []
+        cfg = _cfg()
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        ids = [fp.competitor_id for fp in sorted_proto]
+        assert ids == ["5", "1"]
+
+    def test_dns_sorted_by_id_among_themselves(self) -> None:
+        """Two DNS athletes (same absent group) must still sort by numeric id."""
+        start_list = [_start("9", "NoGroup"), _start("2", "NoGroup")]
+        group_list: list[GroupStartElement] = []
+        finish_list: list[FinishCompetitorElement] = []
+        cfg = _cfg()
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        ids = [fp.competitor_id for fp in sorted_proto]
+        assert ids == ["2", "9"]
+
+
 class TestDnsSorting:
     def test_dns_sorted_by_numeric_id(self) -> None:
         start_t = BASE_T + 3600

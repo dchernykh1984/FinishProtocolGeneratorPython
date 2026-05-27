@@ -65,14 +65,24 @@ def _first_better(  # noqa: C901
     both_dns = (
         a.n_laps_finished == 0 and b.n_laps_finished == 0 and cp_a == 0 and cp_b == 0
     )
-    if both_dns and a.start_delay != b.start_delay:
-        return a.start_delay < b.start_delay
 
     if cfg.skip_first_lap_effective():
         if a.cross_line_times[0] == INF and b.cross_line_times[0] != INF:
             return False
         if a.cross_line_times[0] != INF and b.cross_line_times[0] == INF:
             return True
+    elif both_dns:
+        # DNF vs DNS must take priority over start_delay and number ordering.
+        # cross_line_times[0] == 0 means group was never found (DNS).
+        a_started = a.cross_line_times[0] != 0
+        b_started = b.cross_line_times[0] != 0
+        if a_started and not b_started:
+            return True
+        if not a_started and b_started:
+            return False
+
+    if both_dns and a.start_delay != b.start_delay:
+        return a.start_delay < b.start_delay
 
     if both_dns:
         try:
