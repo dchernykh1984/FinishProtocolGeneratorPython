@@ -77,3 +77,15 @@ OrganizerLabel
 Организатор соревнований
 OverallResultsLabel
 Абсолютный протокол
+HttpSiteUrl
+http://localhost:8000
+HttpUploadToken
+
+HttpIsLive
+1
+HttpStageLabel
+
+UploadHttpGroups
+1
+UploadHttpAbsolute
+1

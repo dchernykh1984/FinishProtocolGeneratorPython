@@ -107,6 +107,12 @@ class RaceConfig:
     ftp_path: str = ""
     ftp_login: str = ""
     ftp_password: str = ""
+    http_site_url: str = ""
+    http_upload_token: str = ""
+    http_is_live: bool = True
+    http_stage_label: str = ""
+    upload_http_groups: bool = False
+    upload_http_absolute: bool = False
     start_list_action: str = "None"
     group_times_action: str = "None"
     result_times_action: str = "None"

@@ -529,5 +529,65 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["overall_results_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpSiteUrl":
+        v = nxt()
+        if v is not None:
+            result["http_site_url"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpUploadToken":
+        v = nxt()
+        if v is not None:
+            result["http_upload_token"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpCompetitionId":
+        nxt()  # removed field - consume value and discard
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpProtocolType":
+        nxt()  # removed field - consume value and discard
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpIsLive":
+        v = nxt()
+        if v is not None:
+            result["http_is_live"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpStageLabel":
+        v = nxt()
+        if v is not None:
+            result["http_stage_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "UploadHttpGroups":
+        v = nxt()
+        if v is not None:
+            result["upload_http_groups"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "UploadHttpAbsolute":
+        v = nxt()
+        if v is not None:
+            result["upload_http_absolute"] = v
 
     return result
