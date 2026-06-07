@@ -39,6 +39,7 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+from app.http_io import upload_protocol as http_upload_protocol
 from app.models import GroupStartElement
 
 
@@ -138,11 +139,16 @@ class _GenerateWorker(QThread):
         self._cfg = cfg
 
     def _do_uploads(self, cfg: RaceConfig) -> tuple[bool, list[str]]:
-        """Attempt configured FTP uploads. Returns (any_failed, error_messages)."""
+        """Attempt configured FTP and HTTP uploads.
+
+        Returns (any_failed, error_messages).
+        """
         failed = False
         errors: list[str] = []
+
+        # FTP uploads
         if cfg.upload_groups:
-            self.log_message.emit("Uploading group protocol...")
+            self.log_message.emit("Uploading group protocol via FTP...")
             if (
                 upload_file(
                     cfg.ftp_path,
@@ -157,7 +163,7 @@ class _GenerateWorker(QThread):
             else:
                 self.log_message.emit("  Group protocol: uploaded")
         if cfg.upload_absolute and not cfg.is_eliminator_finals():
-            self.log_message.emit("Uploading absolute protocol...")
+            self.log_message.emit("Uploading absolute protocol via FTP...")
             if (
                 upload_file(
                     cfg.ftp_path,
@@ -171,6 +177,44 @@ class _GenerateWorker(QThread):
                 failed = True
             else:
                 self.log_message.emit("  Absolute protocol: uploaded")
+
+        # HTTP uploads
+        if cfg.http_site_url:
+            if cfg.upload_http_groups:
+                self.log_message.emit("Uploading group protocol via HTTP...")
+                if (
+                    http_upload_protocol(
+                        cfg.http_site_url,
+                        cfg.http_upload_token,
+                        "group",
+                        cfg.group_protocol_file,
+                        is_live=cfg.http_is_live,
+                        stage_label=cfg.http_stage_label,
+                        errors_out=errors,
+                    )
+                    == -1
+                ):
+                    failed = True
+                else:
+                    self.log_message.emit("  Group protocol: uploaded via HTTP")
+            if cfg.upload_http_absolute and not cfg.is_eliminator_finals():
+                self.log_message.emit("Uploading absolute protocol via HTTP...")
+                if (
+                    http_upload_protocol(
+                        cfg.http_site_url,
+                        cfg.http_upload_token,
+                        "absolute",
+                        cfg.absolute_protocol_file,
+                        is_live=cfg.http_is_live,
+                        stage_label=cfg.http_stage_label,
+                        errors_out=errors,
+                    )
+                    == -1
+                ):
+                    failed = True
+                else:
+                    self.log_message.emit("  Absolute protocol: uploaded via HTTP")
+
         return failed, errors
 
     def _emit_upload_result(
@@ -321,6 +365,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._make_columns_tab(), "Columns")
         tabs.addTab(self._make_options_tab(), "Options")
         tabs.addTab(self._make_ftp_tab(), "FTP")
+        tabs.addTab(self._make_http_tab(), "HTTP Upload")
         tabs.addTab(self._make_logger_tab(), "Log")
 
     def _make_main_tab(self) -> QWidget:
@@ -763,6 +808,47 @@ class MainWindow(QMainWindow):
         ly.addStretch()
         return w
 
+    def _make_http_tab(self) -> QWidget:
+        w = QWidget()
+        ly = QVBoxLayout(w)
+
+        def _http_row(label: str, attr: str, masked: bool = False) -> QHBoxLayout:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label), 1)
+            edit = QLineEdit(getattr(self._cfg, attr))
+            edit.setObjectName(attr)
+            if masked:
+                edit.setEchoMode(QLineEdit.EchoMode.Password)
+            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            row.addWidget(edit, 3)
+            return row
+
+        ly.addLayout(_http_row("Site URL:", "http_site_url"))
+        ly.addLayout(_http_row("Upload token:", "http_upload_token", masked=True))
+
+        chk_il = QCheckBox("Upload as live (polling active on site)")
+        chk_il.setObjectName("http_is_live")
+        chk_il.setChecked(self._cfg.http_is_live)
+        chk_il.toggled.connect(lambda v: setattr(self._cfg, "http_is_live", v))
+        ly.addWidget(chk_il)
+
+        ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
+
+        chk_hg = QCheckBox("Upload Groups Protocol via HTTP after generate")
+        chk_hg.setObjectName("upload_http_groups")
+        chk_hg.setChecked(self._cfg.upload_http_groups)
+        chk_hg.toggled.connect(lambda v: setattr(self._cfg, "upload_http_groups", v))
+        ly.addWidget(chk_hg)
+
+        chk_ha = QCheckBox("Upload Absolute Protocol via HTTP after generate")
+        chk_ha.setObjectName("upload_http_absolute")
+        chk_ha.setChecked(self._cfg.upload_http_absolute)
+        chk_ha.toggled.connect(lambda v: setattr(self._cfg, "upload_http_absolute", v))
+        ly.addWidget(chk_ha)
+
+        ly.addStretch()
+        return w
+
     def _make_logger_tab(self) -> QWidget:
         w = QWidget()
         ly = QVBoxLayout(w)
@@ -1083,6 +1169,12 @@ class MainWindow(QMainWindow):
         lines += ["TrackLabel", cfg.track_conditions_label]
         lines += ["OrganizerLabel", cfg.organizer_label]
         lines += ["OverallResultsLabel", cfg.overall_results_label]
+        lines += ["HttpSiteUrl", cfg.http_site_url]
+        lines += ["HttpUploadToken", cfg.http_upload_token]
+        lines += ["HttpIsLive", "1" if cfg.http_is_live else "0"]
+        lines += ["HttpStageLabel", cfg.http_stage_label]
+        lines += ["UploadHttpGroups", "1" if cfg.upload_http_groups else "0"]
+        lines += ["UploadHttpAbsolute", "1" if cfg.upload_http_absolute else "0"]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1241,6 +1333,14 @@ class MainWindow(QMainWindow):
             cfg.organizer_label = _str("OrganizerLabel", cfg.organizer_label)
             cfg.overall_results_label = _str(
                 "OverallResultsLabel", cfg.overall_results_label
+            )
+            cfg.http_site_url = _str("HttpSiteUrl", cfg.http_site_url)
+            cfg.http_upload_token = _str("HttpUploadToken", cfg.http_upload_token)
+            cfg.http_is_live = _bool("HttpIsLive", cfg.http_is_live)
+            cfg.http_stage_label = _str("HttpStageLabel", cfg.http_stage_label)
+            cfg.upload_http_groups = _bool("UploadHttpGroups", cfg.upload_http_groups)
+            cfg.upload_http_absolute = _bool(
+                "UploadHttpAbsolute", cfg.upload_http_absolute
             )
         else:
             # Original C++ positional format (load_config_file handles encoding)
@@ -1456,6 +1556,14 @@ class MainWindow(QMainWindow):
             cfg.organizer_label = _ds("organizer_label", cfg.organizer_label)
             cfg.overall_results_label = _ds(
                 "overall_results_label", cfg.overall_results_label
+            )
+            cfg.http_site_url = _ds("http_site_url", cfg.http_site_url)
+            cfg.http_upload_token = _ds("http_upload_token", cfg.http_upload_token)
+            cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
+            cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
+            cfg.upload_http_groups = _db("upload_http_groups", cfg.upload_http_groups)
+            cfg.upload_http_absolute = _db(
+                "upload_http_absolute", cfg.upload_http_absolute
             )
 
         self._apply_template()
