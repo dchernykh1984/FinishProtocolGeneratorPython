@@ -48,7 +48,7 @@ class TestUploadProtocol:
         local = _local()
         with patch("urllib.request.urlopen") as mock_open:
             mock_open.side_effect = urllib.error.HTTPError(
-                "http://example.com/api/protocols/upload/",
+                "http://example.com/api/v1/protocols/upload/",
                 401,
                 "Unauthorized",
                 http.client.HTTPMessage(),
@@ -80,7 +80,7 @@ class TestUploadProtocol:
         errors: list[str] = []
         with patch("urllib.request.urlopen") as mock_open:
             mock_open.side_effect = urllib.error.HTTPError(
-                "http://example.com/api/protocols/upload/",
+                "http://example.com/api/v1/protocols/upload/",
                 403,
                 "Forbidden",
                 http.client.HTTPMessage(),
@@ -130,7 +130,7 @@ class TestUploadProtocol:
 
         with patch("urllib.request.urlopen", side_effect=fake_urlopen):
             upload_protocol("http://example.com/", "t", "absolute", local)
-        assert captured[0] == "http://example.com/api/protocols/upload/"
+        assert captured[0] == "http://example.com/api/v1/protocols/upload/"
 
     def test_url_constructed_without_trailing_slash(self) -> None:
         local = _local()
@@ -142,7 +142,7 @@ class TestUploadProtocol:
 
         with patch("urllib.request.urlopen", side_effect=fake_urlopen):
             upload_protocol("http://example.com", "t", "absolute", local)
-        assert captured[0] == "http://example.com/api/protocols/upload/"
+        assert captured[0] == "http://example.com/api/v1/protocols/upload/"
 
     def test_is_live_false_in_body(self) -> None:
         local = _local()
