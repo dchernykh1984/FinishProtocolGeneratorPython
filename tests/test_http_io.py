@@ -44,6 +44,15 @@ class TestUploadProtocol:
             result = upload_protocol("http://example.com", "token", "absolute", local)
         assert result == 0
 
+    def test_returns_0_on_http_201(self) -> None:
+        local = _local()
+        resp_201 = _mock_ok_response()
+        resp_201.status = 201
+        with patch("urllib.request.urlopen") as mock_open:
+            mock_open.return_value = resp_201
+            result = upload_protocol("http://example.com", "token", "absolute", local)
+        assert result == 0
+
     def test_returns_minus1_on_http_401(self) -> None:
         local = _local()
         with patch("urllib.request.urlopen") as mock_open:

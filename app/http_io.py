@@ -71,7 +71,7 @@ def upload_protocol(  # noqa: C901
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-            if resp.status != 200:
+            if not (200 <= resp.status < 300):
                 if errors_out is not None:
                     errors_out.append(
                         f"HTTP upload to {upload_url} failed: status {resp.status}"
