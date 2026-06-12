@@ -33,7 +33,7 @@ def upload_protocol(  # noqa: C901
             errors_out.append(f"File not found: {local_path}")
         return -1
 
-    upload_url = site_url.rstrip("/") + "/api/protocols/upload/"
+    upload_url = site_url.rstrip("/") + "/api/v1/protocols/upload/"
 
     try:
         content = local.read_bytes()
@@ -48,7 +48,7 @@ def upload_protocol(  # noqa: C901
             ).encode()
 
         parts: list[bytes] = [
-            _field("upload_token", upload_token),
+            _field("competition_token", upload_token),
             _field("protocol_type", protocol_type),
             _field("is_live", "true" if is_live else "false"),
             _field("stage_label", stage_label),
@@ -71,7 +71,7 @@ def upload_protocol(  # noqa: C901
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-            if resp.status != 200:
+            if not (200 <= resp.status < 300):
                 if errors_out is not None:
                     errors_out.append(
                         f"HTTP upload to {upload_url} failed: status {resp.status}"

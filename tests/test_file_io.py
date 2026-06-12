@@ -604,6 +604,54 @@ class TestLoadConfigFile:
         assert "track_conditions_label" not in cfg
         assert "overall_results_label" not in cfg
 
+    def test_http_site_url_and_upload_token_loaded(self) -> None:
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+            "WeatherLabel",
+            "Pogoda",
+            "TrackLabel",
+            "Trassa",
+            "OrganizerLabel",
+            "Org",
+            "OverallResultsLabel",
+            "Absolut",
+            "HttpSiteUrl",
+            "https://my-site.com",
+            "HttpUploadToken",
+            "my-upload-token",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert cfg["http_site_url"] == "https://my-site.com"
+        assert cfg["http_upload_token"] == "my-upload-token"
+
+    def test_http_fields_absent_when_not_in_file(self) -> None:
+        lines = [
+            *_cpp_header_through_ftp(),
+            "Finish",
+            "start.txt",
+            "groups.txt",
+            "results.txt",
+            "gr.html",
+            "abs.html",
+            "",
+            "0",
+            "Footer",
+        ]
+        path = _tmp("\n".join(lines) + "\n")
+        cfg = load_config_file(path)
+        assert "http_site_url" not in cfg
+        assert "http_upload_token" not in cfg
+
 
 class TestLoadTemplate:
     def test_all_fields(self) -> None:
