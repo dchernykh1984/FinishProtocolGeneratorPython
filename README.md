@@ -117,6 +117,19 @@ poetry run python -m app.main
 > **Note:** use `-m app.main`, not `python app/main.py`. The `-m` flag adds the
 > project root to `sys.path` so that the `app` package is importable.
 
+## Cycling-site integration
+
+The application can upload finish protocols directly to the cycling-site API.
+
+1. Open **Settings -> HTTP** in the application.
+2. Enter the site URL (e.g. `https://cycling.codered.cloud`).
+3. Enter the upload token - find it on the competition detail page when logged
+   in as an organizer or admin.
+
+After generating a protocol, the **Upload** button sends it to
+`POST /api/v1/protocols/upload/` as a multipart HTML file with the competition
+token. The site stores the protocol and makes it visible on the competition page.
+
 ## Contributing
 
 Before requesting a review, make sure the CI pipeline passes on your pull request. Once the pipeline is green, request a review from [@dchernykh1984](https://github.com/dchernykh1984).

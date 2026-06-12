@@ -194,3 +194,29 @@ class TestUploadProtocol:
         with patch("urllib.request.urlopen", side_effect=fake_urlopen):
             upload_protocol("http://example.com", "t", "absolute", local)
         assert b"My Race Results" in captured[0]
+
+    def test_competition_token_field_name_in_body(self) -> None:
+        local = _local()
+        captured: list[bytes] = []
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.data)
+            return _mock_ok_response()
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            upload_protocol("http://example.com", "my-token", "absolute", local)
+        assert b'name="competition_token"' in captured[0]
+        assert b"my-token" in captured[0]
+
+    def test_protocol_type_field_in_body(self) -> None:
+        local = _local()
+        captured: list[bytes] = []
+
+        def fake_urlopen(req, timeout=None):
+            captured.append(req.data)
+            return _mock_ok_response()
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            upload_protocol("http://example.com", "t", "group", local)
+        assert b'name="protocol_type"' in captured[0]
+        assert b"group" in captured[0]
