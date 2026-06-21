@@ -29,7 +29,13 @@ from app.calculator import (
     check_start_protocol,
     generate_sorted_protocol,
 )
-from app.config import ALL_RACE_TYPES, HtmlStyles, RaceConfig
+from app.config import (
+    ALL_RACE_TYPES,
+    START_LIST_SOURCE_SITE,
+    START_LIST_SOURCES,
+    HtmlStyles,
+    RaceConfig,
+)
 from app.file_io import (
     load_config_file,
     load_template,
@@ -39,6 +45,7 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+from app.http_io import fetch_start_list
 from app.http_io import upload_protocol as http_upload_protocol
 from app.models import GroupStartElement
 
@@ -56,6 +63,9 @@ class _FTPWorker(QThread):
     def run(self) -> None:
         cfg = self._cfg
         failed = False
+
+        if cfg.start_list_source == START_LIST_SOURCE_SITE:
+            failed = not self._fetch_start_list_from_site(cfg)
 
         scl_action = cfg.start_check_list_action if cfg.use_start_check_list else "None"
         tasks = [
@@ -127,6 +137,33 @@ class _FTPWorker(QThread):
             self.finished_with_errors.emit()
         else:
             self.finished_ok.emit()
+
+    def _fetch_start_list_from_site(self, cfg: RaceConfig) -> bool:
+        """Fetch the merged start list from the site and write it to the start file.
+
+        On any error the local start file is left untouched (not overwritten) and False
+        is returned, so generation continues with whatever is already on disk.
+        """
+        self.log_message.emit("Fetching start list from site...")
+        if not cfg.http_site_url or not cfg.http_upload_token:
+            self.log_message.emit("  ERROR: site URL and upload token must be set")
+            return False
+        try:
+            lines = fetch_start_list(cfg.http_site_url, cfg.http_upload_token)
+        except ValueError as exc:
+            self.log_message.emit(f"  ERROR: {exc}")
+            return False
+        try:
+            path = Path(cfg.start_protocol_file)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
+            )
+        except OSError as exc:
+            self.log_message.emit(f"  ERROR: cannot write start list: {exc}")
+            return False
+        self.log_message.emit(f"  Start list: {len(lines)} competitor(s) from site")
+        return True
 
 
 class _GenerateWorker(QThread):
@@ -826,6 +863,17 @@ class MainWindow(QMainWindow):
         ly.addLayout(_http_row("Site URL:", "http_site_url"))
         ly.addLayout(_http_row("Upload token:", "http_upload_token", masked=True))
 
+        row_src = QHBoxLayout()
+        row_src.addWidget(QLabel("Start list source:"), 1)
+        self._combo_start_source = QComboBox()
+        self._combo_start_source.addItems(START_LIST_SOURCES)
+        self._combo_start_source.setCurrentText(self._cfg.start_list_source)
+        self._combo_start_source.currentTextChanged.connect(
+            lambda t: setattr(self._cfg, "start_list_source", t)
+        )
+        row_src.addWidget(self._combo_start_source, 3)
+        ly.addLayout(row_src)
+
         chk_il = QCheckBox("Upload as live (polling active on site)")
         chk_il.setObjectName("http_is_live")
         chk_il.setChecked(self._cfg.http_is_live)
@@ -919,7 +967,11 @@ class MainWindow(QMainWindow):
             self._init_log_file() if self._cfg.use_file_logger else None
         )
         self._set_buttons_enabled(False)
-        if self._ftp_configured():
+        need_predownload = (
+            self._ftp_configured()
+            or self._cfg.start_list_source == START_LIST_SOURCE_SITE
+        )
+        if need_predownload:
             self._ftp_worker = _FTPWorker(self._cfg)
             self._ftp_worker.log_message.connect(self._append_log)
             self._ftp_worker.finished_ok.connect(self._start_generate_worker)
@@ -1171,6 +1223,7 @@ class MainWindow(QMainWindow):
         lines += ["OverallResultsLabel", cfg.overall_results_label]
         lines += ["HttpSiteUrl", cfg.http_site_url]
         lines += ["HttpUploadToken", cfg.http_upload_token]
+        lines += ["StartListSource", cfg.start_list_source]
         lines += ["HttpIsLive", "1" if cfg.http_is_live else "0"]
         lines += ["HttpStageLabel", cfg.http_stage_label]
         lines += ["UploadHttpGroups", "1" if cfg.upload_http_groups else "0"]
@@ -1336,6 +1389,7 @@ class MainWindow(QMainWindow):
             )
             cfg.http_site_url = _str("HttpSiteUrl", cfg.http_site_url)
             cfg.http_upload_token = _str("HttpUploadToken", cfg.http_upload_token)
+            cfg.start_list_source = _str("StartListSource", cfg.start_list_source)
             cfg.http_is_live = _bool("HttpIsLive", cfg.http_is_live)
             cfg.http_stage_label = _str("HttpStageLabel", cfg.http_stage_label)
             cfg.upload_http_groups = _bool("UploadHttpGroups", cfg.upload_http_groups)
@@ -1559,6 +1613,7 @@ class MainWindow(QMainWindow):
             )
             cfg.http_site_url = _ds("http_site_url", cfg.http_site_url)
             cfg.http_upload_token = _ds("http_upload_token", cfg.http_upload_token)
+            cfg.start_list_source = _ds("start_list_source", cfg.start_list_source)
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
             cfg.upload_http_groups = _db("upload_http_groups", cfg.upload_http_groups)
@@ -1618,6 +1673,10 @@ class MainWindow(QMainWindow):
             self._combo_race_type.blockSignals(True)
             self._combo_race_type.setCurrentText(cfg.race_type)
             self._combo_race_type.blockSignals(False)
+        if hasattr(self, "_combo_start_source"):
+            self._combo_start_source.blockSignals(True)
+            self._combo_start_source.setCurrentText(cfg.start_list_source)
+            self._combo_start_source.blockSignals(False)
         if hasattr(self, "_spin_refresh"):
             self._spin_refresh.blockSignals(True)
             self._spin_refresh.setValue(cfg.auto_refresh_interval or 30)

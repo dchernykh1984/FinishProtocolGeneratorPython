@@ -3,11 +3,77 @@
 from __future__ import annotations
 
 import http.client
+import json
 import tempfile
 import urllib.error
 from unittest.mock import MagicMock, patch
 
-from app.http_io import upload_protocol
+import pytest
+
+from app.http_io import fetch_start_list, upload_protocol
+
+
+def _mock_json_response(data: object) -> MagicMock:
+    resp = MagicMock()
+    resp.__enter__ = MagicMock(return_value=resp)
+    resp.__exit__ = MagicMock(return_value=False)
+    resp.read.return_value = json.dumps(data).encode("utf-8")
+    return resp
+
+
+class TestFetchStartList:
+    def test_merges_devices_in_order(self) -> None:
+        payload = {
+            "devices": [
+                {"device_id": "a", "items": ["1#A##1#", "2#A2##1#"]},
+                {"device_id": "b", "items": ["10#B##1#"]},
+            ],
+            "items": ["ignored-convenience-field"],
+        }
+        with patch("urllib.request.urlopen", return_value=_mock_json_response(payload)):
+            lines = fetch_start_list("https://example.com", "tok")
+        assert lines == ["1#A##1#", "2#A2##1#", "10#B##1#"]
+
+    def test_empty_devices_returns_empty(self) -> None:
+        with patch(
+            "urllib.request.urlopen",
+            return_value=_mock_json_response({"devices": [], "items": []}),
+        ):
+            assert fetch_start_list("https://example.com", "tok") == []
+
+    def test_url_includes_token_and_endpoint(self) -> None:
+        captured: list[str] = []
+
+        def fake(url, timeout=None):
+            captured.append(url)
+            return _mock_json_response({"devices": []})
+
+        with patch("urllib.request.urlopen", side_effect=fake):
+            fetch_start_list("https://site.com/", "my-token")
+        assert captured[0].startswith("https://site.com/api/v1/start-list/")
+        assert "competition_token=my-token" in captured[0]
+
+    def test_http_error_raises(self) -> None:
+        exc = urllib.error.HTTPError(
+            "u", 401, "Unauthorized", http.client.HTTPMessage(), None
+        )
+        with patch("urllib.request.urlopen", side_effect=exc):
+            with pytest.raises(ValueError, match="HTTP 401"):
+                fetch_start_list("https://example.com", "bad")
+
+    def test_connection_error_raises(self) -> None:
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
+            with pytest.raises(ValueError, match="Connection error"):
+                fetch_start_list("https://example.com", "tok")
+
+    def test_invalid_json_raises(self) -> None:
+        resp = MagicMock()
+        resp.__enter__ = MagicMock(return_value=resp)
+        resp.__exit__ = MagicMock(return_value=False)
+        resp.read.return_value = b"not json"
+        with patch("urllib.request.urlopen", return_value=resp):
+            with pytest.raises(ValueError):
+                fetch_start_list("https://example.com", "tok")
 
 
 def _local(content: bytes = b"<html><body>Test</body></html>") -> str:
