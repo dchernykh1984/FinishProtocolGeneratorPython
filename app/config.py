@@ -20,6 +20,12 @@ ALL_RACE_TYPES = [
     RACE_TYPE_SPIRIDONOV,
 ]
 
+# Where the start list comes from: the local file as-is, or fetched from the cycling
+# site (all devices merged) by competition token. Mirrors the FTP "Start list" dropdown.
+START_LIST_SOURCE_LOCAL = "Use local data"
+START_LIST_SOURCE_SITE = "Get data from site"
+START_LIST_SOURCES = (START_LIST_SOURCE_LOCAL, START_LIST_SOURCE_SITE)
+
 
 @dataclass
 class HtmlStyles:
@@ -113,6 +119,7 @@ class RaceConfig:
     http_stage_label: str = ""
     upload_http_groups: bool = False
     upload_http_absolute: bool = False
+    start_list_source: str = START_LIST_SOURCE_LOCAL
     start_list_action: str = "None"
     group_times_action: str = "None"
     result_times_action: str = "None"

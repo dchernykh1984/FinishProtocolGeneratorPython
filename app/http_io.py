@@ -1,11 +1,49 @@
-"""HTTP multipart upload for protocol files."""
+"""HTTP I/O with the cycling-site API: protocol upload and start-list download."""
 
 from __future__ import annotations
 
+import json
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
+
+
+def fetch_start_list(site_url: str, token: str) -> list[str]:
+    """Fetch every device's start list for a competition and merge them into one list.
+
+    The site stores a separate list per ``device_id`` (each StartProtocolMaker uploads
+    its own); the merge here concatenates them in device-id order -- the generator-side
+    combination the protocol is then built from.
+
+    Args:
+        site_url: Base URL of the site, e.g. "https://example.com".
+        token: Upload token (UUID) from the competition detail page.
+
+    Returns:
+        The merged start-protocol lines (one per competitor).
+
+    Raises:
+        ValueError: On HTTP error, network error, or invalid JSON response.
+    """
+    url = (
+        site_url.rstrip("/")
+        + "/api/v1/start-list/?"
+        + urllib.parse.urlencode({"competition_token": token})
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Connection error: {exc.reason}") from exc
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"Invalid response: {exc}") from exc
+
+    devices = data.get("devices", [])
+    return [line for device in devices for line in device.get("items", [])]
 
 
 def upload_protocol(  # noqa: C901
