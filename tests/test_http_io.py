@@ -10,7 +10,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.http_io import fetch_start_list, upload_protocol
+from app.http_io import (
+    fetch_finish_times,
+    fetch_group_times,
+    fetch_remote_points,
+    fetch_start_list,
+    upload_protocol,
+)
 
 
 def _mock_json_response(data: object) -> MagicMock:
@@ -19,6 +25,59 @@ def _mock_json_response(data: object) -> MagicMock:
     resp.__exit__ = MagicMock(return_value=False)
     resp.read.return_value = json.dumps(data).encode("utf-8")
     return resp
+
+
+class TestFetchTimingStreams:
+    def test_group_times_merges_devices(self) -> None:
+        payload = {"devices": [{"items": ["G1#0 0:0:1#"]}, {"items": ["G2#0 0:0:2#"]}]}
+        with patch("urllib.request.urlopen", return_value=_mock_json_response(payload)):
+            assert fetch_group_times("https://x", "tok") == [
+                "G1#0 0:0:1#",
+                "G2#0 0:0:2#",
+            ]
+
+    def test_finish_times_endpoint_and_merge(self) -> None:
+        captured: dict = {}
+
+        def fake(url, timeout=10):
+            captured["url"] = url
+            return _mock_json_response({"devices": [{"items": ["1#0 0:0:9#"]}]})
+
+        with patch("urllib.request.urlopen", side_effect=fake):
+            assert fetch_finish_times("https://x", "tok") == ["1#0 0:0:9#"]
+        assert "/api/v1/finish-times/" in captured["url"]
+
+    def test_remote_points_returns_point_to_lines_map(self) -> None:
+        payload = {
+            "points": [
+                {"point_number": 1, "items": ["1#0 0:1:0#", "2#0 0:1:5#"]},
+                {"point_number": 2, "items": ["1#0 0:2:0#"]},
+            ]
+        }
+        with patch("urllib.request.urlopen", return_value=_mock_json_response(payload)):
+            got = fetch_remote_points("https://x", "tok")
+        assert got == {1: ["1#0 0:1:0#", "2#0 0:1:5#"], 2: ["1#0 0:2:0#"]}
+
+    def test_remote_points_empty(self) -> None:
+        with patch(
+            "urllib.request.urlopen", return_value=_mock_json_response({"points": []})
+        ):
+            assert fetch_remote_points("https://x", "tok") == {}
+
+    def test_group_times_http_error_raises(self) -> None:
+        exc = urllib.error.HTTPError(
+            "u", 401, "Unauthorized", http.client.HTTPMessage(), None
+        )
+        with (
+            patch("urllib.request.urlopen", side_effect=exc),
+            pytest.raises(ValueError, match="401"),
+        ):
+            fetch_group_times("https://x", "bad")
+
+    def test_remote_points_connection_error_raises(self) -> None:
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
+            with pytest.raises(ValueError, match="Connection error"):
+                fetch_remote_points("https://x", "tok")
 
 
 class TestFetchStartList:

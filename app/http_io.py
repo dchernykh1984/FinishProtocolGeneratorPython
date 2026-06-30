@@ -46,6 +46,60 @@ def fetch_start_list(site_url: str, token: str) -> list[str]:
     return [line for device in devices for line in device.get("items", [])]
 
 
+def _fetch_stream(site_url: str, token: str, endpoint: str) -> list[str]:
+    """Fetch a per-device timing stream (group/finish), merged in device-id order."""
+    url = (
+        site_url.rstrip("/")
+        + f"/api/v1/{endpoint}/?"
+        + urllib.parse.urlencode({"competition_token": token})
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Connection error: {exc.reason}") from exc
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"Invalid response: {exc}") from exc
+    devices = data.get("devices", [])
+    return [line for device in devices for line in device.get("items", [])]
+
+
+def fetch_group_times(site_url: str, token: str) -> list[str]:
+    """Fetch every device's group-start times for a competition, merged."""
+    return _fetch_stream(site_url, token, "group-times")
+
+
+def fetch_finish_times(site_url: str, token: str) -> list[str]:
+    """Fetch every device's finish (point 0) times for a competition, merged."""
+    return _fetch_stream(site_url, token, "finish-times")
+
+
+def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
+    """Fetch remote control points as ``{point_number: merged_lines}``.
+
+    Lines for the same point from different devices are already merged server-side.
+    """
+    url = (
+        site_url.rstrip("/")
+        + "/api/v1/remote-points/?"
+        + urllib.parse.urlencode({"competition_token": token})
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Connection error: {exc.reason}") from exc
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"Invalid response: {exc}") from exc
+    return {
+        int(p["point_number"]): list(p.get("items", [])) for p in data.get("points", [])
+    }
+
+
 def upload_protocol(  # noqa: C901
     site_url: str,
     upload_token: str,
