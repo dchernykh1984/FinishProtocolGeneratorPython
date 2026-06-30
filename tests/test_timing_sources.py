@@ -15,7 +15,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication
 
 from app.config import START_LIST_SOURCE_LOCAL, START_LIST_SOURCE_SITE, RaceConfig
-from app.main_window import _FTPWorker
+from app.main_window import _effective_ftp_actions, _FTPWorker
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -71,6 +71,33 @@ class TestGroupTimesSiteSource:
         assert content == "local#\n"
         assert err and not ok
         assert any("ERROR" in m for m in log)
+
+    def test_site_source_ignores_stale_ftp_action(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            cfg = _cfg(td)
+            cfg.group_times_source = START_LIST_SOURCE_SITE
+            cfg.group_times_action = "Download"
+            with (
+                patch("app.main_window.fetch_group_times", return_value=["site#"]),
+                patch(
+                    "app.main_window.download_file",
+                    side_effect=AssertionError("must not use FTP"),
+                ),
+            ):
+                ok, err, log = _run(cfg)
+            content = Path(cfg.group_time_file).read_text(encoding="utf-8")
+        assert ok and not err
+        assert content == "site#\n"
+        assert any(
+            "Group times source conflict" in message and "using HTTP data" in message
+            for message in log
+        )
+
+    def test_site_source_action_does_not_count_as_ftp_action(self) -> None:
+        cfg = RaceConfig()
+        cfg.group_times_source = START_LIST_SOURCE_SITE
+        cfg.group_times_action = "Download"
+        assert _effective_ftp_actions(cfg)["group_times"] == "None"
 
 
 class TestFinishTimesSiteSource:
