@@ -33,6 +33,8 @@ from app.config import (
     ALL_RACE_TYPES,
     START_LIST_SOURCE_SITE,
     START_LIST_SOURCES,
+    TIMING_SOURCE_SITE,
+    TIMING_SOURCES,
     HtmlStyles,
     RaceConfig,
 )
@@ -45,7 +47,12 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
-from app.http_io import fetch_start_list
+from app.http_io import (
+    fetch_finish_times,
+    fetch_group_times,
+    fetch_remote_points,
+    fetch_start_list,
+)
 from app.http_io import upload_protocol as http_upload_protocol
 from app.models import GroupStartElement
 
@@ -62,10 +69,7 @@ class _FTPWorker(QThread):
 
     def run(self) -> None:
         cfg = self._cfg
-        failed = False
-
-        if cfg.start_list_source == START_LIST_SOURCE_SITE:
-            failed = not self._fetch_start_list_from_site(cfg)
+        failed = self._fetch_sources_from_site(cfg)
 
         scl_action = cfg.start_check_list_action if cfg.use_start_check_list else "None"
         tasks = [
@@ -138,6 +142,22 @@ class _FTPWorker(QThread):
         else:
             self.finished_ok.emit()
 
+    def _fetch_sources_from_site(self, cfg: RaceConfig) -> bool:
+        """Fetch each site-sourced stream (start list, group, finish, remote points).
+
+        Returns True if any fetch failed (generation still proceeds with on-disk data).
+        """
+        failed = False
+        if cfg.start_list_source == START_LIST_SOURCE_SITE:
+            failed = not self._fetch_start_list_from_site(cfg)
+        if cfg.group_times_source == TIMING_SOURCE_SITE:
+            failed = (not self._fetch_group_times_from_site(cfg)) or failed
+        if cfg.finish_times_source == TIMING_SOURCE_SITE:
+            failed = (not self._fetch_finish_times_from_site(cfg)) or failed
+        if cfg.remote_points_source == TIMING_SOURCE_SITE:
+            failed = (not self._fetch_remote_points_from_site(cfg)) or failed
+        return failed
+
     def _fetch_start_list_from_site(self, cfg: RaceConfig) -> bool:
         """Fetch the merged start list from the site and write it to the start file.
 
@@ -164,6 +184,73 @@ class _FTPWorker(QThread):
             return False
         self.log_message.emit(f"  Start list: {len(lines)} competitor(s) from site")
         return True
+
+    def _write_lines(self, path: str, lines: list[str], label: str) -> bool:
+        """Overwrite *path* with *lines*; on error leave it and return False."""
+        try:
+            p = Path(path)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        except OSError as exc:
+            self.log_message.emit(f"  ERROR: cannot write {label}: {exc}")
+            return False
+        return True
+
+    def _fetch_group_times_from_site(self, cfg: RaceConfig) -> bool:
+        self.log_message.emit("Fetching group times from site...")
+        if not cfg.http_site_url or not cfg.http_upload_token:
+            self.log_message.emit("  ERROR: site URL and upload token must be set")
+            return False
+        try:
+            lines = fetch_group_times(cfg.http_site_url, cfg.http_upload_token)
+        except ValueError as exc:
+            self.log_message.emit(f"  ERROR: {exc}")
+            return False
+        if not self._write_lines(cfg.group_time_file, lines, "group times"):
+            return False
+        self.log_message.emit(f"  Group times: {len(lines)} line(s) from site")
+        return True
+
+    def _fetch_finish_times_from_site(self, cfg: RaceConfig) -> bool:
+        self.log_message.emit("Fetching finish times from site...")
+        if not cfg.http_site_url or not cfg.http_upload_token:
+            self.log_message.emit("  ERROR: site URL and upload token must be set")
+            return False
+        try:
+            lines = fetch_finish_times(cfg.http_site_url, cfg.http_upload_token)
+        except ValueError as exc:
+            self.log_message.emit(f"  ERROR: {exc}")
+            return False
+        if not self._write_lines(cfg.finish_time_file, lines, "finish times"):
+            return False
+        self.log_message.emit(f"  Finish times: {len(lines)} line(s) from site")
+        return True
+
+    def _fetch_remote_points_from_site(self, cfg: RaceConfig) -> bool:
+        """Fetch each remote point to ``<remote_points_path>/results_<n>.txt``."""
+        self.log_message.emit("Fetching remote points from site...")
+        if not cfg.http_site_url or not cfg.http_upload_token:
+            self.log_message.emit("  ERROR: site URL and upload token must be set")
+            return False
+        if not cfg.n_remote_points or not cfg.remote_points_path:
+            self.log_message.emit("  (skipped: control points count / path not set)")
+            return True
+        try:
+            points = fetch_remote_points(cfg.http_site_url, cfg.http_upload_token)
+        except ValueError as exc:
+            self.log_message.emit(f"  ERROR: {exc}")
+            return False
+        ok = True
+        for i in range(1, cfg.n_remote_points + 1):
+            lines = points.get(i, [])
+            local = str(Path(cfg.remote_points_path) / f"results_{i}.txt")
+            if self._write_lines(local, lines, f"remote point {i}"):
+                self.log_message.emit(
+                    f"  Remote point {i}: {len(lines)} line(s) from site"
+                )
+            else:
+                ok = False
+        return ok
 
 
 class _GenerateWorker(QThread):
@@ -402,7 +489,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._make_columns_tab(), "Columns")
         tabs.addTab(self._make_options_tab(), "Options")
         tabs.addTab(self._make_ftp_tab(), "FTP")
-        tabs.addTab(self._make_http_tab(), "HTTP Upload")
+        tabs.addTab(self._make_http_tab(), "HTTP")
         tabs.addTab(self._make_logger_tab(), "Log")
 
     def _make_main_tab(self) -> QWidget:
@@ -805,10 +892,10 @@ class MainWindow(QMainWindow):
         ly.addLayout(_ftp_row("Password:", "ftp_password", masked=True))
 
         actions_data = [
-            ("Start list:", "start_list_action", "_combo_start_action"),
-            ("Group times:", "group_times_action", "_combo_group_action"),
-            ("Finish times:", "result_times_action", "_combo_result_action"),
-            ("Remote points:", "remote_points_action", "_combo_rp_action"),
+            ("Start list source:", "start_list_action", "_combo_start_action"),
+            ("Group times source:", "group_times_action", "_combo_group_action"),
+            ("Finish times source:", "result_times_action", "_combo_result_action"),
+            ("Remote points source:", "remote_points_action", "_combo_rp_action"),
         ]
         for label, attr, ivar in actions_data:
             row = QHBoxLayout()
@@ -873,6 +960,21 @@ class MainWindow(QMainWindow):
         )
         row_src.addWidget(self._combo_start_source, 3)
         ly.addLayout(row_src)
+
+        for label, attr, ivar in (
+            ("Group times source:", "group_times_source", "_combo_group_source"),
+            ("Finish times source:", "finish_times_source", "_combo_finish_source"),
+            ("Remote points source:", "remote_points_source", "_combo_rp_source"),
+        ):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label), 1)
+            combo = QComboBox()
+            combo.addItems(TIMING_SOURCES)
+            combo.setCurrentText(getattr(self._cfg, attr))
+            combo.currentTextChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            setattr(self, ivar, combo)
+            row.addWidget(combo, 3)
+            ly.addLayout(row)
 
         chk_il = QCheckBox("Upload as live (polling active on site)")
         chk_il.setObjectName("http_is_live")
@@ -970,6 +1072,9 @@ class MainWindow(QMainWindow):
         need_predownload = (
             self._ftp_configured()
             or self._cfg.start_list_source == START_LIST_SOURCE_SITE
+            or self._cfg.group_times_source == TIMING_SOURCE_SITE
+            or self._cfg.finish_times_source == TIMING_SOURCE_SITE
+            or self._cfg.remote_points_source == TIMING_SOURCE_SITE
         )
         if need_predownload:
             self._ftp_worker = _FTPWorker(self._cfg)
@@ -1224,6 +1329,9 @@ class MainWindow(QMainWindow):
         lines += ["HttpSiteUrl", cfg.http_site_url]
         lines += ["HttpUploadToken", cfg.http_upload_token]
         lines += ["StartListSource", cfg.start_list_source]
+        lines += ["GroupTimesSource", cfg.group_times_source]
+        lines += ["FinishTimesSource", cfg.finish_times_source]
+        lines += ["RemotePointsSource", cfg.remote_points_source]
         lines += ["HttpIsLive", "1" if cfg.http_is_live else "0"]
         lines += ["HttpStageLabel", cfg.http_stage_label]
         lines += ["UploadHttpGroups", "1" if cfg.upload_http_groups else "0"]
@@ -1390,6 +1498,11 @@ class MainWindow(QMainWindow):
             cfg.http_site_url = _str("HttpSiteUrl", cfg.http_site_url)
             cfg.http_upload_token = _str("HttpUploadToken", cfg.http_upload_token)
             cfg.start_list_source = _str("StartListSource", cfg.start_list_source)
+            cfg.group_times_source = _str("GroupTimesSource", cfg.group_times_source)
+            cfg.finish_times_source = _str("FinishTimesSource", cfg.finish_times_source)
+            cfg.remote_points_source = _str(
+                "RemotePointsSource", cfg.remote_points_source
+            )
             cfg.http_is_live = _bool("HttpIsLive", cfg.http_is_live)
             cfg.http_stage_label = _str("HttpStageLabel", cfg.http_stage_label)
             cfg.upload_http_groups = _bool("UploadHttpGroups", cfg.upload_http_groups)
@@ -1614,6 +1727,13 @@ class MainWindow(QMainWindow):
             cfg.http_site_url = _ds("http_site_url", cfg.http_site_url)
             cfg.http_upload_token = _ds("http_upload_token", cfg.http_upload_token)
             cfg.start_list_source = _ds("start_list_source", cfg.start_list_source)
+            cfg.group_times_source = _ds("group_times_source", cfg.group_times_source)
+            cfg.finish_times_source = _ds(
+                "finish_times_source", cfg.finish_times_source
+            )
+            cfg.remote_points_source = _ds(
+                "remote_points_source", cfg.remote_points_source
+            )
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
             cfg.upload_http_groups = _db("upload_http_groups", cfg.upload_http_groups)
@@ -1677,6 +1797,16 @@ class MainWindow(QMainWindow):
             self._combo_start_source.blockSignals(True)
             self._combo_start_source.setCurrentText(cfg.start_list_source)
             self._combo_start_source.blockSignals(False)
+        for ivar, attr in (
+            ("_combo_group_source", "group_times_source"),
+            ("_combo_finish_source", "finish_times_source"),
+            ("_combo_rp_source", "remote_points_source"),
+        ):
+            combo = getattr(self, ivar, None)
+            if combo is not None:
+                combo.blockSignals(True)
+                combo.setCurrentText(getattr(cfg, attr))
+                combo.blockSignals(False)
         if hasattr(self, "_spin_refresh"):
             self._spin_refresh.blockSignals(True)
             self._spin_refresh.setValue(cfg.auto_refresh_interval or 30)
