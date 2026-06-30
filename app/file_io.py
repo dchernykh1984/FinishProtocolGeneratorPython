@@ -549,6 +549,23 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if tok is None:
             return result
 
+    # Per-stream "local vs site" sources, in the order saved by _save_race_info_to_path
+    # (right after HttpUploadToken). Old files lack these tags, so each block is skipped
+    # when the current token doesn't match.
+    for save_tag, key in (
+        ("StartListSource", "start_list_source"),
+        ("GroupTimesSource", "group_times_source"),
+        ("FinishTimesSource", "finish_times_source"),
+        ("RemotePointsSource", "remote_points_source"),
+    ):
+        if tok == save_tag:
+            v = nxt()
+            if v is not None:
+                result[key] = v
+            tok = nxt()
+            if tok is None:
+                return result
+
     if tok == "HttpCompetitionId":
         nxt()  # removed field - consume value and discard
         tok = nxt()
