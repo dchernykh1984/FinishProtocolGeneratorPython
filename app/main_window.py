@@ -56,6 +56,68 @@ from app.http_io import (
 from app.http_io import upload_protocol as http_upload_protocol
 from app.models import GroupStartElement
 
+_DOWNLOAD_ACTIONS = ("Download", "Merge", "Merge+Remove")
+
+
+def _effective_ftp_actions(cfg: RaceConfig) -> dict[str, str]:
+    """Return FTP actions that can still run after source selection."""
+    start_list_action = (
+        "None"
+        if cfg.start_list_source == START_LIST_SOURCE_SITE
+        else cfg.start_list_action
+    )
+    group_times_action = (
+        "None"
+        if cfg.group_times_source == TIMING_SOURCE_SITE
+        else cfg.group_times_action
+    )
+    finish_times_action = (
+        "None"
+        if cfg.finish_times_source == TIMING_SOURCE_SITE
+        else cfg.result_times_action
+    )
+    remote_points_action = (
+        "None"
+        if cfg.remote_points_source == TIMING_SOURCE_SITE
+        else cfg.remote_points_action
+    )
+    start_check_list_action = (
+        cfg.start_check_list_action if cfg.use_start_check_list else "None"
+    )
+    return {
+        "start_list": start_list_action,
+        "group_times": group_times_action,
+        "finish_times": finish_times_action,
+        "remote_points": remote_points_action,
+        "start_check_list": start_check_list_action,
+    }
+
+
+def _site_source_conflicts(cfg: RaceConfig) -> list[tuple[str, str]]:
+    """Return streams where HTTP source wins over a configured FTP action."""
+    conflicts: list[tuple[str, str]] = []
+    if (
+        cfg.start_list_source == START_LIST_SOURCE_SITE
+        and cfg.start_list_action in _DOWNLOAD_ACTIONS
+    ):
+        conflicts.append(("Start list", cfg.start_list_action))
+    if (
+        cfg.group_times_source == TIMING_SOURCE_SITE
+        and cfg.group_times_action in _DOWNLOAD_ACTIONS
+    ):
+        conflicts.append(("Group times", cfg.group_times_action))
+    if (
+        cfg.finish_times_source == TIMING_SOURCE_SITE
+        and cfg.result_times_action in _DOWNLOAD_ACTIONS
+    ):
+        conflicts.append(("Finish times", cfg.result_times_action))
+    if (
+        cfg.remote_points_source == TIMING_SOURCE_SITE
+        and cfg.remote_points_action in _DOWNLOAD_ACTIONS
+    ):
+        conflicts.append(("Remote points", cfg.remote_points_action))
+    return conflicts
+
 
 class _FTPWorker(QThread):
     log_message = Signal(str)
@@ -69,19 +131,24 @@ class _FTPWorker(QThread):
 
     def run(self) -> None:
         cfg = self._cfg
+        for label, action in _site_source_conflicts(cfg):
+            self.log_message.emit(
+                f"  ERROR: {label} source conflict: HTTP and FTP {action} "
+                "are both configured; using HTTP data."
+            )
         failed = self._fetch_sources_from_site(cfg)
 
-        scl_action = cfg.start_check_list_action if cfg.use_start_check_list else "None"
+        effective_actions = _effective_ftp_actions(cfg)
         tasks = [
-            ("Remote points", cfg.remote_points_action, False),
-            ("Start list", cfg.start_list_action, cfg.merge_by_id),
-            ("Group times", cfg.group_times_action, False),
-            ("Finish times", cfg.result_times_action, False),
-            ("Start check list", scl_action, False),
+            ("Remote points", effective_actions["remote_points"], False),
+            ("Start list", effective_actions["start_list"], cfg.merge_by_id),
+            ("Group times", effective_actions["group_times"], False),
+            ("Finish times", effective_actions["finish_times"], False),
+            ("Start check list", effective_actions["start_check_list"], False),
         ]
 
         for label, action, by_id in tasks:
-            if action not in ("Download", "Merge", "Merge+Remove"):
+            if action not in _DOWNLOAD_ACTIONS:
                 continue
             merge = action in ("Merge", "Merge+Remove")
             remove = action == "Merge+Remove"
@@ -1032,16 +1099,10 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _ftp_actions_set(self) -> bool:
-        cfg = self._cfg
-        actions = [
-            cfg.start_list_action,
-            cfg.group_times_action,
-            cfg.result_times_action,
-            cfg.remote_points_action,
-        ]
-        if cfg.use_start_check_list:
-            actions.append(cfg.start_check_list_action)
-        return any(a in ("Download", "Merge", "Merge+Remove") for a in actions)
+        return any(
+            action in _DOWNLOAD_ACTIONS
+            for action in _effective_ftp_actions(self._cfg).values()
+        )
 
     def _ftp_configured(self) -> bool:
         return bool(self._cfg.ftp_path) and self._ftp_actions_set()
