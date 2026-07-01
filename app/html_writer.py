@@ -785,7 +785,7 @@ def write_absolute_protocol(  # noqa: C901
             if cfg.show_lap_finish:
                 buf.write(
                     f"<BR>{st.additional_info_top_style}"
-                    f"Lap {cfg.lap_name}: {cfg.lap_finish_rank_label}</FONT>"
+                    f"{cfg.lap_finish_rank_label}</FONT>"
                 )
             buf.write("</FONT></B></FONT></td>\n")
         buf.write("</tr>\n")
