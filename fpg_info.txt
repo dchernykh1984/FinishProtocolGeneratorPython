@@ -69,6 +69,10 @@ TemplateFile
 data/template.html
 AllButtonsLabel
 Показать/Скрыть<BR>Доп.статистику
+LapRankLabel
+Rank(Lap)
+LapFinishRankLabel
+Rank(Lap)
 WeatherLabel
 Погодные условия
 TrackLabel
