@@ -592,7 +592,9 @@ def write_group_protocol(  # noqa: C901
                                     buf.write(
                                         _format_time(st_val, cfg.n_signs_after_point)
                                     )
-                            else:
+                            elif lc < fp.n_laps_finished or any(
+                                v != -1 for v in fp.control_points[lc].segment_crosses
+                            ):
                                 buf.write("UNKNOWN")
                         buf.write("</td>\n")
                 buf.write("</tr>\n")
@@ -1017,7 +1019,9 @@ def write_absolute_protocol(  # noqa: C901
                                 buf.write("ERR")
                             else:
                                 buf.write(_format_time(st_val, cfg.n_signs_after_point))
-                        else:
+                        elif lc < fp.n_laps_finished or any(
+                            v != -1 for v in fp.control_points[lc].segment_crosses
+                        ):
                             buf.write("UNKNOWN")
                     buf.write("</td>\n")
             buf.write("</tr>\n")
