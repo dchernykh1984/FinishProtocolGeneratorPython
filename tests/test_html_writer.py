@@ -850,6 +850,7 @@ class TestUseAllButtons:
     def test_group_use_all_buttons_header_rendered(self) -> None:
         sorted_proto, group_list, cfg = _make_two_lap_scenario()
         cfg.use_all_buttons = True
+        cfg.lap_rank_label = "Rank(Lap)"
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg)
@@ -872,6 +873,8 @@ class TestUseAllButtons:
         sorted_proto, group_list, cfg = _make_two_lap_scenario()
         cfg.use_all_buttons = True
         cfg.show_lap_finish = True
+        cfg.lap_rank_label = "Rank(Lap)"
+        cfg.lap_finish_rank_label = "Rank(Lap)"
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg)
@@ -927,6 +930,7 @@ class TestUseAllButtons:
     def test_absolute_use_all_buttons_header_rendered(self) -> None:
         sorted_proto, group_list, cfg = _make_two_lap_scenario()
         cfg.use_all_buttons = True
+        cfg.lap_rank_label = "Rank(Lap)"
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_absolute_protocol(path, sorted_proto, group_list, cfg)
@@ -947,6 +951,8 @@ class TestUseAllButtons:
         sorted_proto, group_list, cfg = _make_two_lap_scenario()
         cfg.use_all_buttons = True
         cfg.show_lap_finish = True
+        cfg.lap_rank_label = "Rank(Lap)"
+        cfg.lap_finish_rank_label = "Rank(Lap)"
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_absolute_protocol(path, sorted_proto, group_list, cfg)

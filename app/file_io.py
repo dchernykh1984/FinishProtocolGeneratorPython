@@ -501,6 +501,22 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if tok is None:
             return result
 
+    if tok == "LapRankLabel":
+        v = nxt()
+        if v is not None:
+            result["lap_rank_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "LapFinishRankLabel":
+        v = nxt()
+        if v is not None:
+            result["lap_finish_rank_label"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
     if tok == "WeatherLabel":
         v = nxt()
         if v is not None:

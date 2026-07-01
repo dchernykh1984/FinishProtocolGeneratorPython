@@ -855,6 +855,17 @@ class MainWindow(QMainWindow):
                 "use_all_buttons_label",
             )
         )
+        for attr, lbl in [
+            ("lap_rank_label", "Lap rank label:"),
+            ("lap_finish_rank_label", "Lap finish rank label:"),
+        ]:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(lbl), 1)
+            edit = QLineEdit(getattr(self._cfg, attr))
+            edit.setObjectName(attr)
+            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            row.addWidget(edit, 2)
+            ly.addLayout(row)
 
         ly.addStretch()
         return w
@@ -1383,6 +1394,8 @@ class MainWindow(QMainWindow):
             lines += ["ButtonsLabel", cfg.use_buttons_label]
         if cfg.use_all_buttons:
             lines += ["AllButtonsLabel", cfg.use_all_buttons_label]
+        lines += ["LapRankLabel", cfg.lap_rank_label]
+        lines += ["LapFinishRankLabel", cfg.lap_finish_rank_label]
         lines += ["WeatherLabel", cfg.weather_label]
         lines += ["TrackLabel", cfg.track_conditions_label]
         lines += ["OrganizerLabel", cfg.organizer_label]
@@ -1549,6 +1562,10 @@ class MainWindow(QMainWindow):
             cfg.use_buttons_label = _str("ButtonsLabel", cfg.use_buttons_label)
             cfg.use_all_buttons_label = _str(
                 "AllButtonsLabel", cfg.use_all_buttons_label
+            )
+            cfg.lap_rank_label = _str("LapRankLabel", cfg.lap_rank_label)
+            cfg.lap_finish_rank_label = _str(
+                "LapFinishRankLabel", cfg.lap_finish_rank_label
             )
             cfg.weather_label = _str("WeatherLabel", cfg.weather_label)
             cfg.track_conditions_label = _str("TrackLabel", cfg.track_conditions_label)
@@ -1776,6 +1793,10 @@ class MainWindow(QMainWindow):
             cfg.use_buttons_label = _ds("use_buttons_label", cfg.use_buttons_label)
             cfg.use_all_buttons_label = _ds(
                 "use_all_buttons_label", cfg.use_all_buttons_label
+            )
+            cfg.lap_rank_label = _ds("lap_rank_label", cfg.lap_rank_label)
+            cfg.lap_finish_rank_label = _ds(
+                "lap_finish_rank_label", cfg.lap_finish_rank_label
             )
             cfg.weather_label = _ds("weather_label", cfg.weather_label)
             cfg.track_conditions_label = _ds(
