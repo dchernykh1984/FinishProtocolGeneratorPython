@@ -117,7 +117,7 @@ def _write_header(
         f.write(f"<CENTER>{cfg.sponsor}</CENTER>")
     s = cfg.styles.top_text_style
     if cfg.race_name:
-        f.write(f"{s}<B><CENTER>Race {cfg.race_name}</CENTER></B></FONT><BR>")
+        f.write(f"{s}<B><CENTER>{cfg.race_name}</CENTER></B></FONT><BR>")
     if cfg.race_date and cfg.race_place:
         f.write(
             f"{s}<B><CENTER>{cfg.race_date}, {cfg.race_place}</CENTER></B></FONT><BR>"
