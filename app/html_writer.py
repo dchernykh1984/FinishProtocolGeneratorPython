@@ -237,6 +237,8 @@ def write_group_protocol(  # noqa: C901
             (n_points + 1) * all_max_laps,
         )
     if cfg.use_all_buttons and cfg.show_lap_times:
+        if cfg.use_buttons and n_points > 0 and not cfg.is_number_of_tries():
+            buf.write("&nbsp;&nbsp;")
         _draw_button(
             buf,
             cfg.use_all_buttons_label,
@@ -666,6 +668,13 @@ def write_absolute_protocol(  # noqa: C901
             (n_points + 1) * max_laps,
         )
     if cfg.use_all_buttons and cfg.show_lap_times:
+        if (
+            cfg.use_buttons
+            and n_points > 0
+            and not cfg.is_number_of_tries()
+            and cfg.show_lap_times
+        ):
+            buf.write("&nbsp;&nbsp;")
         _draw_button(
             buf,
             cfg.use_all_buttons_label,
