@@ -262,6 +262,12 @@ def write_group_protocol(  # noqa: C901
                         n_laps_group = fp.n_laps_finished
                     if fp.n_laps > n_laps_configured:
                         n_laps_configured = fp.n_laps
+                    if n_points > 0 and fp.n_laps_finished < fp.n_laps:
+                        lp = fp.n_laps_finished
+                        if lp < len(fp.control_points) and any(
+                            v != -1 for v in fp.control_points[lp].segment_crosses
+                        ):
+                            n_laps_group = max(n_laps_group, lp + 1)
         else:
             for fp in sorted_protocol:
                 if fp.group_id == group_id and fp.n_laps > n_laps_group:
@@ -446,6 +452,8 @@ def write_group_protocol(  # noqa: C901
                                 f")</FONT>"
                             )
                         buf.write("</td>\n")
+                    elif lc == fp.n_laps_finished and lc < fp.n_laps:
+                        buf.write(f"<td ALIGN=center COLSPAN={cols}>UNKNOWN</td>\n")
                     else:
                         buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
 
@@ -581,7 +589,7 @@ def write_group_protocol(  # noqa: C901
                                         _format_time(st_val, cfg.n_signs_after_point)
                                     )
                             else:
-                                buf.write("ERR")
+                                buf.write("UNKNOWN")
                         buf.write("</td>\n")
                 buf.write("</tr>\n")
 
@@ -860,6 +868,8 @@ def write_absolute_protocol(  # noqa: C901
                             f")</FONT>"
                         )
                     buf.write("</td>\n")
+                elif lc == fp.n_laps_finished and lc < fp.n_laps:
+                    buf.write(f"<td ALIGN=center COLSPAN={cols}>UNKNOWN</td>\n")
                 else:
                     buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
 
@@ -1000,7 +1010,7 @@ def write_absolute_protocol(  # noqa: C901
                             else:
                                 buf.write(_format_time(st_val, cfg.n_signs_after_point))
                         else:
-                            buf.write("ERR")
+                            buf.write("UNKNOWN")
                     buf.write("</td>\n")
             buf.write("</tr>\n")
 
