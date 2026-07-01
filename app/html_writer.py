@@ -267,7 +267,11 @@ def write_group_protocol(  # noqa: C901
                     n_laps_configured = fp.n_laps
                     break
 
-        multi_lap = n_laps_configured > 1 or not cfg.show_finish_time
+        multi_lap = (
+            n_laps_configured > 1
+            or not cfg.show_finish_time
+            or (n_points > 0 and cfg.show_lap_times and not cfg.is_number_of_tries())
+        )
         rows = 1 + (
             (
                 (
@@ -672,7 +676,11 @@ def write_absolute_protocol(  # noqa: C901
         )
     buf.write("</CENTER>")
 
-    multi_lap = max_laps_configured > 1 or not cfg.show_finish_time
+    multi_lap = (
+        max_laps_configured > 1
+        or not cfg.show_finish_time
+        or (n_points > 0 and cfg.show_lap_times and not cfg.is_number_of_tries())
+    )
     rows = 1 + (
         (
             (

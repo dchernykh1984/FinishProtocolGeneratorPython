@@ -773,6 +773,36 @@ class TestHtmlWriterEdgeCases:
 # ---------------------------------------------------------------------------
 
 
+def _make_one_lap_scenario(n_cp: int = 0):
+    """Two competitors, 1 lap each, optional intermediate control point."""
+    t0 = _CP_BASE + 3600
+    start_list = [
+        StartProtocolElement.from_line("1#Alice#G#1#1#1990#TA#CA##0 00:00:00.000#"),
+        StartProtocolElement.from_line("2#Bob#G#1#1#1985#TB#CB##0 00:00:00.000#"),
+    ]
+    group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+    finish_list = [
+        FinishCompetitorElement(competitor_id="1", seconds=t0 + 650, action="finish"),
+        FinishCompetitorElement(competitor_id="2", seconds=t0 + 700, action="finish"),
+    ]
+    remote_points: list[list] = []
+    if n_cp > 0:
+        cp_list = [
+            FinishCompetitorElement(competitor_id="1", seconds=t0 + 300, action="cp1"),
+            FinishCompetitorElement(competitor_id="2", seconds=t0 + 320, action="cp1"),
+        ]
+        remote_points = [cp_list]
+    cfg = RaceConfig()
+    cfg.show_lap_times = True
+    cfg.show_finish_time = True
+    log: list[str] = []
+    protocol = calculate_protocol(
+        start_list, group_list, finish_list, remote_points, [], cfg, log
+    )
+    sorted_proto = generate_sorted_protocol(protocol, cfg, n_cp)
+    return sorted_proto, group_list, cfg
+
+
 def _make_two_lap_scenario(n_cp: int = 0):
     """Two competitors, same group, 2 laps each."""
     t0 = _CP_BASE + 3600
@@ -948,3 +978,21 @@ class TestUseAllButtons:
         write_absolute_protocol(path, sorted_proto, group_list, cfg, n_points=1)
         content = Path(path).read_text(encoding="utf-8")
         assert "Lap 0 splits" in content
+
+    def test_group_one_lap_with_cp_shows_split_column(self) -> None:
+        """1-lap race + 1 control point: split column must appear in group protocol."""
+        sorted_proto, group_list, cfg = _make_one_lap_scenario(n_cp=1)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_group_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "(1 split)" in content
+
+    def test_absolute_one_lap_with_cp_shows_split_column(self) -> None:
+        """1-lap race + 1 CP: split column must appear in absolute protocol."""
+        sorted_proto, group_list, cfg = _make_one_lap_scenario(n_cp=1)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg, n_points=1)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "(1 split)" in content
