@@ -365,14 +365,14 @@ class TestControlPointRendering:
         # Alice crosses CP1 at t0+150 = 02:30 from lap start
         assert "02:30" in content
 
-    def test_group_cp_err_when_not_crossed_on_finished_lap(self) -> None:
-        # Bob finishes 2 laps but never crosses CP1 -> ERR in completed-lap cells
+    def test_group_cp_unknown_when_not_crossed_on_finished_lap(self) -> None:
+        # Bob finishes 2 laps but never crosses CP1 -> UNKNOWN in completed-lap cells
         sorted_proto, group_list, cfg, n_points = _make_cp_scenario(n_cp=1)
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, n_points)
         content = Path(path).read_text(encoding="utf-8")
-        assert "ERR" in content
+        assert "UNKNOWN" in content
 
     def test_absolute_cp_subheader_present(self) -> None:
         sorted_proto, group_list, cfg, n_points = _make_cp_scenario(n_cp=1)
@@ -566,14 +566,14 @@ class TestInProgressLapCPRendering:
         # lap2 CP1 segment = 450-300 = 150s -> "02:30"
         assert "02:30" in content
 
-    def test_group_last_segment_err_on_in_progress_lap(self) -> None:
-        # Last segment (CP1->lap finish) on in-progress lap must render ERR
+    def test_group_last_segment_unknown_on_in_progress_lap(self) -> None:
+        # Last segment (CP1->lap finish) on in-progress lap must render UNKNOWN
         sorted_proto, group_list, cfg = _make_in_progress_cp_scenario()
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, 1)
         content = Path(path).read_text(encoding="utf-8")
-        assert "ERR" in content
+        assert "UNKNOWN" in content
 
     def test_absolute_crossed_cp_shown_on_in_progress_lap(self) -> None:
         sorted_proto, group_list, cfg = _make_in_progress_cp_scenario()
@@ -583,18 +583,17 @@ class TestInProgressLapCPRendering:
         content = Path(path).read_text(encoding="utf-8")
         assert "02:30" in content
 
-    def test_absolute_last_segment_err_on_in_progress_lap(self) -> None:
+    def test_absolute_last_segment_unknown_on_in_progress_lap(self) -> None:
         sorted_proto, group_list, cfg = _make_in_progress_cp_scenario()
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
             path = f.name
         write_absolute_protocol(path, sorted_proto, group_list, cfg, 1)
         content = Path(path).read_text(encoding="utf-8")
-        assert "ERR" in content
+        assert "UNKNOWN" in content
 
-    def test_group_uncrossed_cp_err_on_in_progress_lap(self) -> None:
+    def test_group_uncrossed_cp_unknown_on_in_progress_lap(self) -> None:
         # 0 laps finished; CP1 crossed on lap 1 (in-progress), CP2 never crossed.
-        # Old buggy impl: 1 ERR (last segment only, CP2 cell left empty).
-        # Correct impl:   2 ERRs (CP2 cell + last segment).
+        # Expected: 3 UNKNOWNs: in-progress lap time + CP2 cell + last segment.
         t0 = _CP_BASE + 3600
         start_list = [
             StartProtocolElement.from_line("1#Alice#G#2#1#1990#TA#CA##0 00:00:00.000#"),
@@ -618,7 +617,7 @@ class TestInProgressLapCPRendering:
         write_group_protocol(path, sorted_proto, group_list, cfg, 2)
         content = Path(path).read_text(encoding="utf-8")
         assert "02:30" in content
-        assert content.count("ERR") == 2
+        assert content.count("UNKNOWN") == 3
 
 
 class TestFormatTimeWriteDate:
