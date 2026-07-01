@@ -453,7 +453,11 @@ def write_group_protocol(  # noqa: C901
                             )
                         buf.write("</td>\n")
                     elif lc == fp.n_laps_finished and lc < fp.n_laps:
-                        buf.write(f"<td ALIGN=center COLSPAN={cols}>UNKNOWN</td>\n")
+                        lp_crossed = lc < len(fp.control_points) and any(
+                            v != -1 for v in fp.control_points[lc].segment_crosses
+                        )
+                        cell = "UNKNOWN" if lp_crossed else ""
+                        buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
                     else:
                         buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
 
@@ -869,7 +873,11 @@ def write_absolute_protocol(  # noqa: C901
                         )
                     buf.write("</td>\n")
                 elif lc == fp.n_laps_finished and lc < fp.n_laps:
-                    buf.write(f"<td ALIGN=center COLSPAN={cols}>UNKNOWN</td>\n")
+                    lp_crossed = lc < len(fp.control_points) and any(
+                        v != -1 for v in fp.control_points[lc].segment_crosses
+                    )
+                    cell = "UNKNOWN" if lp_crossed else ""
+                    buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
                 else:
                     buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
 
