@@ -360,12 +360,12 @@ def write_group_protocol(  # noqa: C901
                 buf.write(
                     f'<td COLSPAN={cols} ROWSPAN=1 id="{group_idx}_Additional {j} Laps_0"'  # noqa: E501
                     f" ALIGN=center>"
-                    f'<FONT SIZE="1"><B>Rank(Lap)'
+                    f'<FONT SIZE="1"><B>{cfg.lap_rank_label}'
                 )
                 if cfg.show_lap_finish:
                     buf.write(
                         f"<BR>{st.additional_info_top_style}"
-                        f"Lap {cfg.lap_name}: Rank(Lap)</FONT>"
+                        f"Lap {cfg.lap_name}: {cfg.lap_finish_rank_label}</FONT>"
                     )
                 buf.write("</FONT></B></FONT></td>\n")
             buf.write("</tr>\n")
@@ -780,12 +780,12 @@ def write_absolute_protocol(  # noqa: C901
         for j in range(max_laps):
             buf.write(
                 f'<td COLSPAN={cols} id="0_Additional {j} Laps_0" ALIGN=center>'
-                f'<FONT SIZE="1"><B>Rank(Lap)'
+                f'<FONT SIZE="1"><B>{cfg.lap_rank_label}'
             )
             if cfg.show_lap_finish:
                 buf.write(
                     f"<BR>{st.additional_info_top_style}"
-                    f"Lap {cfg.lap_name}: Rank(Lap)</FONT>"
+                    f"Lap {cfg.lap_name}: {cfg.lap_finish_rank_label}</FONT>"
                 )
             buf.write("</FONT></B></FONT></td>\n")
         buf.write("</tr>\n")

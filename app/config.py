@@ -110,6 +110,8 @@ class RaceConfig:
     use_buttons_label: str = "Show/Hide<BR>CP Splits<BR>By Lap"
     use_all_buttons: bool = False
     use_all_buttons_label: str = "Show/Hide<BR>Additional Statistics<BR>By Lap"
+    lap_rank_label: str = ""
+    lap_finish_rank_label: str = ""
     merge_by_id: bool = False
     upload_groups: bool = False
     upload_absolute: bool = False
