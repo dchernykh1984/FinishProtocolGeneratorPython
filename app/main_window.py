@@ -47,6 +47,7 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+from app.http_io import delete_protocol as http_delete_protocol
 from app.http_io import (
     fetch_finish_times,
     fetch_group_times,
@@ -369,44 +370,60 @@ class _GenerateWorker(QThread):
             else:
                 self.log_message.emit("  Absolute protocol: uploaded")
 
-        # HTTP uploads
+        # HTTP protocol publishing: with >=1 checkbox on, upload the checked protocol(s)
+        # and delete the unchecked one so its stale live-broadcast link disappears. With
+        # neither checked, do nothing (no upload, no delete) -- the previous behaviour.
         if cfg.http_site_url:
-            if cfg.upload_http_groups:
-                self.log_message.emit("Uploading group protocol via HTTP...")
-                if (
-                    http_upload_protocol(
-                        cfg.http_site_url,
-                        cfg.http_upload_token,
-                        "group",
-                        cfg.group_protocol_file,
-                        is_live=cfg.http_is_live,
-                        stage_label=cfg.http_stage_label,
-                        errors_out=errors,
-                    )
-                    == -1
+            do_group = cfg.upload_http_groups
+            do_absolute = cfg.upload_http_absolute and not cfg.is_eliminator_finals()
+            if do_group or do_absolute:
+                if self._publish_http_protocol(
+                    cfg, "group", cfg.group_protocol_file, do_group, errors
                 ):
                     failed = True
-                else:
-                    self.log_message.emit("  Group protocol: uploaded via HTTP")
-            if cfg.upload_http_absolute and not cfg.is_eliminator_finals():
-                self.log_message.emit("Uploading absolute protocol via HTTP...")
-                if (
-                    http_upload_protocol(
-                        cfg.http_site_url,
-                        cfg.http_upload_token,
-                        "absolute",
-                        cfg.absolute_protocol_file,
-                        is_live=cfg.http_is_live,
-                        stage_label=cfg.http_stage_label,
-                        errors_out=errors,
-                    )
-                    == -1
+                if self._publish_http_protocol(
+                    cfg, "absolute", cfg.absolute_protocol_file, do_absolute, errors
                 ):
                     failed = True
-                else:
-                    self.log_message.emit("  Absolute protocol: uploaded via HTTP")
 
         return failed, errors
+
+    def _publish_http_protocol(self, cfg, protocol_type, local_path, do_upload, errors):
+        """Upload the protocol if *do_upload*, else delete it; True on error."""
+        label = protocol_type.capitalize()
+        if do_upload:
+            self.log_message.emit(f"Uploading {protocol_type} protocol via HTTP...")
+            if (
+                http_upload_protocol(
+                    cfg.http_site_url,
+                    cfg.http_upload_token,
+                    protocol_type,
+                    local_path,
+                    is_live=cfg.http_is_live,
+                    stage_label=cfg.http_stage_label,
+                    errors_out=errors,
+                )
+                == -1
+            ):
+                return True
+            self.log_message.emit(f"  {label} protocol: uploaded via HTTP")
+            return False
+
+        self.log_message.emit(
+            f"Removing {protocol_type} protocol from site via HTTP..."
+        )
+        if (
+            http_delete_protocol(
+                cfg.http_site_url,
+                cfg.http_upload_token,
+                protocol_type,
+                errors_out=errors,
+            )
+            == -1
+        ):
+            return True
+        self.log_message.emit(f"  {label} protocol: removed from site")
+        return False
 
     def _emit_upload_result(
         self, upload_failed: bool, upload_errors: list[str]

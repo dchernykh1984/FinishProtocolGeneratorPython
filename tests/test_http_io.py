@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.http_io import (
+    delete_protocol,
     fetch_finish_times,
     fetch_group_times,
     fetch_remote_points,
@@ -354,3 +355,35 @@ class TestUploadProtocol:
             upload_protocol("http://example.com", "t", "group", local)
         assert b'name="protocol_type"' in captured[0]
         assert b"group" in captured[0]
+
+
+class TestDeleteProtocol:
+    def test_returns_minus1_when_site_url_empty(self) -> None:
+        errors: list[str] = []
+        assert delete_protocol("", "tok", "group", errors) == -1
+        assert errors
+
+    def test_returns_0_on_success_and_posts_type(self) -> None:
+        captured: dict = {}
+
+        def fake(req, timeout=30):
+            captured["url"] = req.full_url
+            captured["body"] = req.data.decode()
+            return _mock_ok_response()
+
+        with patch("urllib.request.urlopen", side_effect=fake):
+            assert delete_protocol("https://s/", "tok", "group") == 0
+        assert captured["url"] == "https://s/api/v1/protocols/delete/"
+        assert "protocol_type=group" in captured["body"]
+        assert "competition_token=tok" in captured["body"]
+
+    def test_returns_minus1_on_http_error(self) -> None:
+        exc = urllib.error.HTTPError("u", 500, "err", http.client.HTTPMessage(), None)
+        errors: list[str] = []
+        with patch("urllib.request.urlopen", side_effect=exc):
+            assert delete_protocol("https://s", "tok", "group", errors) == -1
+        assert errors
+
+    def test_returns_minus1_on_connection_error(self) -> None:
+        with patch("urllib.request.urlopen", side_effect=OSError("refused")):
+            assert delete_protocol("https://s", "tok", "group") == -1

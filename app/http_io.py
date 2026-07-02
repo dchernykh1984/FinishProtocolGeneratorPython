@@ -181,3 +181,51 @@ def upload_protocol(  # noqa: C901
         if errors_out is not None:
             errors_out.append(f"HTTP upload to {upload_url} failed: {exc}")
         return -1
+
+
+def delete_protocol(
+    site_url: str,
+    upload_token: str,
+    protocol_type: str,
+    errors_out: list[str] | None = None,
+) -> int:
+    """Delete a protocol from the cycling site so its live-broadcast link disappears.
+
+    Used when a protocol is no longer published (its checkbox is off, the other on).
+    The endpoint is idempotent, so deleting one that was never uploaded still succeeds.
+    Returns 0 on success, -1 on error (a message is appended to *errors_out*).
+    """
+    if not site_url:
+        if errors_out is not None:
+            errors_out.append("HTTP site URL is empty")
+        return -1
+
+    delete_url = site_url.rstrip("/") + "/api/v1/protocols/delete/"
+    body = urllib.parse.urlencode(
+        {"competition_token": upload_token, "protocol_type": protocol_type}
+    ).encode()
+    req = urllib.request.Request(  # noqa: S310
+        delete_url,
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            if not (200 <= resp.status < 300):
+                if errors_out is not None:
+                    errors_out.append(
+                        f"HTTP delete to {delete_url} failed: status {resp.status}"
+                    )
+                return -1
+        return 0
+    except urllib.error.HTTPError as exc:
+        if errors_out is not None:
+            errors_out.append(
+                f"HTTP delete to {delete_url} failed: {exc.code} {exc.reason}"
+            )
+        return -1
+    except Exception as exc:
+        if errors_out is not None:
+            errors_out.append(f"HTTP delete to {delete_url} failed: {exc}")
+        return -1
