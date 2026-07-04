@@ -37,6 +37,15 @@ HTTP_ACTION_DELETE = "Delete"
 HTTP_ACTIONS = (HTTP_ACTION_NOTHING, HTTP_ACTION_UPLOAD, HTTP_ACTION_DELETE)
 
 
+def normalize_http_action(value: str) -> str:
+    """Coerce an HTTP action to a known value; anything unrecognised becomes Nothing.
+
+    Actions come from user-edited config files, so a typo or corrupt value must fall
+    back to the safe default rather than silently deleting a protocol from the site.
+    """
+    return value if value in HTTP_ACTIONS else HTTP_ACTION_NOTHING
+
+
 def migrate_http_actions(groups_on: bool, absolute_on: bool) -> tuple[str, str]:
     """Map the legacy pair of upload booleans to the new per-protocol actions.
 
