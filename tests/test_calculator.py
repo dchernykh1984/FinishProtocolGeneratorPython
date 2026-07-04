@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.calculator import (
+    _number_less,
     calculate_protocol,
     check_start_protocol,
     generate_sorted_protocol,
@@ -621,6 +622,49 @@ class TestDnsSorting:
         sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
         ids = [fp.competitor_id for fp in sorted_proto]
         assert ids == ["2", "9", "15"]
+
+
+class TestNumberTieBreak:
+    """Ascending number order is the lowest-priority sort tie-breaker (everywhere)."""
+
+    def test_number_less_numeric(self) -> None:
+        assert _number_less("9", "10") is True
+        assert _number_less("10", "9") is False
+        assert _number_less("3", "30") is True
+
+    def test_number_less_non_numeric_is_string_order(self) -> None:
+        # "B10" < "B9" lexicographically ('1' < '9'); a mixed pair also falls to string.
+        assert _number_less("B10", "B9") is True
+        assert _number_less("A2", "B10") is True
+        assert _number_less("5", "x") is True
+
+    def test_equal_finishers_sorted_by_number_not_file_order(self) -> None:
+        """Fully-equal finishers resolve to ascending number order, not file order."""
+        start_t = BASE_T + 3600
+        start_list = [_start(c, "G", n_laps=1) for c in ("30", "10", "3")]
+        group_list = [_group("G", start_t)]
+        # every competitor finishes the single lap at the same instant -> a total tie
+        finish_list = [_finish(c, start_t + 100, "finish") for c in ("30", "10", "3")]
+        cfg = _cfg()
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        assert [fp.competitor_id for fp in sorted_proto] == ["3", "10", "30"]
+
+    def test_equal_finishers_non_numeric_ids_sorted_as_string(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start(c, "G", n_laps=1) for c in ("B9", "B10", "A2")]
+        group_list = [_group("G", start_t)]
+        finish_list = [_finish(c, start_t + 100, "finish") for c in ("B9", "B10", "A2")]
+        cfg = _cfg()
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        assert [fp.competitor_id for fp in sorted_proto] == ["A2", "B10", "B9"]
 
 
 # ---------------------------------------------------------------------------

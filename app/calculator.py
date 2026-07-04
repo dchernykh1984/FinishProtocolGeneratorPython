@@ -25,6 +25,19 @@ def spiridonov(year_of_birth: str) -> float:
     return (0.02266 * age * age - 1.25437 * age + 117.37067) / 100.0
 
 
+def _number_less(a_id: str, b_id: str) -> bool:
+    """Ascending competitor-number order used as the lowest-priority tie-breaker.
+
+    Both ids numeric -> compare as integers; otherwise compare as strings. So two
+    otherwise-equal competitors always resolve to ascending number order rather than
+    the arbitrary registration-file order.
+    """
+    try:
+        return int(a_id) < int(b_id)
+    except ValueError:
+        return a_id < b_id
+
+
 def _first_better(  # noqa: C901
     a: FinishProtocolElement,
     b: FinishProtocolElement,
@@ -44,7 +57,9 @@ def _first_better(  # noqa: C901
     if cfg.is_number_of_tries():
         if a.get_n_successful_tries() != b.get_n_successful_tries():
             return a.get_n_successful_tries() > b.get_n_successful_tries()
-        return a.get_total_time() < b.get_total_time()
+        if a.get_total_time() != b.get_total_time():
+            return a.get_total_time() < b.get_total_time()
+        return _number_less(a.competitor_id, b.competitor_id)
 
     if a.n_laps_finished != b.n_laps_finished:
         return a.n_laps_finished > b.n_laps_finished
@@ -85,24 +100,17 @@ def _first_better(  # noqa: C901
         return a.start_delay < b.start_delay
 
     if both_dns:
-        try:
-            ia, ib = int(a.competitor_id), int(b.competitor_id)
-            if len(a.competitor_id) == len(b.competitor_id):
-                return ia < ib
-            return len(a.competitor_id) < len(b.competitor_id)
-        except ValueError:
-            if len(a.competitor_id) == len(b.competitor_id):
-                return a.competitor_id < b.competitor_id
-            return len(a.competitor_id) < len(b.competitor_id)
+        return _number_less(a.competitor_id, b.competitor_id)
 
     if cp_a != cp_b:
         return cp_a > cp_b
 
     if cp_a == 0:
-        return (
-            a.finish_lap_times[a.n_laps_finished - 1]
-            < b.finish_lap_times[b.n_laps_finished - 1]
-        )
+        fin_a = a.finish_lap_times[a.n_laps_finished - 1]
+        fin_b = b.finish_lap_times[b.n_laps_finished - 1]
+        if fin_a != fin_b:
+            return fin_a < fin_b
+        return _number_less(a.competitor_id, b.competitor_id)
 
     prev_a = (
         0.0 if a.n_laps_finished == 0 else a.finish_lap_times[a.n_laps_finished - 1]
@@ -112,7 +120,11 @@ def _first_better(  # noqa: C901
     )
     seg_a = a.control_points[a.n_laps_finished].segment_finishes[cp_a - 1]
     seg_b = b.control_points[b.n_laps_finished].segment_finishes[cp_b - 1]
-    return (prev_a + seg_a) < (prev_b + seg_b)
+    total_a = prev_a + seg_a
+    total_b = prev_b + seg_b
+    if total_a != total_b:
+        return total_a < total_b
+    return _number_less(a.competitor_id, b.competitor_id)
 
 
 def generate_sorted_protocol(
