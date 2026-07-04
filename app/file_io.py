@@ -610,6 +610,7 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if tok is None:
             return result
 
+    # Legacy tags (pre per-protocol actions); kept so old configs still migrate.
     if tok == "UploadHttpGroups":
         v = nxt()
         if v is not None:
@@ -622,5 +623,21 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["upload_http_absolute"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpGroupsAction":
+        v = nxt()
+        if v is not None:
+            result["http_groups_action"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "HttpAbsoluteAction":
+        v = nxt()
+        if v is not None:
+            result["http_absolute_action"] = v
 
     return result

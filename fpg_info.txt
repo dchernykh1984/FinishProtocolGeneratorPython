@@ -85,11 +85,19 @@ HttpSiteUrl
 http://localhost:8000
 HttpUploadToken
 
+StartListSource
+Use local data
+GroupTimesSource
+Use local data
+FinishTimesSource
+Use local data
+RemotePointsSource
+Use local data
 HttpIsLive
 1
 HttpStageLabel
 
-UploadHttpGroups
-1
-UploadHttpAbsolute
-1
+HttpGroupsAction
+Upload
+HttpAbsoluteAction
+Upload

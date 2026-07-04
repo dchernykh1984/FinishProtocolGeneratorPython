@@ -31,12 +31,17 @@ from app.calculator import (
 )
 from app.config import (
     ALL_RACE_TYPES,
+    HTTP_ACTION_DELETE,
+    HTTP_ACTION_NOTHING,
+    HTTP_ACTION_UPLOAD,
+    HTTP_ACTIONS,
     START_LIST_SOURCE_SITE,
     START_LIST_SOURCES,
     TIMING_SOURCE_SITE,
     TIMING_SOURCES,
     HtmlStyles,
     RaceConfig,
+    migrate_http_actions,
 )
 from app.file_io import (
     load_config_file,
@@ -370,28 +375,32 @@ class _GenerateWorker(QThread):
             else:
                 self.log_message.emit("  Absolute protocol: uploaded")
 
-        # HTTP protocol publishing: with >=1 checkbox on, upload the checked protocol(s)
-        # and delete the unchecked one so its stale live-broadcast link disappears. With
-        # neither checked, do nothing (no upload, no delete) -- the previous behaviour.
+        # HTTP protocol publishing: each protocol has an independent action --
+        # Nothing (leave the site alone), Upload (publish it) or Delete (remove it).
         if cfg.http_site_url:
-            do_group = cfg.upload_http_groups
-            do_absolute = cfg.upload_http_absolute and not cfg.is_eliminator_finals()
-            if do_group or do_absolute:
-                if self._publish_http_protocol(
-                    cfg, "group", cfg.group_protocol_file, do_group, errors
-                ):
-                    failed = True
-                if self._publish_http_protocol(
-                    cfg, "absolute", cfg.absolute_protocol_file, do_absolute, errors
-                ):
-                    failed = True
+            group_action = cfg.http_groups_action
+            absolute_action = cfg.http_absolute_action
+            # The absolute protocol is never uploaded in eliminator finals; an Upload
+            # request falls back to removing any stale copy from the site.
+            if absolute_action == HTTP_ACTION_UPLOAD and cfg.is_eliminator_finals():
+                absolute_action = HTTP_ACTION_DELETE
+            if self._publish_http_protocol(
+                cfg, "group", cfg.group_protocol_file, group_action, errors
+            ):
+                failed = True
+            if self._publish_http_protocol(
+                cfg, "absolute", cfg.absolute_protocol_file, absolute_action, errors
+            ):
+                failed = True
 
         return failed, errors
 
-    def _publish_http_protocol(self, cfg, protocol_type, local_path, do_upload, errors):
-        """Upload the protocol if *do_upload*, else delete it; True on error."""
+    def _publish_http_protocol(self, cfg, protocol_type, local_path, action, errors):
+        """Perform the configured HTTP *action* for one protocol; True on error."""
+        if action == HTTP_ACTION_NOTHING:
+            return False
         label = protocol_type.capitalize()
-        if do_upload:
+        if action == HTTP_ACTION_UPLOAD:
             self.log_message.emit(f"Uploading {protocol_type} protocol via HTTP...")
             if (
                 http_upload_protocol(
@@ -409,6 +418,7 @@ class _GenerateWorker(QThread):
             self.log_message.emit(f"  {label} protocol: uploaded via HTTP")
             return False
 
+        # HTTP_ACTION_DELETE
         self.log_message.emit(
             f"Removing {protocol_type} protocol from site via HTTP..."
         )
@@ -1079,17 +1089,27 @@ class MainWindow(QMainWindow):
 
         ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
 
-        chk_hg = QCheckBox("Upload Groups Protocol via HTTP after generate")
-        chk_hg.setObjectName("upload_http_groups")
-        chk_hg.setChecked(self._cfg.upload_http_groups)
-        chk_hg.toggled.connect(lambda v: setattr(self._cfg, "upload_http_groups", v))
-        ly.addWidget(chk_hg)
-
-        chk_ha = QCheckBox("Upload Absolute Protocol via HTTP after generate")
-        chk_ha.setObjectName("upload_http_absolute")
-        chk_ha.setChecked(self._cfg.upload_http_absolute)
-        chk_ha.toggled.connect(lambda v: setattr(self._cfg, "upload_http_absolute", v))
-        ly.addWidget(chk_ha)
+        for label, attr, ivar in (
+            (
+                "Groups protocol HTTP action after generate:",
+                "http_groups_action",
+                "_combo_http_groups_action",
+            ),
+            (
+                "Absolute protocol HTTP action after generate:",
+                "http_absolute_action",
+                "_combo_http_absolute_action",
+            ),
+        ):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label), 1)
+            combo = QComboBox()
+            combo.addItems(HTTP_ACTIONS)
+            combo.setCurrentText(getattr(self._cfg, attr))
+            combo.currentTextChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            setattr(self, ivar, combo)
+            row.addWidget(combo, 3)
+            ly.addLayout(row)
 
         ly.addStretch()
         return w
@@ -1425,8 +1445,8 @@ class MainWindow(QMainWindow):
         lines += ["RemotePointsSource", cfg.remote_points_source]
         lines += ["HttpIsLive", "1" if cfg.http_is_live else "0"]
         lines += ["HttpStageLabel", cfg.http_stage_label]
-        lines += ["UploadHttpGroups", "1" if cfg.upload_http_groups else "0"]
-        lines += ["UploadHttpAbsolute", "1" if cfg.upload_http_absolute else "0"]
+        lines += ["HttpGroupsAction", cfg.http_groups_action]
+        lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
@@ -1600,10 +1620,17 @@ class MainWindow(QMainWindow):
             )
             cfg.http_is_live = _bool("HttpIsLive", cfg.http_is_live)
             cfg.http_stage_label = _str("HttpStageLabel", cfg.http_stage_label)
-            cfg.upload_http_groups = _bool("UploadHttpGroups", cfg.upload_http_groups)
-            cfg.upload_http_absolute = _bool(
-                "UploadHttpAbsolute", cfg.upload_http_absolute
-            )
+            if "HttpGroupsAction" in kv or "HttpAbsoluteAction" in kv:
+                cfg.http_groups_action = _str(
+                    "HttpGroupsAction", cfg.http_groups_action
+                )
+                cfg.http_absolute_action = _str(
+                    "HttpAbsoluteAction", cfg.http_absolute_action
+                )
+            elif "UploadHttpGroups" in kv or "UploadHttpAbsolute" in kv:
+                cfg.http_groups_action, cfg.http_absolute_action = migrate_http_actions(
+                    _bool("UploadHttpGroups"), _bool("UploadHttpAbsolute")
+                )
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
@@ -1835,10 +1862,17 @@ class MainWindow(QMainWindow):
             )
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
-            cfg.upload_http_groups = _db("upload_http_groups", cfg.upload_http_groups)
-            cfg.upload_http_absolute = _db(
-                "upload_http_absolute", cfg.upload_http_absolute
-            )
+            if "http_groups_action" in d or "http_absolute_action" in d:
+                cfg.http_groups_action = _ds(
+                    "http_groups_action", cfg.http_groups_action
+                )
+                cfg.http_absolute_action = _ds(
+                    "http_absolute_action", cfg.http_absolute_action
+                )
+            elif "upload_http_groups" in d or "upload_http_absolute" in d:
+                cfg.http_groups_action, cfg.http_absolute_action = migrate_http_actions(
+                    _db("upload_http_groups"), _db("upload_http_absolute")
+                )
 
         self._apply_template()
         self._sync_ui_from_cfg()
@@ -1900,6 +1934,8 @@ class MainWindow(QMainWindow):
             ("_combo_group_source", "group_times_source"),
             ("_combo_finish_source", "finish_times_source"),
             ("_combo_rp_source", "remote_points_source"),
+            ("_combo_http_groups_action", "http_groups_action"),
+            ("_combo_http_absolute_action", "http_absolute_action"),
         ):
             combo = getattr(self, ivar, None)
             if combo is not None:

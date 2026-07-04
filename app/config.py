@@ -29,6 +29,27 @@ START_LIST_SOURCES = (START_LIST_SOURCE_LOCAL, START_LIST_SOURCE_SITE)
 TIMING_SOURCE_SITE = START_LIST_SOURCE_SITE
 TIMING_SOURCES = START_LIST_SOURCES
 
+# Per-protocol HTTP action performed after a protocol is generated: leave the site
+# untouched, publish the freshly generated protocol, or remove it from the site.
+HTTP_ACTION_NOTHING = "Nothing"
+HTTP_ACTION_UPLOAD = "Upload"
+HTTP_ACTION_DELETE = "Delete"
+HTTP_ACTIONS = (HTTP_ACTION_NOTHING, HTTP_ACTION_UPLOAD, HTTP_ACTION_DELETE)
+
+
+def migrate_http_actions(groups_on: bool, absolute_on: bool) -> tuple[str, str]:
+    """Map the legacy pair of upload booleans to the new per-protocol actions.
+
+    Old semantics: with neither box checked nothing happened; otherwise the checked
+    protocol was uploaded and the unchecked one deleted from the site.
+    """
+    if not groups_on and not absolute_on:
+        return HTTP_ACTION_NOTHING, HTTP_ACTION_NOTHING
+    return (
+        HTTP_ACTION_UPLOAD if groups_on else HTTP_ACTION_DELETE,
+        HTTP_ACTION_UPLOAD if absolute_on else HTTP_ACTION_DELETE,
+    )
+
 
 @dataclass
 class HtmlStyles:
@@ -122,8 +143,8 @@ class RaceConfig:
     http_upload_token: str = ""
     http_is_live: bool = True
     http_stage_label: str = ""
-    upload_http_groups: bool = False
-    upload_http_absolute: bool = False
+    http_groups_action: str = HTTP_ACTION_NOTHING
+    http_absolute_action: str = HTTP_ACTION_NOTHING
     start_list_source: str = START_LIST_SOURCE_LOCAL
     group_times_source: str = START_LIST_SOURCE_LOCAL
     finish_times_source: str = START_LIST_SOURCE_LOCAL

@@ -1,7 +1,7 @@
 """Tests for HTTP protocol publishing in _GenerateWorker._do_uploads.
 
-New behaviour: with at least one HTTP checkbox on, the checked protocol(s) are uploaded
-and the unchecked one is deleted from the site; with neither checked, nothing happens.
+Behaviour: each protocol has an independent action -- Nothing (leave the site alone),
+Upload (publish it) or Delete (remove it from the site).
 """
 
 from __future__ import annotations
@@ -11,7 +11,13 @@ from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication
 
-from app.config import RACE_TYPE_ELIMINATOR_FINALS, RaceConfig
+from app.config import (
+    HTTP_ACTION_DELETE,
+    HTTP_ACTION_NOTHING,
+    HTTP_ACTION_UPLOAD,
+    RACE_TYPE_ELIMINATOR_FINALS,
+    RaceConfig,
+)
 from app.main_window import _GenerateWorker
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -49,37 +55,87 @@ def _run(cfg: RaceConfig) -> tuple[list[str], list[str]]:
     return uploaded, deleted
 
 
-def test_neither_checkbox_does_nothing() -> None:
-    up, dl = _run(_cfg(upload_http_groups=False, upload_http_absolute=False))
+def test_both_nothing_does_nothing() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_NOTHING,
+            http_absolute_action=HTTP_ACTION_NOTHING,
+        )
+    )
     assert up == []
     assert dl == []
 
 
-def test_only_group_uploads_group_and_deletes_absolute() -> None:
-    up, dl = _run(_cfg(upload_http_groups=True, upload_http_absolute=False))
+def test_default_config_does_nothing() -> None:
+    # Nothing is the default action, so a fresh config touches neither protocol.
+    up, dl = _run(_cfg())
+    assert up == []
+    assert dl == []
+
+
+def test_group_upload_only() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_UPLOAD,
+            http_absolute_action=HTTP_ACTION_NOTHING,
+        )
+    )
     assert up == ["group"]
-    assert dl == ["absolute"]
+    assert dl == []
 
 
-def test_only_absolute_uploads_absolute_and_deletes_group() -> None:
-    up, dl = _run(_cfg(upload_http_groups=False, upload_http_absolute=True))
-    assert up == ["absolute"]
+def test_group_delete_only() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_DELETE,
+            http_absolute_action=HTTP_ACTION_NOTHING,
+        )
+    )
+    assert up == []
     assert dl == ["group"]
 
 
-def test_both_upload_both_and_delete_none() -> None:
-    up, dl = _run(_cfg(upload_http_groups=True, upload_http_absolute=True))
+def test_absolute_upload_only() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_NOTHING,
+            http_absolute_action=HTTP_ACTION_UPLOAD,
+        )
+    )
+    assert up == ["absolute"]
+    assert dl == []
+
+
+def test_both_upload() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_UPLOAD,
+            http_absolute_action=HTTP_ACTION_UPLOAD,
+        )
+    )
     assert sorted(up) == ["absolute", "group"]
     assert dl == []
 
 
-def test_eliminator_finals_deletes_absolute_even_if_checked() -> None:
-    # In eliminator finals the absolute protocol is never uploaded, so it is removed.
+def test_upload_group_delete_absolute() -> None:
+    up, dl = _run(
+        _cfg(
+            http_groups_action=HTTP_ACTION_UPLOAD,
+            http_absolute_action=HTTP_ACTION_DELETE,
+        )
+    )
+    assert up == ["group"]
+    assert dl == ["absolute"]
+
+
+def test_eliminator_finals_absolute_upload_falls_back_to_delete() -> None:
+    # In eliminator finals the absolute protocol is never uploaded; an Upload request
+    # removes any stale copy from the site instead.
     up, dl = _run(
         _cfg(
             race_type=RACE_TYPE_ELIMINATOR_FINALS,
-            upload_http_groups=True,
-            upload_http_absolute=True,
+            http_groups_action=HTTP_ACTION_UPLOAD,
+            http_absolute_action=HTTP_ACTION_UPLOAD,
         )
     )
     assert up == ["group"]
@@ -87,6 +143,6 @@ def test_eliminator_finals_deletes_absolute_even_if_checked() -> None:
 
 
 def test_no_site_url_does_nothing() -> None:
-    up, dl = _run(_cfg(http_site_url="", upload_http_groups=True))
+    up, dl = _run(_cfg(http_site_url="", http_groups_action=HTTP_ACTION_UPLOAD))
     assert up == []
     assert dl == []
