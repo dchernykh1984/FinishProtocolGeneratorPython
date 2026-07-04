@@ -32,7 +32,6 @@ from app.calculator import (
 from app.config import (
     ALL_RACE_TYPES,
     HTTP_ACTION_DELETE,
-    HTTP_ACTION_NOTHING,
     HTTP_ACTION_UPLOAD,
     HTTP_ACTIONS,
     START_LIST_SOURCE_SITE,
@@ -42,6 +41,7 @@ from app.config import (
     HtmlStyles,
     RaceConfig,
     migrate_http_actions,
+    normalize_http_action,
 )
 from app.file_io import (
     load_config_file,
@@ -397,8 +397,6 @@ class _GenerateWorker(QThread):
 
     def _publish_http_protocol(self, cfg, protocol_type, local_path, action, errors):
         """Perform the configured HTTP *action* for one protocol; True on error."""
-        if action == HTTP_ACTION_NOTHING:
-            return False
         label = protocol_type.capitalize()
         if action == HTTP_ACTION_UPLOAD:
             self.log_message.emit(f"Uploading {protocol_type} protocol via HTTP...")
@@ -418,21 +416,24 @@ class _GenerateWorker(QThread):
             self.log_message.emit(f"  {label} protocol: uploaded via HTTP")
             return False
 
-        # HTTP_ACTION_DELETE
-        self.log_message.emit(
-            f"Removing {protocol_type} protocol from site via HTTP..."
-        )
-        if (
-            http_delete_protocol(
-                cfg.http_site_url,
-                cfg.http_upload_token,
-                protocol_type,
-                errors_out=errors,
+        if action == HTTP_ACTION_DELETE:
+            self.log_message.emit(
+                f"Removing {protocol_type} protocol from site via HTTP..."
             )
-            == -1
-        ):
-            return True
-        self.log_message.emit(f"  {label} protocol: removed from site")
+            if (
+                http_delete_protocol(
+                    cfg.http_site_url,
+                    cfg.http_upload_token,
+                    protocol_type,
+                    errors_out=errors,
+                )
+                == -1
+            ):
+                return True
+            self.log_message.emit(f"  {label} protocol: removed from site")
+            return False
+
+        # HTTP_ACTION_NOTHING or any unrecognised value: leave the site untouched.
         return False
 
     def _emit_upload_result(
@@ -1621,11 +1622,11 @@ class MainWindow(QMainWindow):
             cfg.http_is_live = _bool("HttpIsLive", cfg.http_is_live)
             cfg.http_stage_label = _str("HttpStageLabel", cfg.http_stage_label)
             if "HttpGroupsAction" in kv or "HttpAbsoluteAction" in kv:
-                cfg.http_groups_action = _str(
-                    "HttpGroupsAction", cfg.http_groups_action
+                cfg.http_groups_action = normalize_http_action(
+                    _str("HttpGroupsAction", cfg.http_groups_action)
                 )
-                cfg.http_absolute_action = _str(
-                    "HttpAbsoluteAction", cfg.http_absolute_action
+                cfg.http_absolute_action = normalize_http_action(
+                    _str("HttpAbsoluteAction", cfg.http_absolute_action)
                 )
             elif "UploadHttpGroups" in kv or "UploadHttpAbsolute" in kv:
                 cfg.http_groups_action, cfg.http_absolute_action = migrate_http_actions(
@@ -1863,11 +1864,11 @@ class MainWindow(QMainWindow):
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
             if "http_groups_action" in d or "http_absolute_action" in d:
-                cfg.http_groups_action = _ds(
-                    "http_groups_action", cfg.http_groups_action
+                cfg.http_groups_action = normalize_http_action(
+                    _ds("http_groups_action", cfg.http_groups_action)
                 )
-                cfg.http_absolute_action = _ds(
-                    "http_absolute_action", cfg.http_absolute_action
+                cfg.http_absolute_action = normalize_http_action(
+                    _ds("http_absolute_action", cfg.http_absolute_action)
                 )
             elif "upload_http_groups" in d or "upload_http_absolute" in d:
                 cfg.http_groups_action, cfg.http_absolute_action = migrate_http_actions(

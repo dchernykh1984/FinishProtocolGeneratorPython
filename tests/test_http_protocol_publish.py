@@ -146,3 +146,10 @@ def test_no_site_url_does_nothing() -> None:
     up, dl = _run(_cfg(http_site_url="", http_groups_action=HTTP_ACTION_UPLOAD))
     assert up == []
     assert dl == []
+
+
+def test_unknown_action_does_nothing_not_delete() -> None:
+    # A corrupt/typo action value must not fall through to deleting the protocol.
+    up, dl = _run(_cfg(http_groups_action="Uplaod", http_absolute_action="garbage"))
+    assert up == []
+    assert dl == []
