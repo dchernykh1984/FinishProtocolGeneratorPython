@@ -115,6 +115,41 @@ After generating a protocol, the **Upload** button sends it to
 `POST /api/v1/protocols/upload/` as a multipart HTML file with the competition
 token. The site stores the protocol and makes it visible on the competition page.
 
+## Live race statistics (for the Garmin data field)
+
+When **Send group statistics** and/or **Send absolute statistics** are enabled in
+**Settings -> HTTP**, every protocol regeneration also pushes a per-competitor live-standings
+snapshot to `POST /api/v1/live-stats/`. A Garmin Connect IQ data field then reads one rider's
+stats publicly via `GET /api/v1/live-stats/{competition_id}/{bib}` and shows them mid-race.
+
+Each competitor's snapshot is a plain `key -> string` dictionary. Everything is derived from
+**lap-finish crossings only** (never intermediate control points), so the numbers stay reliable
+even when a controller misses a mark. A key is **omitted** when it does not apply -- the watch
+simply shows nothing for a missing key. Keys come in `_group` / `_abs` pairs (within the rider's
+group vs. the whole race), plus `laps`.
+
+| Field | Meaning |
+|-------|---------|
+| `place_group` / `place_abs` | Current place in the group / overall, as a number, or `"DSQ"` for a disqualified rider (no `DNF`/`DNS` labels; those still get a number). |
+| `qty_group` / `qty_abs` | Number of competitors in the group / whole race, counting everyone with a bib (incl. DSQ, DNS, DNF). |
+| `gap_prev_group` / `gap_prev_abs` | Time behind the rider one place ahead, e.g. `"+0:12"`. Omitted for the leader. |
+| `gap_next_group` / `gap_next_abs` | Time the rider one place behind trails you, e.g. `"+0:45"`. Omitted for the last competitor. |
+| `gap_leader_group` / `gap_leader_abs` | Time behind the group / overall leader, e.g. `"+2:05"`. Omitted for the leader. |
+| `gap_prev_group_delta` / `gap_prev_abs_delta` | How the gap to the rider ahead changed over your last lap: `"+..."` it grew, `"-..."` it shrank. Omitted with fewer than two shared laps. |
+| `gap_next_group_delta` / `gap_next_abs_delta` | How the gap to the rider behind changed over the last lap (`+` grew, `-` shrank). |
+| `gap_leader_group_delta` / `gap_leader_abs_delta` | How the gap to the leader changed over the last lap (`+` grew, `-` shrank). |
+| `laps` | Completed vs. required laps, e.g. `"3/7"`. |
+
+Notes:
+
+- **All values are strings.** Times are `"+M:SS"` (or `"+H:MM:SS"` past an hour).
+- **Gaps and their deltas use lap-finish crossings.** A gap is measured at the last lap **both**
+  riders finished, so it stays a real time even when riders are a lap apart. A delta is that gap
+  now minus the gap one lap earlier.
+- **DSQ** riders show `place_* = "DSQ"`, keep `qty_*` and `laps`, and have no gaps.
+- The site stores the dictionary **opaquely** (it does not know the individual keys), so new
+  stats can be added here without any site change.
+
 ## Contributing
 
 Before requesting a review, make sure the CI pipeline passes on your pull request. Once the pipeline is green, request a review from [@dchernykh1984](https://github.com/dchernykh1984).
