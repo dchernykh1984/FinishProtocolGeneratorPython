@@ -123,6 +123,21 @@ class FinishCompetitorElement:
             penalty=penalty,
         )
 
+    @property
+    def is_dsq(self) -> bool:
+        """True for a disqualification mark, with or without a reason.
+
+        The chronometers write ``DSQ`` or ``DSQ: <reason>``; both disqualify.
+        """
+        return self.action == "DSQ" or self.action.startswith("DSQ:")
+
+    @property
+    def dsq_reason(self) -> str:
+        """The reason text of a ``DSQ: <reason>`` mark, or ``""`` for a bare ``DSQ``."""
+        if self.action.startswith("DSQ:"):
+            return self.action[len("DSQ:") :].strip()
+        return ""
+
 
 @dataclass
 class GroupStartElement:
@@ -162,6 +177,9 @@ class FinishProtocolElement:
 
         self.finished: bool = disable_dnf
         self.disqualified: bool = False
+        # Human-readable "<where>: <reason>" strings for each DSQ mark that carried a
+        # reason (finish line or a control point); shown in the finish-time column.
+        self.dsq_reasons: list[str] = []
         self.sorted_flag: bool = False
         self.n_laps_finished: int = 0
 

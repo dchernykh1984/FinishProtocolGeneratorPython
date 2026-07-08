@@ -236,6 +236,67 @@ class TestDsq:
         )
         assert protocol[0].disqualified is False
 
+    def test_bare_dsq_has_no_reasons(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("7", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [_finish("7", start_t + 100, "DSQ")]
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], _cfg(), []
+        )
+        assert protocol[0].disqualified is True
+        assert protocol[0].dsq_reasons == []
+
+    def test_dsq_reason_at_finish(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("7", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [_finish("7", start_t + 100, "DSQ: unsportsmanlike")]
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], _cfg(), []
+        )
+        assert protocol[0].disqualified is True
+        assert protocol[0].dsq_reasons == ["finish: unsportsmanlike"]
+
+    def test_dsq_reason_at_control_point(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("7", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        # One remote control point (CP 1) carrying a DSQ mark for competitor 7.
+        remote_points = [[_finish("7", start_t + 50, "DSQ: crossed the tape")]]
+        protocol = calculate_protocol(
+            start_list, group_list, [], remote_points, [], _cfg(), []
+        )
+        assert protocol[0].disqualified is True
+        assert protocol[0].dsq_reasons == ["CP 1: crossed the tape"]
+
+    def test_dsq_reasons_from_finish_and_control_point(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("7", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [_finish("7", start_t + 100, "DSQ: insulted a referee")]
+        remote_points = [[_finish("7", start_t + 50, "DSQ: cut the course")]]
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, remote_points, [], _cfg(), []
+        )
+        assert protocol[0].disqualified is True
+        assert protocol[0].dsq_reasons == [
+            "finish: insulted a referee",
+            "CP 1: cut the course",
+        ]
+
+    def test_control_point_dsq_is_not_counted_as_a_crossing(self) -> None:
+        # A DSQ mark on a control-point stream must not be treated as a lap crossing.
+        start_t = BASE_T + 3600
+        start_list = [_start("7", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        remote_points = [[_finish("7", start_t + 50, "DSQ: reason")]]
+        protocol = calculate_protocol(
+            start_list, group_list, [], remote_points, [], _cfg(), []
+        )
+        fp = protocol[0]
+        assert all(v == -1 for v in fp.control_points[0].segment_crosses)
+
 
 # ---------------------------------------------------------------------------
 # calculate_protocol -- more laps beats fewer
