@@ -12,8 +12,8 @@ Keys (any subset, gated by the two config toggles):
 * gap_prev_* / gap_next_* -- time to the neighbour one place ahead / behind, measured at
   the last lap-finish both completed ("+1:23"); omitted when it cannot be computed.
 * gap_leader_* -- time behind the scope leader ("+2:05"); omitted for the leader.
-* gap_prev_*_delta / gap_next_*_delta -- how the prev/next gap changed over the last lap
-  ("+" grew, "-" shrank); needs two common laps, else omitted.
+* gap_prev_*_delta / gap_next_*_delta / gap_leader_*_delta -- how the prev/next/leader
+  gap changed over the last lap ("+" grew, "-" shrank); needs 2 laps, else absent.
 * laps -- "<done>/<total>" (e.g. "3/7").
 """
 
@@ -104,8 +104,8 @@ def _rank_scope(  # noqa: C901
 
     Returns competitor_id -> entry. Non-DSQ riders get place (number), qty, and any of
     gap_prev/gap_next (neighbours), gap_leader (scope winner), and gap_prev_delta/
-    gap_next_delta (per-lap change of those gaps). DSQ riders get place "DSQ" only,
-    excluded from the numbering and gaps. qty counts everyone.
+    gap_next_delta/gap_leader_delta (per-lap change of those gaps). DSQ riders get place
+    "DSQ" only, excluded from the numbering and gaps. qty counts everyone.
     """
     ranked = [e for e in elements if not e.disqualified]
     qty = str(len(elements))
@@ -118,9 +118,11 @@ def _rank_scope(  # noqa: C901
                 entry["gap_prev"] = gap
             if delta is not None:
                 entry["gap_prev_delta"] = delta
-            leader_gap, _ = _gap_and_delta(elem, ranked[0], cfg)
+            leader_gap, leader_delta = _gap_and_delta(elem, ranked[0], cfg)
             if leader_gap is not None:
                 entry["gap_leader"] = leader_gap
+            if leader_delta is not None:
+                entry["gap_leader_delta"] = leader_delta
         if i < len(ranked) - 1:
             gap, delta = _gap_and_delta(ranked[i + 1], elem, cfg)
             if gap is not None:
@@ -141,6 +143,7 @@ _GAP_KEY_TEMPLATES = {
     "gap_leader": "gap_leader{s}",
     "gap_prev_delta": "gap_prev{s}_delta",
     "gap_next_delta": "gap_next{s}_delta",
+    "gap_leader_delta": "gap_leader{s}_delta",
 }
 
 
