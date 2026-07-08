@@ -192,3 +192,57 @@ class TestToggles:
         cfg = _cfg(send_group_statistics=False, send_absolute_statistics=False)
         stats = build_live_stats(_one_group_scenario(cfg), cfg)
         assert stats == {}
+
+
+class TestGapLeader:
+    def test_gap_to_scope_leader(self):
+        stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
+        # Leader is 1 (200); 2 is +0:30 at lap 2, 3 is +0:50 at their last lap (lap 1).
+        assert stats["2"]["gap_leader_abs"] == "+0:30"
+        assert stats["3"]["gap_leader_abs"] == "+0:50"
+        # One group here, so the group leader gap matches.
+        assert stats["2"]["gap_leader_group"] == "+0:30"
+
+    def test_leader_has_no_gap_leader(self):
+        stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
+        assert "gap_leader_abs" not in stats["1"]
+        assert "gap_leader_group" not in stats["1"]
+
+
+class TestGapDelta:
+    def test_per_lap_delta_when_gap_grows(self):
+        # 1 vs 2: gap 20s at lap 1 -> 30s at lap 2, so it grew by 10s.
+        stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
+        assert stats["2"]["gap_prev_abs_delta"] == "+0:10"
+        assert stats["1"]["gap_next_abs_delta"] == "+0:10"
+        assert stats["2"]["gap_prev_group_delta"] == "+0:10"
+
+    def test_delta_absent_with_only_one_common_lap(self):
+        # 3 has done a single lap, so no previous-lap gap exists to compare.
+        stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
+        assert "gap_prev_abs_delta" not in stats["3"]
+
+    def test_delta_negative_when_gap_shrinks(self):
+        start_list = [_start("1", "G"), _start("2", "G")]
+        group_list = [_group("G", START_T)]
+        finish_list = [
+            _finish("1", START_T + 100, "nextLap"),
+            _finish("1", START_T + 230, "nextLap"),
+            _finish("2", START_T + 140, "nextLap"),  # 40s behind at lap 1
+            _finish("2", START_T + 250, "nextLap"),  # only 20s behind at lap 2
+        ]
+        cfg = _cfg()
+        stats = build_live_stats(_run(start_list, finish_list, cfg, group_list), cfg)
+        assert stats["2"]["gap_prev_abs"] == "+0:20"
+        # gap went 40s -> 20s over the last lap: shrank by 20s.
+        assert stats["2"]["gap_prev_abs_delta"] == "-0:20"
+
+
+class TestNewKeysRespectToggles:
+    def test_group_only_omits_abs_leader_and_delta(self):
+        cfg = _cfg(send_group_statistics=True, send_absolute_statistics=False)
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        assert "gap_leader_group" in stats["2"]
+        assert "gap_prev_group_delta" in stats["2"]
+        assert "gap_leader_abs" not in stats["2"]
+        assert "gap_prev_abs_delta" not in stats["2"]

@@ -11,6 +11,9 @@ Keys (any subset, gated by the two config toggles):
 * qty_group / qty_abs -- bib-holders in the group / whole race (incl. DSQ/DNS/DNF).
 * gap_prev_* / gap_next_* -- time to the neighbour one place ahead / behind, measured at
   the last lap-finish both completed ("+1:23"); omitted when it cannot be computed.
+* gap_leader_* -- time behind the scope leader ("+2:05"); omitted for the leader.
+* gap_prev_*_delta / gap_next_*_delta -- how the prev/next gap changed over the last lap
+  ("+" grew, "-" shrank); needs two common laps, else omitted.
 * laps -- "<done>/<total>" (e.g. "3/7").
 """
 
@@ -60,25 +63,49 @@ def _format_gap(seconds: float) -> str:
     return f"{sign}{minutes}:{secs:02d}"
 
 
-def _gap(
-    behind: FinishProtocolElement, ahead: FinishProtocolElement, cfg: RaceConfig
-) -> str | None:
-    """Time `behind` trails `ahead` at the last lap both finished (>=0), or None."""
-    common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
-    e_behind = _elapsed_at_lap(behind, cfg, common)
-    e_ahead = _elapsed_at_lap(ahead, cfg, common)
+def _gap_value(
+    behind: FinishProtocolElement,
+    ahead: FinishProtocolElement,
+    cfg: RaceConfig,
+    lap: int,
+) -> float | None:
+    """Signed seconds `behind` trails `ahead` at the finish of `lap` (>=0), or None."""
+    e_behind = _elapsed_at_lap(behind, cfg, lap)
+    e_ahead = _elapsed_at_lap(ahead, cfg, lap)
     if e_behind is None or e_ahead is None:
         return None
-    return _format_gap(e_behind - e_ahead)
+    return e_behind - e_ahead
 
 
-def _rank_scope(
+def _gap_and_delta(
+    behind: FinishProtocolElement, ahead: FinishProtocolElement, cfg: RaceConfig
+) -> tuple[str | None, str | None]:
+    """Formatted gap at the last common lap, and how it changed over the last lap.
+
+    The delta is the gap now minus the gap one lap earlier: "+" = the gap grew, "-" = it
+    shrank (caught up). It needs at least two common laps, else it is None.
+    """
+    common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
+    now = _gap_value(behind, ahead, cfg, common)
+    if now is None:
+        return None, None
+    delta = None
+    if common >= 2:
+        prev = _gap_value(behind, ahead, cfg, common - 1)
+        if prev is not None:
+            delta = _format_gap(now - prev)
+    return _format_gap(now), delta
+
+
+def _rank_scope(  # noqa: C901
     elements: list[FinishProtocolElement], cfg: RaceConfig
 ) -> dict[str, dict[str, str]]:
     """Rank one scope (whole race or one group), sorted best-first.
 
-    Returns competitor_id -> {place, qty, gap_prev?, gap_next?}. DSQ riders get
-    place "DSQ", excluded from the numbering and neighbour gaps; qty counts everyone.
+    Returns competitor_id -> entry. Non-DSQ riders get place (number), qty, and any of
+    gap_prev/gap_next (neighbours), gap_leader (scope winner), and gap_prev_delta/
+    gap_next_delta (per-lap change of those gaps). DSQ riders get place "DSQ" only,
+    excluded from the numbering and gaps. qty counts everyone.
     """
     ranked = [e for e in elements if not e.disqualified]
     qty = str(len(elements))
@@ -86,13 +113,20 @@ def _rank_scope(
     for i, elem in enumerate(ranked):
         entry = {"place": str(i + 1), "qty": qty}
         if i > 0:
-            gap = _gap(elem, ranked[i - 1], cfg)
+            gap, delta = _gap_and_delta(elem, ranked[i - 1], cfg)
             if gap is not None:
                 entry["gap_prev"] = gap
+            if delta is not None:
+                entry["gap_prev_delta"] = delta
+            leader_gap, _ = _gap_and_delta(elem, ranked[0], cfg)
+            if leader_gap is not None:
+                entry["gap_leader"] = leader_gap
         if i < len(ranked) - 1:
-            gap = _gap(ranked[i + 1], elem, cfg)
+            gap, delta = _gap_and_delta(ranked[i + 1], elem, cfg)
             if gap is not None:
                 entry["gap_next"] = gap
+            if delta is not None:
+                entry["gap_next_delta"] = delta
         out[elem.competitor_id] = entry
     for elem in elements:
         if elem.disqualified:
@@ -100,7 +134,26 @@ def _rank_scope(
     return out
 
 
-def build_live_stats(  # noqa: C901
+# scope-entry key -> output key template ("{s}" is the scope suffix, "_group" or "_abs")
+_GAP_KEY_TEMPLATES = {
+    "gap_prev": "gap_prev{s}",
+    "gap_next": "gap_next{s}",
+    "gap_leader": "gap_leader{s}",
+    "gap_prev_delta": "gap_prev{s}_delta",
+    "gap_next_delta": "gap_next{s}_delta",
+}
+
+
+def _emit_scope(entry: dict[str, str], suffix: str, data: dict[str, str]) -> None:
+    """Copy one scope's entry into `data` with the `_group` / `_abs` suffix applied."""
+    data[f"place{suffix}"] = entry["place"]
+    data[f"qty{suffix}"] = entry["qty"]
+    for base, template in _GAP_KEY_TEMPLATES.items():
+        if base in entry:
+            data[template.format(s=suffix)] = entry[base]
+
+
+def build_live_stats(
     sorted_proto: list[FinishProtocolElement], cfg: RaceConfig
 ) -> dict[str, dict[str, str]]:
     """Build bib -> {key: value} for the enabled scopes; empty when both toggles off."""
@@ -122,21 +175,9 @@ def build_live_stats(  # noqa: C901
         cid = elem.competitor_id
         data: dict[str, str] = {}
         if cfg.send_group_statistics and cid in group_scope:
-            grp = group_scope[cid]
-            data["place_group"] = grp["place"]
-            data["qty_group"] = grp["qty"]
-            if "gap_prev" in grp:
-                data["gap_prev_group"] = grp["gap_prev"]
-            if "gap_next" in grp:
-                data["gap_next_group"] = grp["gap_next"]
+            _emit_scope(group_scope[cid], "_group", data)
         if cfg.send_absolute_statistics and cid in abs_scope:
-            ab = abs_scope[cid]
-            data["place_abs"] = ab["place"]
-            data["qty_abs"] = ab["qty"]
-            if "gap_prev" in ab:
-                data["gap_prev_abs"] = ab["gap_prev"]
-            if "gap_next" in ab:
-                data["gap_next_abs"] = ab["gap_next"]
+            _emit_scope(abs_scope[cid], "_abs", data)
         data["laps"] = f"{_laps_done(elem, cfg)}/{_total_laps(elem, cfg)}"
         stats[cid] = data
     return stats
