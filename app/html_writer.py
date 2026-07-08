@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import html
 from io import StringIO
 from pathlib import Path
 from typing import TextIO
@@ -13,6 +14,15 @@ from app.models import INF, FinishProtocolElement, GroupStartElement
 # ---------------------------------------------------------------------------
 # time formatting
 # ---------------------------------------------------------------------------
+
+
+def _dsq_reasons_html(fp: FinishProtocolElement) -> str:
+    """Render a disqualified competitor's DSQ reasons as "<where>: <reason>" lines.
+
+    Each reason is HTML-escaped (it is free referee text) and the entries are joined
+    with ``<BR>`` so they stack inside the finish-time cell.
+    """
+    return "<BR>".join(html.escape(entry) for entry in fp.dsq_reasons)
 
 
 def _format_time(t: float, n_signs: int, write_date: bool = False) -> str:
@@ -492,6 +502,8 @@ def write_group_protocol(  # noqa: C901
                                 else fp.n_laps_finished
                             )
                             buf.write(f'<BR><FONT SIZE="3">({n_laps_shown})</FONT>')
+                elif fp.disqualified and fp.dsq_reasons:
+                    buf.write(_dsq_reasons_html(fp))
                 buf.write("</td>\n")
 
             if cfg.show_additional_info:
@@ -923,6 +935,8 @@ def write_absolute_protocol(  # noqa: C901
                             else fp.n_laps_finished
                         )
                         buf.write(f'<BR><FONT SIZE="3">({n_shown})</FONT>')
+            elif fp.disqualified and fp.dsq_reasons:
+                buf.write(_dsq_reasons_html(fp))
             buf.write("</td>\n")
 
         if cfg.show_additional_info:

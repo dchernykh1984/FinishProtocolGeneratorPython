@@ -162,6 +162,68 @@ class TestWriteAbsoluteProtocol:
         content = Path(path).read_text(encoding="utf-8")
         assert "Test Race 2024" in content
 
+    def test_dsq_reason_rendered_in_finish_time_column(self) -> None:
+        start_list = [
+            StartProtocolElement.from_line("9#Villain#G#2#1#1990#T#C##0 00:00:00.000#"),
+        ]
+        group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+        finish_list = [
+            FinishCompetitorElement.from_line(
+                f"9#{15921} 1:5:0.000#DSQ: cut the course#"
+            ),
+        ]
+        cfg = RaceConfig()
+        cfg.print_dsq = True
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, []
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "finish: cut the course" in content
+
+    def test_bare_dsq_shows_no_reason_text(self) -> None:
+        start_list = [
+            StartProtocolElement.from_line("9#Villain#G#2#1#1990#T#C##0 00:00:00.000#"),
+        ]
+        group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+        finish_list = [
+            FinishCompetitorElement.from_line(f"9#{15921} 1:5:0.000#DSQ#"),
+        ]
+        cfg = RaceConfig()
+        cfg.print_dsq = True
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, []
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "finish:" not in content
+
+    def test_dsq_reason_is_html_escaped(self) -> None:
+        start_list = [
+            StartProtocolElement.from_line("9#Villain#G#2#1#1990#T#C##0 00:00:00.000#"),
+        ]
+        group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
+        finish_list = [
+            FinishCompetitorElement.from_line(f"9#{15921} 1:5:0.000#DSQ: a<b & c#"),
+        ]
+        cfg = RaceConfig()
+        cfg.print_dsq = True
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, []
+        )
+        sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
+        with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+            path = f.name
+        write_absolute_protocol(path, sorted_proto, group_list, cfg)
+        content = Path(path).read_text(encoding="utf-8")
+        assert "a&lt;b &amp; c" in content
+
     def test_print_dns_shows_dns_competitor(self) -> None:
         start_list = [
             StartProtocolElement.from_line(

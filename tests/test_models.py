@@ -111,6 +111,29 @@ class TestFinishCompetitorElement:
         fc = FinishCompetitorElement.from_line("7#15921 11:00:00.000#DSQ#")
         assert fc.action == "DSQ"
 
+    def test_bare_dsq_is_dsq_without_reason(self) -> None:
+        fc = FinishCompetitorElement.from_line("7#15921 11:00:00.000#DSQ#")
+        assert fc.is_dsq is True
+        assert fc.dsq_reason == ""
+
+    def test_dsq_with_reason(self) -> None:
+        fc = FinishCompetitorElement.from_line(
+            "7#15921 11:00:00.000#DSQ: cut the course#"
+        )
+        assert fc.is_dsq is True
+        assert fc.dsq_reason == "cut the course"
+
+    def test_dsq_reason_without_space_after_colon(self) -> None:
+        fc = FinishCompetitorElement.from_line("7#15921 11:00:00.000#DSQ:rude#")
+        assert fc.is_dsq is True
+        assert fc.dsq_reason == "rude"
+
+    def test_non_dsq_actions_are_not_dsq(self) -> None:
+        for action in ("nextLap", "finish"):
+            fc = FinishCompetitorElement.from_line(f"1#15921 11:00:00.000#{action}#")
+            assert fc.is_dsq is False
+            assert fc.dsq_reason == ""
+
     def test_numeric_penalty(self) -> None:
         fc = FinishCompetitorElement.from_line("5#15921 11:00:00.000#nextLap#30#")
         assert fc.penalty == 30.0

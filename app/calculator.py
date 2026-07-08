@@ -14,6 +14,22 @@ from app.models import (
 )
 
 
+def _record_dsq_reason(
+    fp: FinishProtocolElement, fe: FinishCompetitorElement, where: str
+) -> None:
+    """Append a "<where>: <reason>" entry for a DSQ mark that carried a reason.
+
+    Bare ``DSQ`` marks (no reason) still disqualify but add nothing to the list, keeping
+    the finish-time column unchanged for the legacy format. Duplicates are collapsed.
+    """
+    reason = fe.dsq_reason
+    if not reason:
+        return
+    entry = f"{where}: {reason}"
+    if entry not in fp.dsq_reasons:
+        fp.dsq_reasons.append(entry)
+
+
 def spiridonov(year_of_birth: str) -> float:
     """Spiridonov age-coefficient formula."""
     try:
@@ -215,8 +231,9 @@ def calculate_protocol(  # noqa: C901
         _finish_count = 0
         for fe in finish_list:
             if fp.is_same_competitor(fe):
-                if fe.action == "DSQ":
+                if fe.is_dsq:
                     fp.disqualified = not cfg.disable_dsq
+                    _record_dsq_reason(fp, fe, "finish")
                 if fe.action == "finish":
                     _finish_count += 1
                     if _finish_count > 1:
@@ -225,12 +242,20 @@ def calculate_protocol(  # noqa: C901
                         )
                     fp.finished = True
 
+        # A control point can also disqualify (its device uploads DSQ marks to that
+        # point's stream); collect those with a "CP <n>" location for the reason list.
+        for pt_idx, pts in enumerate(remote_points):
+            for rem in pts:
+                if rem.is_dsq and fp.is_same_competitor(rem):
+                    fp.disqualified = not cfg.disable_dsq
+                    _record_dsq_reason(fp, rem, f"CP {pt_idx + 1}")
+
         # Log finish events that occur before this competitor's start time
         if 0.0 < fp.cross_line_times[0] < INF:
             for fe in finish_list:
                 if (
                     fp.is_same_competitor(fe)
-                    and fe.action != "DSQ"
+                    and not fe.is_dsq
                     and fe.seconds < fp.cross_line_times[0]
                 ):
                     log.append(
@@ -249,7 +274,7 @@ def calculate_protocol(  # noqa: C901
             next_crossed = False
 
             for fe in finish_list:
-                if fe.action == "DSQ":
+                if fe.is_dsq:
                     continue
                 if not fp.is_same_competitor(fe):
                     continue
@@ -304,6 +329,8 @@ def calculate_protocol(  # noqa: C901
                     # apply penalties from remote points
                     for _pt_idx, pts in enumerate(remote_points):
                         for rem in pts:
+                            if rem.is_dsq:
+                                continue
                             if (
                                 rem.competitor_id == fp.competitor_id
                                 and rem.seconds >= prev_lap_start
@@ -341,6 +368,8 @@ def calculate_protocol(  # noqa: C901
         if cfg.is_number_of_tries():
             for pts in remote_points:
                 for rem in pts:
+                    if rem.is_dsq:
+                        continue
                     if (
                         rem.competitor_id == fp.competitor_id
                         and rem.seconds >= prev_lap_start
@@ -391,6 +420,8 @@ def calculate_protocol(  # noqa: C901
                     )
                 )
                 for rem in pts:
+                    if rem.is_dsq:
+                        continue
                     t = rem.seconds
                     if (
                         fp.is_same_competitor(rem)
@@ -452,7 +483,9 @@ def check_start_protocol(  # noqa: C901
                 )
 
     for fp in protocol:
-        crossings = sum(1 for fe in finish_list if fp.is_same_competitor(fe))
+        crossings = sum(
+            1 for fe in finish_list if fp.is_same_competitor(fe) and not fe.is_dsq
+        )
         if cfg.is_number_of_tries():
             expected = fp.n_laps * 2
         else:
