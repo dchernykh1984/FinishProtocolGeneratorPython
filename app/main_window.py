@@ -58,9 +58,11 @@ from app.http_io import (
     fetch_group_times,
     fetch_remote_points,
     fetch_start_list,
+    upload_live_stats,
 )
 from app.http_io import upload_protocol as http_upload_protocol
-from app.models import GroupStartElement
+from app.live_stats import build_live_stats
+from app.models import FinishProtocolElement, GroupStartElement
 
 _DOWNLOAD_ACTIONS = ("Download", "Merge", "Merge+Remove")
 
@@ -335,7 +337,9 @@ class _GenerateWorker(QThread):
         super().__init__()
         self._cfg = cfg
 
-    def _do_uploads(self, cfg: RaceConfig) -> tuple[bool, list[str]]:
+    def _do_uploads(  # noqa: C901
+        self, cfg: RaceConfig, sorted_proto: list[FinishProtocolElement]
+    ) -> tuple[bool, list[str]]:
         """Attempt configured FTP and HTTP uploads.
 
         Returns (any_failed, error_messages).
@@ -392,6 +396,20 @@ class _GenerateWorker(QThread):
                 cfg, "absolute", cfg.absolute_protocol_file, absolute_action, errors
             ):
                 failed = True
+
+            # Live per-competitor stats for the Garmin field (full snapshot each run).
+            if cfg.send_group_statistics or cfg.send_absolute_statistics:
+                self.log_message.emit("Sending live statistics...")
+                stats = build_live_stats(sorted_proto, cfg)
+                count = upload_live_stats(
+                    cfg.http_site_url, cfg.http_upload_token, stats, errors
+                )
+                if count == -1:
+                    failed = True
+                else:
+                    self.log_message.emit(
+                        f"  Live statistics: sent {count} competitor(s)"
+                    )
 
         return failed, errors
 
@@ -523,7 +541,7 @@ class _GenerateWorker(QThread):
             for msg in log:
                 self.log_message.emit(msg)
 
-            upload_failed, upload_errors = self._do_uploads(cfg)
+            upload_failed, upload_errors = self._do_uploads(cfg, sorted_proto)
             self._emit_upload_result(upload_failed, upload_errors)
             self.finished_ok.emit()
         except Exception as exc:
@@ -1088,6 +1106,22 @@ class MainWindow(QMainWindow):
         chk_il.toggled.connect(lambda v: setattr(self._cfg, "http_is_live", v))
         ly.addWidget(chk_il)
 
+        for chk_text, attr in (
+            (
+                "Send group statistics (live, for Garmin) after generate",
+                "send_group_statistics",
+            ),
+            (
+                "Send absolute statistics (live, for Garmin) after generate",
+                "send_absolute_statistics",
+            ),
+        ):
+            cb = QCheckBox(chk_text)
+            cb.setObjectName(attr)
+            cb.setChecked(bool(getattr(self._cfg, attr)))
+            cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
+            ly.addWidget(cb)
+
         ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
 
         for label, attr, ivar in (
@@ -1352,6 +1386,10 @@ class MainWindow(QMainWindow):
             lines.append("UploadGroups")
         if cfg.upload_absolute:
             lines.append("UploadAbsolute")
+        if cfg.send_group_statistics:
+            lines.append("SendGroupStatistics")
+        if cfg.send_absolute_statistics:
+            lines.append("SendAbsoluteStatistics")
 
         # always: 4 action values and 3 FTP credentials
         lines += [
@@ -1588,6 +1626,12 @@ class MainWindow(QMainWindow):
             cfg.use_all_buttons = _bool("UseAllButtons", cfg.use_all_buttons)
             cfg.upload_groups = _bool("UploadGroups", cfg.upload_groups)
             cfg.upload_absolute = _bool("UploadAbsolute", cfg.upload_absolute)
+            cfg.send_group_statistics = _bool(
+                "SendGroupStatistics", cfg.send_group_statistics
+            )
+            cfg.send_absolute_statistics = _bool(
+                "SendAbsoluteStatistics", cfg.send_absolute_statistics
+            )
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -1653,6 +1697,8 @@ class MainWindow(QMainWindow):
             cfg.use_all_buttons = False
             cfg.upload_groups = False
             cfg.upload_absolute = False
+            cfg.send_group_statistics = False
+            cfg.send_absolute_statistics = False
             cfg.show_finish_time = False
             cfg.show_time_difference = False
             cfg.show_n_finished_laps = False
@@ -1758,6 +1804,12 @@ class MainWindow(QMainWindow):
             cfg.use_all_buttons = _db("use_all_buttons", cfg.use_all_buttons)
             cfg.upload_groups = _db("upload_groups", cfg.upload_groups)
             cfg.upload_absolute = _db("upload_absolute", cfg.upload_absolute)
+            cfg.send_group_statistics = _db(
+                "send_group_statistics", cfg.send_group_statistics
+            )
+            cfg.send_absolute_statistics = _db(
+                "send_absolute_statistics", cfg.send_absolute_statistics
+            )
             cfg.show_finish_time = _db("show_finish_time", cfg.show_finish_time)
             cfg.finish_time_label = _ds("finish_time_label", cfg.finish_time_label)
             cfg.show_time_difference = _db(

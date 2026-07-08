@@ -16,6 +16,7 @@ from app.http_io import (
     fetch_group_times,
     fetch_remote_points,
     fetch_start_list,
+    upload_live_stats,
     upload_protocol,
 )
 
@@ -387,3 +388,35 @@ class TestDeleteProtocol:
     def test_returns_minus1_on_connection_error(self) -> None:
         with patch("urllib.request.urlopen", side_effect=OSError("refused")):
             assert delete_protocol("https://s", "tok", "group") == -1
+
+
+class TestUploadLiveStats:
+    def test_returns_minus1_when_site_url_empty(self) -> None:
+        errors: list[str] = []
+        assert upload_live_stats("", "tok", {"1": {"place_abs": "1"}}, errors) == -1
+        assert errors
+
+    def test_posts_snapshot_and_returns_count(self) -> None:
+        captured: dict = {}
+
+        def fake(req, timeout=30):
+            captured["url"] = req.full_url
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _mock_json_response({"count": 2})
+
+        stats = {"1": {"place_abs": "1"}, "7": {"place_abs": "DSQ"}}
+        with patch("urllib.request.urlopen", side_effect=fake):
+            assert upload_live_stats("https://s/", "tok", stats) == 2
+        assert captured["url"] == "https://s/api/v1/live-stats/"
+        assert captured["body"] == {"competition_token": "tok", "stats": stats}
+
+    def test_returns_minus1_on_http_error(self) -> None:
+        exc = urllib.error.HTTPError("u", 401, "err", http.client.HTTPMessage(), None)
+        errors: list[str] = []
+        with patch("urllib.request.urlopen", side_effect=exc):
+            assert upload_live_stats("https://s", "tok", {}, errors) == -1
+        assert errors
+
+    def test_returns_minus1_on_connection_error(self) -> None:
+        with patch("urllib.request.urlopen", side_effect=OSError("refused")):
+            assert upload_live_stats("https://s", "tok", {}) == -1

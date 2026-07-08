@@ -276,6 +276,19 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         if tok is None:
             return result
 
+    # optional "SendGroupStatistics" / "SendAbsoluteStatistics" (live stats for Garmin)
+    if tok == "SendGroupStatistics":
+        result["send_group_statistics"] = "1"
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "SendAbsoluteStatistics":
+        result["send_absolute_statistics"] = "1"
+        tok = nxt()
+        if tok is None:
+            return result
+
     # always: 4 action values (current tok is start_list_action)
     result["start_list_action"] = tok
     for key in ("group_times_action", "result_times_action", "remote_points_action"):
