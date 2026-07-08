@@ -45,3 +45,21 @@ def test_save_then_load_preserves_sources() -> None:
         assert win._cfg.remote_points_source == START_LIST_SOURCE_SITE
     finally:
         win.deleteLater()
+
+
+def test_save_then_load_preserves_send_statistics_toggles() -> None:
+    """The two live-stats toggles survive a full save -> load of race info."""
+    win = MainWindow()
+    try:
+        win._cfg.send_group_statistics = True
+        win._cfg.send_absolute_statistics = True
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "fpg_info.txt")
+            win._save_race_info_to_path(path)
+            win._cfg.send_group_statistics = False
+            win._cfg.send_absolute_statistics = False
+            win._load_race_info_from_path(path)
+        assert win._cfg.send_group_statistics is True
+        assert win._cfg.send_absolute_statistics is True
+    finally:
+        win.deleteLater()

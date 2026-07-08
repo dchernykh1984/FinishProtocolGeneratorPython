@@ -51,7 +51,7 @@ def _run(cfg: RaceConfig) -> tuple[list[str], list[str]]:
         patch("app.main_window.http_upload_protocol", side_effect=record_upload),
         patch("app.main_window.http_delete_protocol", side_effect=record_delete),
     ):
-        worker._do_uploads(cfg)
+        worker._do_uploads(cfg, [])
     return uploaded, deleted
 
 

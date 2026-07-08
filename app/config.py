@@ -154,6 +154,9 @@ class RaceConfig:
     http_stage_label: str = ""
     http_groups_action: str = HTTP_ACTION_NOTHING
     http_absolute_action: str = HTTP_ACTION_NOTHING
+    # Push per-competitor live standings (for the Garmin field) on each regeneration.
+    send_group_statistics: bool = False
+    send_absolute_statistics: bool = False
     start_list_source: str = START_LIST_SOURCE_LOCAL
     group_times_source: str = START_LIST_SOURCE_LOCAL
     finish_times_source: str = START_LIST_SOURCE_LOCAL

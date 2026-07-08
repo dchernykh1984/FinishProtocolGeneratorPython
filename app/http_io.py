@@ -229,3 +229,43 @@ def delete_protocol(
         if errors_out is not None:
             errors_out.append(f"HTTP delete to {delete_url} failed: {exc}")
         return -1
+
+
+def upload_live_stats(
+    site_url: str,
+    upload_token: str,
+    stats: dict[str, dict[str, str]],
+    errors_out: list[str] | None = None,
+) -> int:
+    """Push the per-competitor live-standings snapshot (bib -> dict) to the site.
+
+    The whole snapshot replaces the previous one for this competition. Returns how many
+    competitors the site stored, or -1 on error (a message is appended to *errors_out*).
+    """
+    if not site_url:
+        if errors_out is not None:
+            errors_out.append("HTTP site URL is empty")
+        return -1
+
+    url = site_url.rstrip("/") + "/api/v1/live-stats/"
+    body = json.dumps({"competition_token": upload_token, "stats": stats}).encode(
+        "utf-8"
+    )
+    req = urllib.request.Request(  # noqa: S310
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+        return int(data.get("count", len(stats)))
+    except urllib.error.HTTPError as exc:
+        if errors_out is not None:
+            errors_out.append(f"HTTP live-stats upload failed: {exc.code} {exc.reason}")
+        return -1
+    except Exception as exc:
+        if errors_out is not None:
+            errors_out.append(f"HTTP live-stats upload failed: {exc}")
+        return -1
