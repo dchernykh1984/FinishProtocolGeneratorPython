@@ -137,8 +137,8 @@ group vs. the whole race), plus `laps`.
 |-------|---------|
 | `place_group` / `place_abs` | Current place in the group / overall, as a number, or `"DSQ"` for a disqualified rider (no `DNF`/`DNS` labels; those still get a number). |
 | `qty_group` / `qty_abs` | Number of competitors in the group / whole race, counting everyone with a bib (incl. DSQ, DNS, DNF). |
-| `gap_prev_group` / `gap_prev_abs` | Time behind the rider one place ahead, e.g. `"+0:12"`. Omitted for the leader. |
-| `gap_next_group` / `gap_next_abs` | Time the rider one place behind trails you, e.g. `"+0:45"`. Omitted for the last competitor. |
+| `gap_prev_group` / `gap_prev_abs` | Time behind the rider one place ahead, positive because they are ahead of you, e.g. `"+0:12"`. Omitted for the leader. |
+| `gap_next_group` / `gap_next_abs` | Time the rider one place behind trails you, negative because they are behind you, e.g. `"-0:45"`. Omitted for the last competitor. |
 | `gap_leader_group` / `gap_leader_abs` | Time behind the group / overall leader, e.g. `"+2:05"`. Omitted for the leader. |
 | `gap_prev_group_delta` / `gap_prev_abs_delta` | How the gap to the rider ahead changed over your last lap: `"+..."` it grew, `"-..."` it shrank. Omitted with fewer than two shared laps. |
 | `gap_next_group_delta` / `gap_next_abs_delta` | How the gap to the rider behind changed over the last lap (`+` grew, `-` shrank). |
@@ -147,7 +147,8 @@ group vs. the whole race), plus `laps`.
 
 Notes:
 
-- **All values are strings.** Times are `"+M:SS"` (or `"+H:MM:SS"` past an hour).
+- **All values are strings.** Times are `"M:SS"` (or `"H:MM:SS"` past an hour), always
+  carrying a leading sign: a rider ahead of you is `+`, a rider behind you is `-`.
 - **Gaps and their deltas use lap-finish crossings.** A gap is measured at the last lap **both**
   riders finished, so it stays a real time even when riders are a lap apart. A delta is that gap
   now minus the gap one lap earlier.

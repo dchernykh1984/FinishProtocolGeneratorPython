@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.calculator import calculate_protocol, generate_sorted_protocol
 from app.config import RaceConfig
-from app.live_stats import build_live_stats
+from app.live_stats import _format_gap, build_live_stats
 from app.models import (
     FinishCompetitorElement,
     GroupStartElement,
@@ -96,8 +96,9 @@ class TestGaps:
     def test_gap_to_prev_and_next_same_lap(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
         # 1 and 2 both did 2 laps: 200 vs 230 -> 30s.
+        # 1 is ahead of 2, so 2 reads "+"; 2 is behind 1, so 1 reads "-".
         assert stats["2"]["gap_prev_abs"] == "+0:30"
-        assert stats["1"]["gap_next_abs"] == "+0:30"
+        assert stats["1"]["gap_next_abs"] == "-0:30"
 
     def test_leader_has_no_gap_prev_last_has_no_gap_next(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
@@ -107,8 +108,61 @@ class TestGaps:
     def test_gap_across_lap_difference_uses_common_lap(self):
         # 2 (2 laps) vs 3 (1 lap): compared at lap 1 -> 3 is 150, 2 is 120 -> 30s.
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
-        assert stats["2"]["gap_next_abs"] == "+0:30"
+        assert stats["2"]["gap_next_abs"] == "-0:30"
         assert stats["3"]["gap_prev_abs"] == "+0:30"
+
+
+class TestGapSign:
+    """A rider ahead of you reads "+", a rider behind you reads "-"."""
+
+    def test_middle_rider_sees_ahead_positive_and_behind_negative(self):
+        cfg = _cfg()
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        # Rider 2 sits between 1 (ahead) and 3 (behind).
+        assert stats["2"]["gap_prev_abs"].startswith("+")
+        assert stats["2"]["gap_next_abs"].startswith("-")
+
+    def test_leader_gap_is_positive(self):
+        cfg = _cfg()
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        # The leader is always ahead of everyone who can see this field.
+        assert stats["2"]["gap_leader_abs"].startswith("+")
+
+    def test_group_scope_uses_the_same_signs(self):
+        cfg = _cfg()
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        assert stats["2"]["gap_prev_group"] == "+0:30"
+        assert stats["1"]["gap_next_group"] == "-0:30"
+
+    def test_gap_next_sign_does_not_flip_its_delta(self):
+        """Delta keeps meaning "+" grew / "-" shrank, independent of the gap sign."""
+        cfg = _cfg()
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        # 1 vs 2: lap1 gap 20s, lap2 gap 30s -> the gap grew by 10s for both readers.
+        assert stats["1"]["gap_next_abs"] == "-0:30"
+        assert stats["1"]["gap_next_abs_delta"] == "+0:10"
+        assert stats["2"]["gap_prev_abs"] == "+0:30"
+        assert stats["2"]["gap_prev_abs_delta"] == "+0:10"
+
+
+class TestGapFormatting:
+    def test_under_an_hour_is_m_ss(self):
+        assert _format_gap(11) == "+0:11"
+        assert _format_gap(125) == "+2:05"
+        assert _format_gap(3599) == "+59:59"
+
+    def test_an_hour_or_more_is_h_mm_ss(self):
+        assert _format_gap(3600) == "+1:00:00"
+        assert _format_gap(3661) == "+1:01:01"
+        assert _format_gap(7325) == "+2:02:05"
+
+    def test_negative_gaps_keep_the_same_layout(self):
+        assert _format_gap(-22) == "-0:22"
+        assert _format_gap(-3661) == "-1:01:01"
+
+    def test_zero_gap_is_positive(self):
+        assert _format_gap(0) == "+0:00"
+        assert _format_gap(-1 * 0.0) == "+0:00"
 
 
 class TestDsq:
