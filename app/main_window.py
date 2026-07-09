@@ -338,7 +338,7 @@ class _GenerateWorker(QThread):
         self._cfg = cfg
 
     def _do_uploads(  # noqa: C901
-        self, cfg: RaceConfig, sorted_proto: list[FinishProtocolElement]
+        self, cfg: RaceConfig, protocol: list[FinishProtocolElement]
     ) -> tuple[bool, list[str]]:
         """Attempt configured FTP and HTTP uploads.
 
@@ -400,7 +400,7 @@ class _GenerateWorker(QThread):
             # Live per-competitor stats for the Garmin field (full snapshot each run).
             if cfg.send_group_statistics or cfg.send_absolute_statistics:
                 self.log_message.emit("Sending live statistics...")
-                stats = build_live_stats(sorted_proto, cfg)
+                stats = build_live_stats(protocol, cfg)
                 count = upload_live_stats(
                     cfg.http_site_url, cfg.http_upload_token, stats, errors
                 )
@@ -541,7 +541,7 @@ class _GenerateWorker(QThread):
             for msg in log:
                 self.log_message.emit(msg)
 
-            upload_failed, upload_errors = self._do_uploads(cfg, sorted_proto)
+            upload_failed, upload_errors = self._do_uploads(cfg, protocol)
             self._emit_upload_result(upload_failed, upload_errors)
             self.finished_ok.emit()
         except Exception as exc:

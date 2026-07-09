@@ -1,9 +1,11 @@
 """Build the per-competitor live-standings snapshot pushed to the site (Garmin field).
 
 Each competitor gets an opaque string->string dict; the site stores it verbatim and the
-watch maps known keys to fields (unknown/missing keys are ignored). To stay robust, each
-value comes from lap-finish crossings only (the same ordering the printed protocol uses)
--- never from the intermediate control points, which controllers sometimes miss.
+watch maps known keys to fields (unknown/missing keys are ignored). Every value -- the
+place included -- comes from lap-finish crossings only: a control-point timekeeper who
+misses a mark must never move a place or a gap. Deliberate judge decisions made at a
+control point still count, since they do not need a crossing to be seen: a time penalty
+is already folded into the lap-finish times, and a DSQ mark disqualifies the rider.
 
 Keys (any subset, gated by the two config toggles):
 
@@ -20,9 +22,36 @@ Keys (any subset, gated by the two config toggles):
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import cmp_to_key
 
+from app.calculator import _first_better
 from app.config import RaceConfig
 from app.models import INF, FinishProtocolElement
+
+
+def _rank_finish_only(
+    protocol: list[FinishProtocolElement], cfg: RaceConfig
+) -> list[FinishProtocolElement]:
+    """Order competitors best-first from lap-finish data only, never control points.
+
+    Reuses the protocol's own comparator with n_points=0: that makes its control-point
+    tiebreak unreachable (both riders score 0 passed points), so the order falls back to
+    completed laps and lap-finish times. A missed control-point mark therefore cannot
+    move a rider's place. Judge decisions at a control point still count -- they are
+    already baked into what the comparator reads: a time penalty was added to the
+    lap-finish times, and a DSQ mark set `disqualified` (sorted last, shown as "DSQ").
+
+    Sorts a copy, so the printed protocol's own ordering is untouched.
+    """
+
+    def _cmp(a: FinishProtocolElement, b: FinishProtocolElement) -> int:
+        if _first_better(a, b, cfg, 0):
+            return -1
+        if _first_better(b, a, cfg, 0):
+            return 1
+        return 0
+
+    return sorted(protocol, key=cmp_to_key(_cmp))
 
 
 def _laps_done(fp: FinishProtocolElement, cfg: RaceConfig) -> int:
@@ -157,24 +186,30 @@ def _emit_scope(entry: dict[str, str], suffix: str, data: dict[str, str]) -> Non
 
 
 def build_live_stats(
-    sorted_proto: list[FinishProtocolElement], cfg: RaceConfig
+    protocol: list[FinishProtocolElement], cfg: RaceConfig
 ) -> dict[str, dict[str, str]]:
-    """Build bib -> {key: value} for the enabled scopes; empty when both toggles off."""
+    """Build bib -> {key: value} for the enabled scopes; empty when both toggles off.
+
+    Takes the calculated (unsorted) protocol and ranks it here from lap-finish data
+    only, so a missed control-point mark cannot change a place. Each group's order is
+    that same ranking filtered to the group.
+    """
     if not (cfg.send_group_statistics or cfg.send_absolute_statistics):
         return {}
 
-    abs_scope = _rank_scope(sorted_proto, cfg) if cfg.send_absolute_statistics else {}
+    ranked = _rank_finish_only(protocol, cfg)
+    abs_scope = _rank_scope(ranked, cfg) if cfg.send_absolute_statistics else {}
 
     group_scope: dict[str, dict[str, str]] = {}
     if cfg.send_group_statistics:
         groups: dict[str, list[FinishProtocolElement]] = defaultdict(list)
-        for elem in sorted_proto:
+        for elem in ranked:
             groups[elem.group_id].append(elem)
         for members in groups.values():
             group_scope.update(_rank_scope(members, cfg))
 
     stats: dict[str, dict[str, str]] = {}
-    for elem in sorted_proto:
+    for elem in ranked:
         cid = elem.competitor_id
         data: dict[str, str] = {}
         if cfg.send_group_statistics and cid in group_scope:
