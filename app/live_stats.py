@@ -12,10 +12,14 @@ Keys (any subset, gated by the two config toggles):
 * place_group / place_abs -- current position as a number, or "DSQ".
 * qty_group / qty_abs -- bib-holders in the group / whole race (incl. DSQ/DNS/DNF).
 * gap_prev_* / gap_next_* -- time to the neighbour one place ahead / behind, measured at
-  the last lap-finish both completed ("+1:23"); omitted when it cannot be computed.
+  the last lap-finish both completed. Signed from the reader's point of view: a rider
+  ahead of them is positive ("+1:23"), a rider behind them negative ("-1:23"). Omitted
+  when it cannot be computed.
 * gap_leader_* -- time behind the scope leader ("+2:05"); omitted for the leader.
 * gap_prev_*_delta / gap_next_*_delta / gap_leader_*_delta -- how the prev/next/leader
   gap changed over the last lap ("+" grew, "-" shrank); needs 2 laps, else absent.
+
+Gaps under an hour render as "M:SS" and an hour or more as "H:MM:SS" (e.g. "+1:02:05").
 * laps -- "<done>/<total>" (e.g. "3/7").
 """
 
@@ -107,12 +111,18 @@ def _gap_value(
 
 
 def _gap_and_delta(
-    behind: FinishProtocolElement, ahead: FinishProtocolElement, cfg: RaceConfig
+    behind: FinishProtocolElement,
+    ahead: FinishProtocolElement,
+    cfg: RaceConfig,
+    sign: int = 1,
 ) -> tuple[str | None, str | None]:
     """Formatted gap at the last common lap, and how it changed over the last lap.
 
-    The delta is the gap now minus the gap one lap earlier: "+" = the gap grew, "-" = it
-    shrank (caught up). It needs at least two common laps, else it is None.
+    `sign` orients the reported gap from the reader's point of view: a rider ahead of
+    them reads "+1:23", a rider behind them "-1:23". The delta keeps its own meaning
+    regardless of `sign` -- it is the gap now minus the gap one lap earlier, so "+" =
+    the gap grew, "-" = it shrank (caught up). It needs at least two common laps, else
+    it is None.
     """
     common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
     now = _gap_value(behind, ahead, cfg, common)
@@ -123,7 +133,7 @@ def _gap_and_delta(
         prev = _gap_value(behind, ahead, cfg, common - 1)
         if prev is not None:
             delta = _format_gap(now - prev)
-    return _format_gap(now), delta
+    return _format_gap(sign * now), delta
 
 
 def _rank_scope(  # noqa: C901
@@ -153,7 +163,8 @@ def _rank_scope(  # noqa: C901
             if leader_delta is not None:
                 entry["gap_leader_delta"] = leader_delta
         if i < len(ranked) - 1:
-            gap, delta = _gap_and_delta(ranked[i + 1], elem, cfg)
+            # The next rider trails this one, so report their gap as negative.
+            gap, delta = _gap_and_delta(ranked[i + 1], elem, cfg, sign=-1)
             if gap is not None:
                 entry["gap_next"] = gap
             if delta is not None:
