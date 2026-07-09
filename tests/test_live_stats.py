@@ -32,7 +32,7 @@ def _group(gid: str, seconds: float) -> GroupStartElement:
 
 
 def _finish(
-    cid: str, seconds: float, action: str = "nextLap"
+    cid: str, seconds: float, action: str = "nextLap", penalty: float | None = None
 ) -> FinishCompetitorElement:
     d = int(seconds // 86400)
     rem = seconds - d * 86400
@@ -41,8 +41,9 @@ def _finish(
     m = int(rem // 60)
     s = rem - m * 60
     ms = round((s - int(s)) * 1000)
+    tail = "" if penalty is None else f"{penalty:g}#"
     return FinishCompetitorElement.from_line(
-        f"{cid}#{d} {h}:{m}:{int(s)}.{ms:03d}#{action}#"
+        f"{cid}#{d} {h}:{m}:{int(s)}.{ms:03d}#{action}#{tail}"
     )
 
 
@@ -55,12 +56,12 @@ def _cfg(**kwargs) -> RaceConfig:
     return cfg
 
 
-def _run(start_list, finish_list, cfg, group_list=None):
+def _run(start_list, finish_list, cfg, group_list=None, remote_points=None):
+    """Unsorted protocol; build_live_stats does its own finish-only ranking."""
     log: list[str] = []
-    protocol = calculate_protocol(
-        start_list, group_list or [], finish_list, [], [], cfg, log
+    return calculate_protocol(
+        start_list, group_list or [], finish_list, remote_points or [], [], cfg, log
     )
-    return generate_sorted_protocol(protocol, cfg, 0)
 
 
 def _one_group_scenario(cfg):
@@ -280,3 +281,74 @@ class TestNewKeysRespectToggles:
         assert "gap_leader_abs" not in stats["2"]
         assert "gap_prev_abs_delta" not in stats["2"]
         assert "gap_leader_abs_delta" not in stats["2"]
+
+
+class TestPlaceIgnoresControlPoints:
+    """Place must come from lap finishes only: a missed CP mark cannot move anyone."""
+
+    def _scenario(self, cfg):
+        # 3 laps required. "1" is slower on lap 1 but has passed CP 1 of lap 2;
+        # "2" is faster on lap 1 and has no CP mark (the CP timekeeper missed it).
+        start_list = [_start("1", "G", n_laps=3), _start("2", "G", n_laps=3)]
+        group_list = [_group("G", START_T)]
+        finish_list = [
+            _finish("1", START_T + 200, "nextLap"),
+            _finish("2", START_T + 100, "nextLap"),
+        ]
+        remote_points = [[_finish("1", START_T + 250, "cp")]]
+        return _run(start_list, finish_list, cfg, group_list, remote_points)
+
+    def test_live_place_ranks_by_lap_finish_not_cp_progress(self):
+        cfg = _cfg()
+        protocol = self._scenario(cfg)
+        stats = build_live_stats(protocol, cfg)
+        # Faster lap-1 finish wins, even though "1" is further along on CP progress.
+        assert stats["2"]["place_abs"] == "1"
+        assert stats["1"]["place_abs"] == "2"
+        assert stats["2"]["place_group"] == "1"
+        assert stats["1"]["place_group"] == "2"
+
+    def test_printed_protocol_still_uses_cp_progress(self):
+        # Guard: HTML protocol order is intentionally unchanged (CP tiebreak stays).
+        cfg = _cfg()
+        protocol = self._scenario(cfg)
+        build_live_stats(protocol, cfg)  # must not disturb the protocol's own sorting
+        official = generate_sorted_protocol(protocol, cfg, 1)
+        assert official[0].competitor_id == "1"
+
+
+class TestJudgeDecisionsFromControlPointsCount:
+    """Penalties and DSQ recorded at a CP are deliberate, so they must still apply."""
+
+    def test_time_penalty_from_cp_changes_place_and_gap(self):
+        start_list = [_start("1", "G", n_laps=3), _start("2", "G", n_laps=3)]
+        group_list = [_group("G", START_T)]
+        finish_list = [
+            _finish("1", START_T + 100, "nextLap"),
+            _finish("2", START_T + 120, "nextLap"),
+        ]
+        # 50s penalty for "1", recorded at a CP during lap 1 -> effective lap time 150s.
+        remote_points = [[_finish("1", START_T + 50, "penalty", penalty=50)]]
+        cfg = _cfg()
+        stats = build_live_stats(
+            _run(start_list, finish_list, cfg, group_list, remote_points), cfg
+        )
+        assert stats["2"]["place_abs"] == "1"
+        assert stats["1"]["place_abs"] == "2"
+        assert stats["1"]["gap_prev_abs"] == "+0:30"
+
+    def test_dsq_from_cp_marks_dsq(self):
+        start_list = [_start("1", "G", n_laps=3), _start("2", "G", n_laps=3)]
+        group_list = [_group("G", START_T)]
+        finish_list = [
+            _finish("1", START_T + 100, "nextLap"),
+            _finish("2", START_T + 120, "nextLap"),
+        ]
+        remote_points = [[_finish("2", START_T + 60, "DSQ: cut the course")]]
+        cfg = _cfg()
+        stats = build_live_stats(
+            _run(start_list, finish_list, cfg, group_list, remote_points), cfg
+        )
+        assert stats["2"]["place_abs"] == "DSQ"
+        assert stats["1"]["place_abs"] == "1"
+        assert stats["1"]["qty_abs"] == "2"

@@ -122,9 +122,14 @@ When **Send group statistics** and/or **Send absolute statistics** are enabled i
 snapshot to `POST /api/v1/live-stats/`. A Garmin Connect IQ data field then reads one rider's
 stats publicly via `GET /api/v1/live-stats/{competition_id}/{bib}` and shows them mid-race.
 
-Each competitor's snapshot is a plain `key -> string` dictionary. Everything is derived from
-**lap-finish crossings only** (never intermediate control points), so the numbers stay reliable
-even when a controller misses a mark. A key is **omitted** when it does not apply -- the watch
+Each competitor's snapshot is a plain `key -> string` dictionary. Everything -- **including the
+place** -- is derived from **lap-finish crossings only**, so a control-point timekeeper who
+misses a mark can never move a rider's place or gap. Deliberate judge decisions taken at a
+control point still count, because they do not depend on a crossing being seen: a **time
+penalty** is folded into the lap-finish times, and a **DSQ** mark disqualifies the rider.
+(The printed/online protocol keeps its own ordering, which does use control-point progress as
+a tiebreak -- only the data broadcast to the bike computer ignores it.)
+A key is **omitted** when it does not apply -- the watch
 simply shows nothing for a missing key. Keys come in `_group` / `_abs` pairs (within the rider's
 group vs. the whole race), plus `laps`.
 
