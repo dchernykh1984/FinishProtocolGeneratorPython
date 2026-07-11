@@ -97,8 +97,8 @@ class TestGaps:
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
         # 1 and 2 both did 2 laps: 200 vs 230 -> 30s.
         # 1 is ahead of 2, so 2 reads "+"; 2 is behind 1, so 1 reads "-".
-        assert stats["2"]["gap_prev_abs"] == "+0:30"
-        assert stats["1"]["gap_next_abs"] == "-0:30"
+        assert stats["2"]["gap_prev_abs"] == "+0:30.0"
+        assert stats["1"]["gap_next_abs"] == "-0:30.0"
 
     def test_leader_has_no_gap_prev_last_has_no_gap_next(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
@@ -108,8 +108,8 @@ class TestGaps:
     def test_gap_across_lap_difference_uses_common_lap(self):
         # 2 (2 laps) vs 3 (1 lap): compared at lap 1 -> 3 is 150, 2 is 120 -> 30s.
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
-        assert stats["2"]["gap_next_abs"] == "-0:30"
-        assert stats["3"]["gap_prev_abs"] == "+0:30"
+        assert stats["2"]["gap_next_abs"] == "-0:30.0"
+        assert stats["3"]["gap_prev_abs"] == "+0:30.0"
 
 
 class TestGapSign:
@@ -131,38 +131,53 @@ class TestGapSign:
     def test_group_scope_uses_the_same_signs(self):
         cfg = _cfg()
         stats = build_live_stats(_one_group_scenario(cfg), cfg)
-        assert stats["2"]["gap_prev_group"] == "+0:30"
-        assert stats["1"]["gap_next_group"] == "-0:30"
+        assert stats["2"]["gap_prev_group"] == "+0:30.0"
+        assert stats["1"]["gap_next_group"] == "-0:30.0"
 
     def test_gap_next_sign_does_not_flip_its_delta(self):
         """Delta keeps meaning "+" grew / "-" shrank, independent of the gap sign."""
         cfg = _cfg()
         stats = build_live_stats(_one_group_scenario(cfg), cfg)
         # 1 vs 2: lap1 gap 20s, lap2 gap 30s -> the gap grew by 10s for both readers.
-        assert stats["1"]["gap_next_abs"] == "-0:30"
-        assert stats["1"]["gap_next_abs_delta"] == "+0:10"
-        assert stats["2"]["gap_prev_abs"] == "+0:30"
-        assert stats["2"]["gap_prev_abs_delta"] == "+0:10"
+        assert stats["1"]["gap_next_abs"] == "-0:30.0"
+        assert stats["1"]["gap_next_abs_delta"] == "+0:10.0"
+        assert stats["2"]["gap_prev_abs"] == "+0:30.0"
+        assert stats["2"]["gap_prev_abs_delta"] == "+0:10.0"
 
 
 class TestGapFormatting:
     def test_under_an_hour_is_m_ss(self):
-        assert _format_gap(11) == "+0:11"
-        assert _format_gap(125) == "+2:05"
-        assert _format_gap(3599) == "+59:59"
+        assert _format_gap(11, 0) == "+0:11"
+        assert _format_gap(125, 0) == "+2:05"
+        assert _format_gap(3599, 0) == "+59:59"
 
     def test_an_hour_or_more_is_h_mm_ss(self):
-        assert _format_gap(3600) == "+1:00:00"
-        assert _format_gap(3661) == "+1:01:01"
-        assert _format_gap(7325) == "+2:02:05"
+        assert _format_gap(3600, 0) == "+1:00:00"
+        assert _format_gap(3661, 0) == "+1:01:01"
+        assert _format_gap(7325, 0) == "+2:02:05"
 
     def test_negative_gaps_keep_the_same_layout(self):
-        assert _format_gap(-22) == "-0:22"
-        assert _format_gap(-3661) == "-1:01:01"
+        assert _format_gap(-22, 0) == "-0:22"
+        assert _format_gap(-3661, 0) == "-1:01:01"
 
     def test_zero_gap_is_positive(self):
-        assert _format_gap(0) == "+0:00"
-        assert _format_gap(-1 * 0.0) == "+0:00"
+        assert _format_gap(0, 0) == "+0:00"
+        assert _format_gap(-1 * 0.0, 0) == "+0:00"
+
+    def test_decimals_match_n_signs(self):
+        # "Digits after decimal" drives the fractional seconds shown in the gap.
+        assert _format_gap(36.14, 0) == "+0:36"
+        assert _format_gap(36.14, 1) == "+0:36.1"
+        assert _format_gap(36.16, 1) == "+0:36.2"  # rounded
+        assert _format_gap(-125.5, 2) == "-2:05.50"
+        assert _format_gap(3725.0, 1) == "+1:02:05.0"
+
+    def test_decimal_rounding_carries_over(self):
+        assert _format_gap(59.95, 1) == "+1:00.0"
+        assert _format_gap(3599.95, 1) == "+1:00:00.0"
+
+    def test_n_signs_capped_at_four(self):
+        assert _format_gap(1.123456, 6) == "+0:01.1235"
 
 
 class TestDsq:
@@ -253,10 +268,10 @@ class TestGapLeader:
     def test_gap_to_scope_leader(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
         # Leader is 1 (200); 2 is +0:30 at lap 2, 3 is +0:50 at their last lap (lap 1).
-        assert stats["2"]["gap_leader_abs"] == "+0:30"
-        assert stats["3"]["gap_leader_abs"] == "+0:50"
+        assert stats["2"]["gap_leader_abs"] == "+0:30.0"
+        assert stats["3"]["gap_leader_abs"] == "+0:50.0"
         # One group here, so the group leader gap matches.
-        assert stats["2"]["gap_leader_group"] == "+0:30"
+        assert stats["2"]["gap_leader_group"] == "+0:30.0"
 
     def test_leader_has_no_gap_leader(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
@@ -268,9 +283,9 @@ class TestGapDelta:
     def test_per_lap_delta_when_gap_grows(self):
         # 1 vs 2: gap 20s at lap 1 -> 30s at lap 2, so it grew by 10s.
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
-        assert stats["2"]["gap_prev_abs_delta"] == "+0:10"
-        assert stats["1"]["gap_next_abs_delta"] == "+0:10"
-        assert stats["2"]["gap_prev_group_delta"] == "+0:10"
+        assert stats["2"]["gap_prev_abs_delta"] == "+0:10.0"
+        assert stats["1"]["gap_next_abs_delta"] == "+0:10.0"
+        assert stats["2"]["gap_prev_group_delta"] == "+0:10.0"
 
     def test_delta_absent_with_only_one_common_lap(self):
         # 3 has done a single lap, so no previous-lap gap exists to compare.
@@ -288,17 +303,17 @@ class TestGapDelta:
         ]
         cfg = _cfg()
         stats = build_live_stats(_run(start_list, finish_list, cfg, group_list), cfg)
-        assert stats["2"]["gap_prev_abs"] == "+0:20"
+        assert stats["2"]["gap_prev_abs"] == "+0:20.0"
         # gap went 40s -> 20s over the last lap: shrank by 20s.
-        assert stats["2"]["gap_prev_abs_delta"] == "-0:20"
+        assert stats["2"]["gap_prev_abs_delta"] == "-0:20.0"
 
 
 class TestGapLeaderDelta:
     def test_per_lap_delta_of_leader_gap(self):
         # 2 vs leader 1: gap 20s at lap 1 -> 30s at lap 2, so it grew by 10s.
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
-        assert stats["2"]["gap_leader_abs_delta"] == "+0:10"
-        assert stats["2"]["gap_leader_group_delta"] == "+0:10"
+        assert stats["2"]["gap_leader_abs_delta"] == "+0:10.0"
+        assert stats["2"]["gap_leader_group_delta"] == "+0:10.0"
 
     def test_leader_has_no_leader_delta(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
@@ -307,7 +322,7 @@ class TestGapLeaderDelta:
     def test_leader_delta_absent_with_one_common_lap(self):
         # 3 shares only lap 1 with the leader, so there is no previous lap to compare.
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
-        assert stats["3"]["gap_leader_abs"] == "+0:50"
+        assert stats["3"]["gap_leader_abs"] == "+0:50.0"
         assert "gap_leader_abs_delta" not in stats["3"]
 
     def test_leader_delta_negative_when_gap_shrinks(self):
@@ -321,8 +336,8 @@ class TestGapLeaderDelta:
         ]
         cfg = _cfg()
         stats = build_live_stats(_run(start_list, finish_list, cfg, group_list), cfg)
-        assert stats["2"]["gap_leader_abs"] == "+0:20"
-        assert stats["2"]["gap_leader_abs_delta"] == "-0:20"
+        assert stats["2"]["gap_leader_abs"] == "+0:20.0"
+        assert stats["2"]["gap_leader_abs_delta"] == "-0:20.0"
 
 
 class TestNewKeysRespectToggles:
@@ -389,7 +404,7 @@ class TestJudgeDecisionsFromControlPointsCount:
         )
         assert stats["2"]["place_abs"] == "1"
         assert stats["1"]["place_abs"] == "2"
-        assert stats["1"]["gap_prev_abs"] == "+0:30"
+        assert stats["1"]["gap_prev_abs"] == "+0:30.0"
 
     def test_dsq_from_cp_marks_dsq(self):
         start_list = [_start("1", "G", n_laps=3), _start("2", "G", n_laps=3)]

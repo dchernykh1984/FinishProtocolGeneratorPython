@@ -19,7 +19,8 @@ Keys (any subset, gated by the two config toggles):
 * gap_prev_*_delta / gap_next_*_delta / gap_leader_*_delta -- how the prev/next/leader
   gap changed over the last lap ("+" grew, "-" shrank); needs 2 laps, else absent.
 
-Gaps under an hour render as "M:SS" and an hour or more as "H:MM:SS" (e.g. "+1:02:05").
+Gaps render as "M:SS" (or "H:MM:SS" past an hour), with the same number of decimal
+seconds as the generator's "Digits after decimal" setting: 0 -> "+0:36", 1 -> "+0:36.1".
 * laps -- "<done>/<total>" (e.g. "3/7").
 """
 
@@ -86,14 +87,24 @@ def _elapsed_at_lap(
     return None
 
 
-def _format_gap(seconds: float) -> str:
+def _format_gap(seconds: float, n_signs: int) -> str:
+    """Signed "M:SS" / "H:MM:SS", with `n_signs` decimals of seconds like the protocol.
+
+    `n_signs` mirrors the generator's "Digits after decimal" setting (capped at 4, as in
+    the protocol): a gap prints as "+0:36" when it is 0 and "+0:36.1" when it is 1.
+    """
     sign = "+" if seconds >= 0 else "-"
-    total = round(abs(seconds))
-    hours, rem = divmod(total, 3600)
+    n_signs = min(max(n_signs, 0), 4)
+    factor = 10**n_signs
+    total = round(abs(seconds) * factor)
+    frac = total % factor
+    whole = total // factor
+    hours, rem = divmod(whole, 3600)
     minutes, secs = divmod(rem, 60)
-    if hours:
-        return f"{sign}{hours}:{minutes:02d}:{secs:02d}"
-    return f"{sign}{minutes}:{secs:02d}"
+    body = f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
+    if n_signs > 0:
+        body += f".{str(frac).zfill(n_signs)}"
+    return f"{sign}{body}"
 
 
 def _gap_value(
@@ -124,6 +135,7 @@ def _gap_and_delta(
     the gap grew, "-" = it shrank (caught up). It needs at least two common laps, else
     it is None.
     """
+    n_signs = cfg.n_signs_after_point
     common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
     now = _gap_value(behind, ahead, cfg, common)
     if now is None:
@@ -132,8 +144,8 @@ def _gap_and_delta(
     if common >= 2:
         prev = _gap_value(behind, ahead, cfg, common - 1)
         if prev is not None:
-            delta = _format_gap(now - prev)
-    return _format_gap(sign * now), delta
+            delta = _format_gap(now - prev, n_signs)
+    return _format_gap(sign * now, n_signs), delta
 
 
 def _rank_scope(  # noqa: C901
