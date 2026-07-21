@@ -63,6 +63,7 @@ from app.http_io import (
 from app.http_io import upload_protocol as http_upload_protocol
 from app.live_stats import build_live_stats
 from app.models import FinishProtocolElement, GroupStartElement
+from app.paths import app_path
 
 _DOWNLOAD_ACTIONS = ("Download", "Merge", "Merge+Remove")
 
@@ -580,7 +581,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._save_race_info_to_path("fpg_info.txt")
+            self._save_race_info_to_path(str(app_path("fpg_info.txt")))
             event.accept()
         else:
             event.ignore()
@@ -1299,7 +1300,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Error", msg)
 
     def _init_log_file(self) -> str:
-        log_dir = Path("temp")
+        log_dir = app_path("temp")
         log_dir.mkdir(exist_ok=True)
         n = 1
         while (log_dir / f"fpg{n}.txt").exists():
@@ -1940,7 +1941,7 @@ class MainWindow(QMainWindow):
         self._load_race_info_from_path(path)
 
     def _try_auto_load(self) -> None:
-        auto_path = Path("fpg_info.txt")
+        auto_path = app_path("fpg_info.txt")
         if auto_path.exists():
             self._load_race_info_from_path(str(auto_path))
         else:
