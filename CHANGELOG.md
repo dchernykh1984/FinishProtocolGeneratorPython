@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.0...v0.1.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* reliable release builds (linux-aarch64 on ubuntu-24.04, drop Intel macOS) ([5f2f241](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5f2f24103565200a31a71c6e8b77faa5a7b070ad))
+
 ## 0.1.0 (2026-07-21)
 
 
