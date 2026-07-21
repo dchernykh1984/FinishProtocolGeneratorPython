@@ -7,9 +7,8 @@ from pathlib import Path
 from app import paths
 
 
-def test_base_dir_in_development_is_project_root() -> None:
-    # app/paths.py -> app -> project root
-    assert paths.base_dir() == Path(paths.__file__).resolve().parents[1]
+def test_base_dir_in_development_is_cwd() -> None:
+    assert paths.base_dir() == Path.cwd()
 
 
 def test_app_path_joins_under_base_dir(monkeypatch) -> None:
