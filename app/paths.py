@@ -2,7 +2,8 @@
 
 The app stores its files (race info, logs) next to the program, so a
 downloaded portable build keeps everything beside the executable the user ran
-(not in a random working directory). In development this is the project root.
+the user ran. In development the behaviour is unchanged: data is resolved
+against the current working directory, as the original relative paths were.
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ def base_dir() -> Path:
     Frozen (PyInstaller): the folder that contains the runnable, so data sits
     next to the downloaded program. On macOS the runnable lives inside
     ``<name>.app/Contents/MacOS/``, so the bundle's parent folder is used. In
-    development: the project root.
+    development: the current working directory (preserving the original
+    relative-path behaviour).
     """
     if getattr(sys, "frozen", False):
         exe = Path(sys.executable).resolve()
@@ -28,7 +30,7 @@ def base_dir() -> Path:
         ):
             return exe.parents[3]
         return exe.parent
-    return Path(__file__).resolve().parents[1]
+    return Path.cwd()
 
 
 def app_path(*parts: str) -> Path:
