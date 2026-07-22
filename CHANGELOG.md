@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.1...v0.1.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* embed the app icon in the macOS build ([63c6a41](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/63c6a4188b424726a71e4986851e39600d4d786f))
+
 ## [0.1.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.0...v0.1.1) (2026-07-21)
 
 
