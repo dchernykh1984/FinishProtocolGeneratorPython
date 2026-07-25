@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.2...v0.1.3) (2026-07-25)
+
+
+### Documentation
+
+* explain how to run the app from a release ([2f25e18](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2f25e18f4d6232dda84ea6c85e0c4cfaf68cc59d))
+
 ## [0.1.2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.1...v0.1.2) (2026-07-22)
 
 
