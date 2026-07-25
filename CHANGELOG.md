@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.3...v0.1.4) (2026-07-25)
+
+
+### Bug Fixes
+
+* keep uv.lock in step with the released version ([f4fcf27](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f4fcf274812e8de17d250c5c842f6b0de47dc216))
+
 ## [0.1.3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.2...v0.1.3) (2026-07-25)
 
 
