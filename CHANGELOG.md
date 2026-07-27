@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.4...v0.1.5) (2026-07-27)
+
+
+### Bug Fixes
+
+* give the macos bundle a proper identifier and version ([cbe36e7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/cbe36e756d41ee8ee133a8c0e8e146f043eb5ca6))
+* show the full app name in the dock and task switcher ([e0a27ac](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e0a27ac253d0e8954a5413e9a19ebab5b7bb39d7))
+
 ## [0.1.4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.3...v0.1.4) (2026-07-25)
 
 
