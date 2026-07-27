@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.5...v0.1.6) (2026-07-27)
+
+
+### Bug Fixes
+
+* keep the macos bundle file name free of spaces ([bed02bf](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/bed02bf079930b033ff13c83eafbad4dec9b38ea))
+
 ## [0.1.5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.4...v0.1.5) (2026-07-27)
 
 
