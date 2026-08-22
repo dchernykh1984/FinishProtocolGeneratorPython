@@ -12,6 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 from PySide6.QtWidgets import QApplication
 
 from app.main_window import MainWindow
@@ -19,11 +20,21 @@ from app.main_window import MainWindow
 _app = QApplication.instance() or QApplication(sys.argv)
 
 
+@pytest.fixture(autouse=True)
+def _no_auto_load(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep MainWindow() from reading the machine's on-disk fpg_info.txt during setup.
+
+    Without this the tests would depend on whatever config the developer's app last
+    saved, and an auto-loaded RefreshProtocol would even start a timer before the test
+    sets its own state.
+    """
+    monkeypatch.setattr(MainWindow, "_try_auto_load", lambda self: None)
+
+
 def test_toggle_on_persists_shown_interval_into_cfg() -> None:
     """Ticking the box copies the shown spin-box value into cfg."""
     win = MainWindow()
     try:
-        win._on_refresh_toggled(False)  # neutralise any auto-loaded timer/state
         # Mimic the post-load divergence: cfg interval 0, but the spin box shows a value
         # because _sync_ui_from_cfg fills it with signals blocked.
         win._cfg.auto_refresh_interval = 0
@@ -44,7 +55,6 @@ def test_enabling_auto_refresh_survives_save_load() -> None:
     """Full round-trip: enable from an off state, save, reload -> checkbox stays on."""
     win = MainWindow()
     try:
-        win._on_refresh_toggled(False)
         win._cfg.auto_refresh_enabled = False
         win._cfg.auto_refresh_interval = 0
         with tempfile.TemporaryDirectory() as td:

@@ -1319,12 +1319,12 @@ class MainWindow(QMainWindow):
             # signals blocked, so cfg.auto_refresh_interval can still be 0 here. Without
             # this the save guard (enabled AND interval > 0) drops RefreshProtocol and
             # the checkbox comes back unchecked on the next launch.
-            self._cfg.auto_refresh_interval = self._spin_refresh.value()
-            interval_ms = self._spin_refresh.value() * 1000
+            interval = self._spin_refresh.value()
+            self._cfg.auto_refresh_interval = interval
             if self._timer is None:
                 self._timer = QTimer(self)
                 self._timer.timeout.connect(self._on_generate)
-            self._timer.start(interval_ms)
+            self._timer.start(interval * 1000)
         else:
             if self._timer is not None:
                 self._timer.stop()
