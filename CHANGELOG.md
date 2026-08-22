@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.6...v0.1.7) (2026-08-22)
+
+
+### Bug Fixes
+
+* **ui:** persist auto-refresh interval so the checkbox survives restart ([c1aec71](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c1aec718a00bee8c4da0345f6792e35c89efed54))
+
 ## [0.1.6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.5...v0.1.6) (2026-07-27)
 
 
