@@ -1315,6 +1315,11 @@ class MainWindow(QMainWindow):
     def _on_refresh_toggled(self, checked: bool) -> None:
         self._cfg.auto_refresh_enabled = checked
         if checked:
+            # Persist the shown interval: _sync_ui_from_cfg fills the spin box with
+            # signals blocked, so cfg.auto_refresh_interval can still be 0 here. Without
+            # this the save guard (enabled AND interval > 0) drops RefreshProtocol and
+            # the checkbox comes back unchecked on the next launch.
+            self._cfg.auto_refresh_interval = self._spin_refresh.value()
             interval_ms = self._spin_refresh.value() * 1000
             if self._timer is None:
                 self._timer = QTimer(self)
