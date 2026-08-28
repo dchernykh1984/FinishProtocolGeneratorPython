@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.7...v0.1.8) (2026-08-28)
+
+
+### Bug Fixes
+
+* **ui:** wait for worker threads on close so a running QThread can't abort exit ([1b66b03](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1b66b03d0881d4e82919582ed1878bd362466e6a))
+
 ## [0.1.7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.6...v0.1.7) (2026-08-22)
 
 
