@@ -581,10 +581,31 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+            self._stop_workers()
             self._save_race_info_to_path(str(app_path("fpg_info.txt")))
             event.accept()
         else:
             event.ignore()
+
+    def _stop_workers(self) -> None:
+        """Stop background threads before the app tears them down.
+
+        Destroying a QThread that is still running aborts the process with Qt's
+        "QThread: Destroyed while thread is still running" fatal. That happens on exit
+        when a worker is blocked on the network (e.g. a live-stats upload stuck in DNS
+        getaddrinfo, which urlopen's timeout does not bound). Stop the auto-refresh
+        timer so it cannot launch a new run, then wait for each worker; terminate as a
+        last resort so a wedged thread cannot crash the shutdown.
+        """
+        if self._timer is not None:
+            self._timer.stop()
+        for worker in (self._ftp_worker, self._worker):
+            if worker is None or not worker.isRunning():
+                continue
+            worker.quit()
+            if not worker.wait(5000):
+                worker.terminate()
+                worker.wait()
 
     # ------------------------------------------------------------------
     # UI setup
