@@ -29,8 +29,8 @@ Session.vim
 
 # ===== AI agents =====
 
-# Claude Code (Anthropic)
-.claude/
+# Claude Code (Anthropic) - track shared skills/config, ignore per-user local settings
+.claude/settings.local.json
 
 # Cursor
 .cursor/
