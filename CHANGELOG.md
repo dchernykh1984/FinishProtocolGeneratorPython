@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.8...v0.1.9) (2026-09-04)
+
+
+### Documentation
+
+* require an explicit yes for outward commands and record the UTF-16 trap ([5db45de](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5db45deba491bf5923e53eb6082b7dba67569e7d))
+
 ## [0.1.8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.7...v0.1.8) (2026-08-28)
 
 
