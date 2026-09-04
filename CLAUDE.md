@@ -18,6 +18,10 @@ in `.claude/skills/` tell an agent how to work in this repo. Detailed skills:
   Common types: feat, fix, chore, docs, test, refactor, style, ci, build, perf.
 - release-please turns merged commits into CHANGELOG entries and version bumps, so the
   subject line is user-facing. Keep it accurate.
+- **Anything outward-facing waits for an explicit yes**: pushing, merging, tagging,
+  deleting or force-pushing a branch, cutting a release. Show the exact command and wait
+  for a plain "yes" - narrating what you are about to do is not consent. Reading (status,
+  log, diff, fetch, `gh ... view`) needs no permission.
 
 ## Quality gates (all enforced in CI)
 
@@ -30,6 +34,11 @@ Run before pushing:
 ASCII ONLY: the `no-non-ascii` hook scans python, yaml, markdown, toml, shell and json.
 Never add non-ASCII characters (emoji, smart quotes, en/em dashes, Cyrillic, ...) to any
 tracked file except `uv.lock` and `CHANGELOG.md`. Write code comments and docs in English.
+
+Write files as UTF-8. On Windows a PowerShell redirect, `Set-Content` or `Out-File`
+defaults to UTF-16, and the ASCII hook then rejects a file whose text looks perfectly
+plain in an editor - the bytes are the problem, not the characters. `file <path>` says
+which encoding you actually wrote.
 
 ## Repo facts and gotchas
 
