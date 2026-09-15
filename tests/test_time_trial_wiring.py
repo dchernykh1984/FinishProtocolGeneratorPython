@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -77,6 +78,27 @@ class TestButton:
         window._on_time_trial_ready(entries)
         window._btn_time_trial.click()
         assert window._time_trial_window._entries == entries
+
+    def test_pressing_it_restores_a_minimized_board(self, window) -> None:
+        window._btn_time_trial.click()
+        board = window._time_trial_window
+        board.showMinimized()
+        assert board.windowState() & Qt.WindowState.WindowMinimized
+
+        window._btn_time_trial.click()
+
+        # show() on its own leaves it minimized, which makes the button look dead.
+        assert not board.windowState() & Qt.WindowState.WindowMinimized
+
+    def test_pressing_it_leaves_a_maximized_board_maximized(self, window) -> None:
+        window._btn_time_trial.click()
+        board = window._time_trial_window
+        board.showMaximized()
+
+        window._btn_time_trial.click()
+
+        # A board put full-screen on a second display must not be shrunk by reopening.
+        assert board.windowState() & Qt.WindowState.WindowMaximized
 
     def test_the_board_closes_with_the_application(self, window, monkeypatch) -> None:
         # A child carrying the Window flag is skipped by Qt's hide-children pass, so

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -1323,9 +1323,14 @@ class MainWindow(QMainWindow):
         if self._time_trial_window is None:
             self._time_trial_window = TimeTrialWindow(self)
             self._time_trial_window.set_entries(self._time_trial_entries)
-        self._time_trial_window.show()
-        self._time_trial_window.raise_()
-        self._time_trial_window.activateWindow()
+        window = self._time_trial_window
+        # show() alone leaves a minimized window minimized, so the button would look
+        # dead. Clear just that bit rather than calling showNormal(), which would also
+        # shrink a board the referee deliberately maximized onto a second screen.
+        window.setWindowState(window.windowState() & ~Qt.WindowState.WindowMinimized)
+        window.show()
+        window.raise_()
+        window.activateWindow()
 
     def _on_ftp_download(self) -> None:
         if self._ftp_worker and self._ftp_worker.isRunning():
