@@ -64,6 +64,8 @@ from app.http_io import upload_protocol as http_upload_protocol
 from app.live_stats import build_live_stats
 from app.models import FinishProtocolElement, GroupStartElement
 from app.paths import app_path
+from app.time_trial import StartEntry, build_start_entries
+from app.time_trial_window import TimeTrialWindow
 
 _DOWNLOAD_ACTIONS = ("Download", "Merge", "Merge+Remove")
 
@@ -333,6 +335,8 @@ class _GenerateWorker(QThread):
     log_message = Signal(str)
     finished_ok = Signal()
     error = Signal(str)
+    # The time-trial start schedule, rebuilt from the files this run just read.
+    time_trial_ready = Signal(object)
 
     def __init__(self, cfg: RaceConfig) -> None:
         super().__init__()
@@ -490,6 +494,9 @@ class _GenerateWorker(QThread):
                         GroupStartElement(group_id=s.group_id, seconds=0.0)
                     )
             self.log_message.emit(f"  {len(group_list)} groups loaded")
+            # Emitted here rather than at the end so the start board still refreshes
+            # when a later step fails: both files it needs have just been read.
+            self.time_trial_ready.emit(build_start_entries(start_list, group_list))
 
             self.log_message.emit("Reading finish times...")
             finish_list = read_finish_times(cfg.finish_time_file)
@@ -569,6 +576,9 @@ class MainWindow(QMainWindow):
         self._combo_scl_action: QComboBox
         self._spin_srp: QDoubleSpinBox
         self._log_file_path: str | None = None
+        self._time_trial_window: TimeTrialWindow | None = None
+        # Kept so a board opened after a run starts populated rather than blank.
+        self._time_trial_entries: list[StartEntry] = []
         self._setup_ui()
         self._try_auto_load()
 
@@ -761,6 +771,11 @@ class MainWindow(QMainWindow):
         self._btn_generate.setFixedHeight(40)
         self._btn_generate.clicked.connect(self._on_generate)
         ly.addWidget(self._btn_generate)
+
+        self._btn_time_trial = QPushButton("Open Time Trial Window")
+        self._btn_time_trial.setFixedHeight(40)
+        self._btn_time_trial.clicked.connect(self._on_open_time_trial)
+        ly.addWidget(self._btn_time_trial)
         ly.addStretch()
         return w
 
@@ -1255,6 +1270,7 @@ class MainWindow(QMainWindow):
     def _start_generate_worker(self) -> None:
         self._worker = _GenerateWorker(self._cfg)
         self._worker.log_message.connect(self._append_log)
+        self._worker.time_trial_ready.connect(self._on_time_trial_ready)
         self._worker.finished_ok.connect(self._on_done)
         self._worker.error.connect(self._on_error)
         self._worker.start()
@@ -1277,6 +1293,25 @@ class MainWindow(QMainWindow):
 
     def _on_done(self) -> None:
         self._set_buttons_enabled(True)
+
+    def _on_time_trial_ready(self, entries: object) -> None:
+        """Take the schedule a generation just produced and refresh the board."""
+        self._time_trial_entries = list(entries)  # type: ignore[call-overload]
+        if self._time_trial_window is not None:
+            self._time_trial_window.set_entries(self._time_trial_entries)
+
+    def _on_open_time_trial(self) -> None:
+        """Show the start board, creating it once and reusing it afterwards.
+
+        Parented to the main window so it closes with the application, but carrying the
+        Window flag so it is a real separate window rather than an embedded child.
+        """
+        if self._time_trial_window is None:
+            self._time_trial_window = TimeTrialWindow(self)
+            self._time_trial_window.set_entries(self._time_trial_entries)
+        self._time_trial_window.show()
+        self._time_trial_window.raise_()
+        self._time_trial_window.activateWindow()
 
     def _on_ftp_download(self) -> None:
         if self._ftp_worker and self._ftp_worker.isRunning():
