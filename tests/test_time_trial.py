@@ -311,3 +311,16 @@ class TestDuplicateGroupIds:
         # The protocol would take the 0.0 and date the rider to 1970; the board shows
         # nobody rather than a rider who started decades ago.
         assert build_start_entries([_start("1", "G", 0.0)], groups) == []
+
+
+class TestElidableText:
+    def test_only_the_names_may_be_shortened(self) -> None:
+        entries = _entries(("1", 0), ("2", 60), ("3", 120), ("4", 180))
+        items = {i.text: i for i in board_items(select_view(entries, BASE + 70))}
+        # A bib, the clock and the countdown are short and must never be cut.
+        assert items["3"].elide is False
+        assert items["0:50"].elide is False
+        # Names have no length limit in the start protocol.
+        assert items["Rider 3"].elide is True
+        assert items["Rider 4"].elide is True
+        assert items["Rider 2"].elide is True
