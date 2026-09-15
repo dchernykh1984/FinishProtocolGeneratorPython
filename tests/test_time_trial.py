@@ -290,3 +290,24 @@ class TestBoardItems:
         texts = [i.text for i in board_items(view)]
         assert "9" in texts
         assert "" not in texts
+
+
+class TestDuplicateGroupIds:
+    def test_the_first_group_entry_wins_like_the_protocol(self) -> None:
+        # calculate_protocol stops at the first matching group id, so the board has to
+        # agree or it counts down to a time the protocol never uses.
+        groups = [
+            GroupStartElement(group_id="G", seconds=BASE),
+            GroupStartElement(group_id="G", seconds=BASE + 3600),
+        ]
+        entries = build_start_entries([_start("1", "G", 0.0)], groups)
+        assert entries[0].start_time == BASE
+
+    def test_a_first_entry_without_a_time_still_excludes_the_rider(self) -> None:
+        groups = [
+            GroupStartElement(group_id="G", seconds=0.0),
+            GroupStartElement(group_id="G", seconds=BASE),
+        ]
+        # The protocol would take the 0.0 and date the rider to 1970; the board shows
+        # nobody rather than a rider who started decades ago.
+        assert build_start_entries([_start("1", "G", 0.0)], groups) == []

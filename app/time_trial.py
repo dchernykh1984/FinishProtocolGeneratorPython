@@ -99,7 +99,13 @@ def build_start_entries(
     for a group missing from groups.txt, and carrying that through would date the rider
     to 1970 and permanently show them as the one who just started.
     """
-    group_times = {g.group_id: g.seconds for g in group_list if g.seconds > 0}
+    # First entry wins, because calculate_protocol stops at the first matching group
+    # id. Taking the last one instead would let a duplicated group make the board count
+    # down to a different moment than the protocol is built from.
+    first_seen: dict[str, float] = {}
+    for group in group_list:
+        first_seen.setdefault(group.group_id, group.seconds)
+    group_times = {gid: secs for gid, secs in first_seen.items() if secs > 0}
     entries = [
         StartEntry(
             competitor_id=s.competitor_id,
