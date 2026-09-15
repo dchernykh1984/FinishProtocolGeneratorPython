@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.9...v0.2.0) (2026-09-15)
+
+
+### Features
+
+* **ui:** add a time-trial start board window ([7cd82a4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7cd82a41e421f8daf3f2abd232681029a0cd49e4))
+
+
+### Bug Fixes
+
+* **time-trial:** shorten an over-long rider name to its corner ([6666d96](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6666d96c5988ac630e04c10c103ad3cecde214c5))
+* **time-trial:** size board text in pixels so screen DPI cannot rescale it ([9a63c4e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9a63c4edd714b00ce0d6a26b394e0b168bb49d71))
+* **time-trial:** take the first group entry, matching the protocol ([1ccd756](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1ccd756e6521c344ff2239805820aecc05e98a72))
+* **ui:** close the start board on exit so the process can quit ([68eafd5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/68eafd578fff4b4ce299403b97ac74f1d2f96c98))
+* **ui:** restore a minimized start board when the button is pressed again ([95b78fb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/95b78fbd241f23ed60edadba830bef7675c0e48e))
+
 ## [0.1.9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.8...v0.1.9) (2026-09-04)
 
 
