@@ -22,6 +22,7 @@ from app.time_trial import (
     ALIGN_LEFT,
     DESIGN_HEIGHT,
     DESIGN_WIDTH,
+    BoardItem,
     StartEntry,
     board_items,
     board_transform,
@@ -76,6 +77,18 @@ class TimeTrialWindow(QWidget):
         self._timer.stop()
         super().hideEvent(event)
 
+    def _item_font(self, item: BoardItem, scale: float) -> QFont:
+        """The font for one run of text, sized in pixels.
+
+        Pixels, not points: the design boxes are in pixel-style units, and a point size
+        is scaled again by the screen DPI, so on a 96 DPI display every run came out a
+        third larger than the band budgeted for it and spilled into its neighbour.
+        """
+        font = QFont(self.font())
+        font.setPixelSize(max(1, round(item.font_size * scale)))
+        font.setBold(True)
+        return font
+
     def paintEvent(self, event) -> None:  # type: ignore[override]  # noqa: N802
         painter = QPainter(self)
         try:
@@ -86,10 +99,7 @@ class TimeTrialWindow(QWidget):
             painter.setPen(_FOREGROUND)
             view = select_view(self._entries, self._clock())
             for item in board_items(view):
-                font = QFont(self.font())
-                font.setPointSizeF(max(1.0, item.font_size * scale))
-                font.setBold(True)
-                painter.setFont(font)
+                painter.setFont(self._item_font(item, scale))
                 rect = QRectF(
                     offset_x + item.x * scale,
                     offset_y + item.y * scale,

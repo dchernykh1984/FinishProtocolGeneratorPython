@@ -9,7 +9,7 @@ import pytest
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication
 
-from app.time_trial import StartEntry, now_seconds
+from app.time_trial import ALIGN_CENTER, BoardItem, StartEntry, now_seconds
 from app.time_trial_window import TimeTrialWindow
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -107,5 +107,29 @@ def test_uses_the_wall_clock_by_default() -> None:
     window = TimeTrialWindow()
     try:
         assert window._clock() > 20_000 * 86400
+    finally:
+        window.deleteLater()
+
+
+def test_fonts_are_sized_in_pixels_so_dpi_cannot_rescale_them() -> None:
+    # The layout boxes are pixel-style units. A point size is scaled again by the
+    # screen DPI -- a third larger at 96 DPI -- so the text would outgrow its band on
+    # exactly the machines this ships to.
+    window = TimeTrialWindow(clock=lambda: BASE)
+    try:
+        item = BoardItem("0:30", 0, 0, 100, 40, 32, ALIGN_CENTER)
+        font = window._item_font(item, 2.0)
+        assert font.pixelSize() == 64
+        assert font.pointSize() == -1  # Qt reports -1 once a pixel size is set
+        assert font.bold()
+    finally:
+        window.deleteLater()
+
+
+def test_a_font_never_collapses_to_nothing() -> None:
+    window = TimeTrialWindow(clock=lambda: BASE)
+    try:
+        item = BoardItem("x", 0, 0, 10, 10, 18, ALIGN_CENTER)
+        assert window._item_font(item, 0.001).pixelSize() >= 1
     finally:
         window.deleteLater()
