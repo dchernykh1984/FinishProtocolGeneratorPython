@@ -7,7 +7,8 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app.config import RaceConfig
 from app.main_window import MainWindow, _GenerateWorker
@@ -77,10 +78,35 @@ class TestButton:
         window._btn_time_trial.click()
         assert window._time_trial_window._entries == entries
 
-    def test_the_board_closes_with_the_application(self, window) -> None:
+    def test_the_board_closes_with_the_application(self, window, monkeypatch) -> None:
+        # A child carrying the Window flag is skipped by Qt's hide-children pass, so
+        # closing the main window leaves the board up and, because it holds
+        # WA_QuitOnClose, the process never quits. closeEvent has to close it.
         window._btn_time_trial.click()
-        # Parented to the main window, so it is not left behind as an orphan window.
-        assert window._time_trial_window.parent() is window
+        board = window._time_trial_window
+        assert board.isVisible()
+
+        monkeypatch.setattr(
+            QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+        )
+        monkeypatch.setattr(window, "_save_race_info_to_path", lambda path: None)
+        window.closeEvent(QCloseEvent())
+
+        assert not board.isVisible()
+        assert not board._timer.isActive()
+
+    def test_declining_the_exit_leaves_the_board_open(
+        self, window, monkeypatch
+    ) -> None:
+        window._btn_time_trial.click()
+        board = window._time_trial_window
+
+        monkeypatch.setattr(
+            QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+        )
+        window.closeEvent(QCloseEvent())
+
+        assert board.isVisible()
 
 
 class TestRefreshOnGeneration:

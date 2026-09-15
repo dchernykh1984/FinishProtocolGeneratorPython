@@ -591,11 +591,23 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+            self._close_time_trial_window()
             self._stop_workers()
             self._save_race_info_to_path(str(app_path("fpg_info.txt")))
             event.accept()
         else:
             event.ignore()
+
+    def _close_time_trial_window(self) -> None:
+        """Close the start board so the application can actually exit.
+
+        Parenting is not enough: a child carrying the Window flag is skipped by Qt's
+        hide-children pass, so the board stays up with its timer running, and because
+        it has WA_QuitOnClose the "last window closed" quit never fires. The process
+        would linger after the user confirmed the exit.
+        """
+        if self._time_trial_window is not None:
+            self._time_trial_window.close()
 
     def _stop_workers(self) -> None:
         """Stop background threads before the app tears them down.
@@ -1303,8 +1315,10 @@ class MainWindow(QMainWindow):
     def _on_open_time_trial(self) -> None:
         """Show the start board, creating it once and reusing it afterwards.
 
-        Parented to the main window so it closes with the application, but carrying the
-        Window flag so it is a real separate window rather than an embedded child.
+        Parented to the main window so it is destroyed with it, but carrying the Window
+        flag so it is a real separate window rather than an embedded child. Parentage
+        alone does not close it -- ``closeEvent`` has to, or the process outlives the
+        exit.
         """
         if self._time_trial_window is None:
             self._time_trial_window = TimeTrialWindow(self)
