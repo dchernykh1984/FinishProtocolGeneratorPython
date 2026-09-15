@@ -64,6 +64,8 @@ class BoardItem:
     height: float
     font_size: float
     align: str
+    # Names can be arbitrarily long; bibs, the clock and the countdown cannot.
+    elide: bool = False
 
 
 def now_seconds(moment: datetime | None = None) -> float:
@@ -216,9 +218,9 @@ def board_items(view: TimeTrialView) -> list[BoardItem]:
             ALIGN_CENTER,
         ),
         BoardItem(next_number, 0, 250, DESIGN_WIDTH, 110, 104, ALIGN_CENTER),
-        BoardItem(next_name, 0, 360, DESIGN_WIDTH, 38, 30, ALIGN_CENTER),
+        BoardItem(next_name, 0, 360, DESIGN_WIDTH, 38, 30, ALIGN_CENTER, elide=True),
         BoardItem(after_number, margin, 402, side_width, 42, 40, ALIGN_LEFT),
-        BoardItem(after_name, margin, 444, side_width, 26, 18, ALIGN_LEFT),
+        BoardItem(after_name, margin, 444, side_width, 26, 18, ALIGN_LEFT, elide=True),
         BoardItem(
             started_number,
             DESIGN_WIDTH - margin - side_width,
@@ -236,6 +238,7 @@ def board_items(view: TimeTrialView) -> list[BoardItem]:
             26,
             18,
             ALIGN_RIGHT,
+            elide=True,
         ),
     ]
     return [item for item in candidates if item.text]

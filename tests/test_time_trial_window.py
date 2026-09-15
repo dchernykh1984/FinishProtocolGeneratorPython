@@ -6,10 +6,17 @@ import sys
 from datetime import datetime
 
 import pytest
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import QApplication
 
-from app.time_trial import ALIGN_CENTER, BoardItem, StartEntry, now_seconds
+from app.time_trial import (
+    ALIGN_CENTER,
+    ALIGN_LEFT,
+    BoardItem,
+    StartEntry,
+    now_seconds,
+)
 from app.time_trial_window import TimeTrialWindow
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -131,5 +138,45 @@ def test_a_font_never_collapses_to_nothing() -> None:
     try:
         item = BoardItem("x", 0, 0, 10, 10, 18, ALIGN_CENTER)
         assert window._item_font(item, 0.001).pixelSize() >= 1
+    finally:
+        window.deleteLater()
+
+
+def test_an_over_long_name_is_shortened_to_its_corner() -> None:
+    # Names are drawn unclipped, so an unbounded one would run out of its corner and
+    # towards the opposite one.
+    long_name = "Konstantinopolsky-Nezhdanovsky Konstantin Vyacheslavovich"
+    window = TimeTrialWindow(clock=lambda: BASE + 150)
+    try:
+        window.set_entries(
+            [
+                StartEntry("1", long_name, BASE),
+                StartEntry("2", long_name, BASE + 300),
+            ]
+        )
+        window.resize(800, 480)
+        item = BoardItem(long_name, 0, 0, 260, 26, 18, ALIGN_LEFT, elide=True)
+        font = window._item_font(item, 1.0)
+        shown = QFontMetrics(font).elidedText(
+            long_name, Qt.TextElideMode.ElideRight, 260
+        )
+        assert shown != long_name
+        assert QFontMetrics(font).horizontalAdvance(shown) <= 260
+        assert not _render(window).isNull()
+    finally:
+        window.deleteLater()
+
+
+def test_a_name_that_fits_is_left_alone() -> None:
+    window = TimeTrialWindow(clock=lambda: BASE)
+    try:
+        item = BoardItem("Ivanov Ivan", 0, 0, 260, 26, 18, ALIGN_LEFT, elide=True)
+        font = window._item_font(item, 1.0)
+        assert (
+            QFontMetrics(font).elidedText(
+                "Ivanov Ivan", Qt.TextElideMode.ElideRight, 260
+            )
+            == "Ivanov Ivan"
+        )
     finally:
         window.deleteLater()

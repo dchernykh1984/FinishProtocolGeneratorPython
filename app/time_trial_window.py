@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPainter
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
 from PySide6.QtWidgets import QWidget
 
 from app.time_trial import (
@@ -99,7 +99,8 @@ class TimeTrialWindow(QWidget):
             painter.setPen(_FOREGROUND)
             view = select_view(self._entries, self._clock())
             for item in board_items(view):
-                painter.setFont(self._item_font(item, scale))
+                font = self._item_font(item, scale)
+                painter.setFont(font)
                 rect = QRectF(
                     offset_x + item.x * scale,
                     offset_y + item.y * scale,
@@ -110,6 +111,13 @@ class TimeTrialWindow(QWidget):
                 # The boxes position the text; they must not crop it. Without
                 # TextDontClip a descender that reaches past its box is sliced off,
                 # which on a start board looks like a rendering fault.
+                text = item.text
+                if item.elide:
+                    # Drawn unclipped, so an over-long name would otherwise run out of
+                    # its corner and towards the other one. Fits are left untouched.
+                    text = QFontMetrics(font).elidedText(
+                        text, Qt.TextElideMode.ElideRight, int(rect.width())
+                    )
                 painter.drawText(
                     rect,
                     int(
@@ -117,7 +125,7 @@ class TimeTrialWindow(QWidget):
                         | Qt.AlignmentFlag.AlignVCenter
                         | Qt.TextFlag.TextDontClip
                     ),
-                    item.text,
+                    text,
                 )
         finally:
             painter.end()
