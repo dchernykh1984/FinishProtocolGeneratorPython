@@ -49,6 +49,7 @@ from app.file_io import (
     read_finish_times,
     read_group_times,
     read_start_protocol,
+    sanitize_config_line,
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
@@ -649,6 +650,33 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._make_http_tab(), "HTTP")
         tabs.addTab(self._make_logger_tab(), "Log")
 
+    def _bind_line_edit(self, attr: str, masked: bool = False) -> QLineEdit:
+        """A race-info field bound to one config attribute, refusing line breaks.
+
+        Qt keeps a line break that arrives through a paste and draws nothing for it, so
+        a pasted HTML snippet (a sponsor logo, say) leaves the field looking like one
+        line while the value is two. The race-info file stores one field per physical
+        line, so drop the break where it enters instead of only noticing it on save.
+        """
+        edit = QLineEdit(getattr(self._cfg, attr))
+        edit.setObjectName(attr)
+        if masked:
+            edit.setEchoMode(QLineEdit.EchoMode.Password)
+        edit.textChanged.connect(
+            lambda text, e=edit, a=attr: self._on_field_edited(e, a, text)
+        )
+        return edit
+
+    def _on_field_edited(self, edit: QLineEdit, attr: str, text: str) -> None:
+        clean = sanitize_config_line(text)
+        if clean != text:
+            # Show what will actually be stored; an invisible break left in the widget
+            # is exactly how this stayed unnoticed before.
+            edit.blockSignals(True)
+            edit.setText(clean)
+            edit.blockSignals(False)
+        setattr(self._cfg, attr, clean)
+
     def _make_main_tab(self) -> QWidget:
         w = QWidget()
         ly = QVBoxLayout(w)
@@ -656,9 +684,7 @@ class MainWindow(QMainWindow):
         def _file_row(label: str, attr: str, is_save: bool = False) -> QHBoxLayout:
             row = QHBoxLayout()
             row.addWidget(QLabel(label))
-            edit = QLineEdit(getattr(self._cfg, attr))
-            edit.setObjectName(attr)
-            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            edit = self._bind_line_edit(attr)
             row.addWidget(edit)
             btn = QPushButton("..." if is_save else "Open")
             btn.setFixedWidth(60)
@@ -814,9 +840,7 @@ class MainWindow(QMainWindow):
         for label, attr in fields:
             row = QHBoxLayout()
             row.addWidget(QLabel(label), 1)
-            edit = QLineEdit(getattr(self._cfg, attr))
-            edit.setObjectName(attr)
-            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            edit = self._bind_line_edit(attr)
             row.addWidget(edit, 3)
             ly.addLayout(row)
 
@@ -860,9 +884,7 @@ class MainWindow(QMainWindow):
             cb.toggled.connect(lambda v, a=chk_attr: setattr(self._cfg, a, v))
             row.addWidget(cb, 1)
             if lbl_attr:
-                edit = QLineEdit(getattr(self._cfg, lbl_attr))
-                edit.setObjectName(lbl_attr)
-                edit.textChanged.connect(lambda t, a=lbl_attr: setattr(self._cfg, a, t))
+                edit = self._bind_line_edit(lbl_attr)
                 row.addWidget(edit, 2)
             return row
 
@@ -956,9 +978,7 @@ class MainWindow(QMainWindow):
         ]:
             row = QHBoxLayout()
             row.addWidget(QLabel(lbl), 1)
-            edit = QLineEdit(getattr(self._cfg, attr))
-            edit.setObjectName(attr)
-            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            edit = self._bind_line_edit(attr)
             row.addWidget(edit, 2)
             ly.addLayout(row)
 
@@ -1052,11 +1072,7 @@ class MainWindow(QMainWindow):
         def _ftp_row(label: str, attr: str, masked: bool = False) -> QHBoxLayout:
             row = QHBoxLayout()
             row.addWidget(QLabel(label), 1)
-            edit = QLineEdit(getattr(self._cfg, attr))
-            edit.setObjectName(attr)
-            if masked:
-                edit.setEchoMode(QLineEdit.EchoMode.Password)
-            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            edit = self._bind_line_edit(attr, masked)
             row.addWidget(edit, 3)
             return row
 
@@ -1112,11 +1128,7 @@ class MainWindow(QMainWindow):
         def _http_row(label: str, attr: str, masked: bool = False) -> QHBoxLayout:
             row = QHBoxLayout()
             row.addWidget(QLabel(label), 1)
-            edit = QLineEdit(getattr(self._cfg, attr))
-            edit.setObjectName(attr)
-            if masked:
-                edit.setEchoMode(QLineEdit.EchoMode.Password)
-            edit.textChanged.connect(lambda t, a=attr: setattr(self._cfg, a, t))
+            edit = self._bind_line_edit(attr, masked)
             row.addWidget(edit, 3)
             return row
 
@@ -1570,7 +1582,10 @@ class MainWindow(QMainWindow):
 
         try:
             with Path(path).open("w", encoding="utf-8") as f:
-                f.write("\n".join(lines) + "\n")
+                # One field per physical line is the whole format, so fold any line
+                # break a value picked up: writing it raw would split that field in
+                # two and shift every field below it on the next load.
+                f.write("\n".join(sanitize_config_line(ln) for ln in lines) + "\n")
         except Exception as exc:
             QMessageBox.critical(self, "Error", f"Failed to save: {exc}")
 
@@ -2032,7 +2047,7 @@ class MainWindow(QMainWindow):
             name = w_le.objectName()
             if name and hasattr(cfg, name):
                 w_le.blockSignals(True)
-                w_le.setText(str(getattr(cfg, name) or ""))
+                w_le.setText(sanitize_config_line(str(getattr(cfg, name) or "")))
                 w_le.blockSignals(False)
         for w_sb in self.findChildren(QSpinBox):
             name = w_sb.objectName()
