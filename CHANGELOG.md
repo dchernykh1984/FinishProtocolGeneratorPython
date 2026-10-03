@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.3.0...v0.4.0) (2026-10-03)
+
+
+### Features
+
+* **time-trial:** caption every field on the start board ([73d9da2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/73d9da21628bd8bdd96217ac21ab586396fb9622))
+
 ## [0.3.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.2.0...v0.3.0) (2026-10-03)
 
 
