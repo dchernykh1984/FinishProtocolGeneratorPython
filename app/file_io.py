@@ -680,6 +680,24 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
     return result
 
 
+KEY_VALUE_HEADER = "# FPG Race Info"
+
+
+def is_key_value_config(path: str) -> bool:
+    """Whether the race-info file at `path` is the tagged key=value format.
+
+    That format names every field, so it cannot shift the way the positional one can -
+    and the positional parser must never be pointed at it: read as positions, its
+    header and its key=value lines land in whatever field each position happens to be,
+    which is indistinguishable from damage.
+    """
+    for line in _read_all_lines(path):
+        stripped = line.strip()
+        if stripped:
+            return stripped == KEY_VALUE_HEADER
+    return False
+
+
 # Positional fields whose value comes from a closed set, with the line the format puts
 # them on. They are the anchors: a shifted file lands something else in them, which is
 # the only way to notice that the file no longer means what it says.

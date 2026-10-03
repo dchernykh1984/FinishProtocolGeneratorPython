@@ -6,6 +6,7 @@ import tempfile
 
 from app.file_io import (
     config_file_problems,
+    is_key_value_config,
     load_config_file,
     load_template,
     read_finish_times,
@@ -802,3 +803,50 @@ class TestConfigFileProblems:
         problems = config_file_problems(load_config_file(_tmp("\n".join(shifted))))
         assert problems
         assert any("race type" in problem for problem in problems)
+
+
+class TestIsKeyValueConfig:
+    """The positional anchors must not be applied to the tagged format."""
+
+    def test_the_header_is_recognised(self) -> None:
+        assert is_key_value_config(_tmp("# FPG Race Info\nRaceName=Race\nEnd\n"))
+
+    def test_leading_blank_lines_do_not_hide_it(self) -> None:
+        assert is_key_value_config(_tmp("\n\n# FPG Race Info\nRaceName=Race\n"))
+
+    def test_a_positional_file_is_not_the_tagged_format(self) -> None:
+        assert not is_key_value_config(_tmp("sponsor\nrace name\ndate\n"))
+
+    def test_an_empty_file_is_not_the_tagged_format(self) -> None:
+        assert not is_key_value_config(_tmp(""))
+
+    def test_a_sound_tagged_file_is_not_mistaken_for_damage(self) -> None:
+        # Read as positions, its key=value lines land in whatever field each position
+        # happens to be, and the race type anchor fails on a line like
+        # "NSignsAfterPoint=1". The format check is what keeps that from being
+        # reported as damage.
+        path = _tmp(
+            "# FPG Race Info\n"
+            + "".join(
+                f"{key}=value\n"
+                for key in (
+                    "Sponsor",
+                    "RaceName",
+                    "RaceDate",
+                    "RacePlace",
+                    "Weather",
+                    "MainReferee",
+                    "AdditionalReferee",
+                    "Organizer",
+                    "TrackConditions",
+                    "MinimalTimeForLap",
+                    "TimeLimit",
+                    "NSignsAfterPoint",
+                    "RaceType",
+                )
+            )
+            + "End\n"
+        )
+        assert is_key_value_config(path)
+        # The positional reading of it does look damaged, which is the trap.
+        assert config_file_problems(load_config_file(path))
