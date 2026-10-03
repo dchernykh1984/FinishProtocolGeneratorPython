@@ -191,6 +191,33 @@ class TestSavingOverADamagedFile:
         finally:
             win.deleteLater()
 
+    def test_an_uninspectable_target_still_reports_its_own_failure(
+        self, questions: _Questions, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The guard reads the target before the save does, so it must not throw.
+
+        Reaching this check used to be impossible: the write was wrapped and reported
+        "Failed to save". An inspection that raises ahead of that wrapper would turn a
+        handled failure into an exception escaping closeEvent.
+        """
+        failures: list[str] = []
+        monkeypatch.setattr(
+            QMessageBox,
+            "critical",
+            lambda _parent, _title, text, *args: failures.append(text),
+        )
+        win = MainWindow()
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                target = Path(td) / "a_directory"
+                target.mkdir()
+                win._save_race_info_to_path(str(target))
+            assert len(failures) == 1
+            assert "Failed to save" in failures[0]
+            assert questions.titles == []
+        finally:
+            win.deleteLater()
+
     def test_declining_leaves_a_damaged_file_byte_identical(
         self, questions: _Questions
     ) -> None:
