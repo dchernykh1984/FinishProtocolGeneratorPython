@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.2.0...v0.3.0) (2026-10-03)
+
+
+### Features
+
+* **config:** ask before saving over a damaged race-info file ([064c789](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/064c789551a509e8ef138bede11fe114616fecd4))
+* **config:** report a race-info file whose fields no longer line up ([d58c5db](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d58c5db2122b75ce98f2aafdcda43e832cc8a7bd))
+
+
+### Bug Fixes
+
+* **config:** do not judge a key=value race-info file by the positional anchors ([14cf40b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/14cf40b7e71bb6325dca2f3b18cbd5f7f5f83b7a))
+* **config:** fold line breaks out of the config on load, not only on save ([841cb6a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/841cb6a7e85c56812e6f7fb1b6f849c58e99ed29))
+* **config:** keep line breaks out of race-info values so the file cannot shift ([2a485ec](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2a485ec630f4ce78c94a29bb550d32e17baf0ecd))
+* **ui:** keep an unreadable save target from raising out of the damaged-file check ([56848ab](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/56848abb25c7825ea6826ddacc611a3dcadc41a9))
+
 ## [0.2.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.1.9...v0.2.0) (2026-09-15)
 
 
