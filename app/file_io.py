@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from app.config import HtmlStyles
@@ -22,6 +23,28 @@ def _read_lines(path: str) -> list[str]:
         except UnicodeDecodeError:
             continue
     return []
+
+
+# Every line separator Python's str.splitlines() honours, which is what reads the
+# race-info file back. Matching that set exactly is the point: anything splitlines()
+# would break on has to be folded here, or the two disagree about where a field ends.
+_LINE_BREAKS = re.compile(r"\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]")
+
+
+def sanitize_config_line(value: str) -> str:
+    """Fold any line break inside one race-info value into a single space.
+
+    The race-info file gives every field exactly one physical line, so a value that
+    carries a line break is read back as two fields and shifts every field after it
+    for good - the loader is positional and cannot tell. A pasted HTML snippet is the
+    realistic source: Qt keeps a newline that arrives through a paste in a QLineEdit
+    and draws nothing for it, so the field looks single-line while it is not.
+
+    Whitespace is trimmed only when a break was actually folded, so a value that never
+    contained one is written back byte for byte.
+    """
+    folded = _LINE_BREAKS.sub(" ", value)
+    return value if folded == value else folded.strip()
 
 
 def _read_all_lines(path: str) -> list[str]:

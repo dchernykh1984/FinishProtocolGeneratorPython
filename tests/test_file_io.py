@@ -10,6 +10,7 @@ from app.file_io import (
     read_finish_times,
     read_group_times,
     read_start_protocol,
+    sanitize_config_line,
 )
 
 
@@ -694,3 +695,35 @@ class TestLoadTemplate:
         assert st is not None
         assert st.table_style == "only-table-style"
         assert st.top_line_style == ""
+
+
+class TestSanitizeConfigLine:
+    """One race-info field must never become two physical lines."""
+
+    def test_trailing_newline_is_folded_and_trimmed(self) -> None:
+        # The real case: an HTML snippet pasted into the Sponsor field.
+        assert sanitize_config_line("<div>logo</div>\n") == "<div>logo</div>"
+
+    def test_embedded_newline_becomes_a_space(self) -> None:
+        assert sanitize_config_line("<div>a</div>\n<div>b</div>") == (
+            "<div>a</div> <div>b</div>"
+        )
+
+    def test_crlf_folds_to_one_space(self) -> None:
+        assert sanitize_config_line("a\r\nb") == "a b"
+
+    def test_several_breaks_each_fold(self) -> None:
+        assert sanitize_config_line("a\n\nb") == "a  b"
+
+    def test_value_without_a_break_is_untouched(self) -> None:
+        # Including whitespace: trimming only happens when a break was folded, so a
+        # value that never had one is written back byte for byte.
+        for value in ("", "plain", "  padded  ", "tab\tseparated"):
+            assert sanitize_config_line(value) == value
+
+    def test_folds_every_separator_splitlines_honours(self) -> None:
+        # The loader reads the file back with str.splitlines(), so anything that would
+        # split a line there has to be folded here or the two disagree.
+        for char in "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029":
+            assert len(f"a{char}b".splitlines()) == 2, repr(char)
+            assert sanitize_config_line(f"a{char}b") == "a b", repr(char)
