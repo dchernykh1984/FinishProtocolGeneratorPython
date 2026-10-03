@@ -99,6 +99,34 @@ class TestSaveKeepsOneLinePerField:
         finally:
             win.deleteLater()
 
+    def test_a_break_in_the_last_field_cannot_reset_the_tagged_labels(self) -> None:
+        """bottom_text sits immediately before the tagged label block.
+
+        One extra line there leaves the loader mid-chain, and because the tag checks
+        run in a fixed order, every label after that point keeps its default instead.
+        That is how the live file lost its labels while still looking plausible, so
+        assert the labels first: the damaged field itself is checked elsewhere.
+        """
+        win = MainWindow()
+        try:
+            win._cfg.weather_label = "Weather here"
+            win._cfg.organizer_label = "Organizer here"
+            win._cfg.overall_results_label = "Overall here"
+            win._cfg.bottom_text = "closing\nline"
+            with tempfile.TemporaryDirectory() as td:
+                path = str(Path(td) / "fpg_info.txt")
+                win._save_race_info_to_path(path)
+                other = MainWindow()
+                try:
+                    other._load_race_info_from_path(path)
+                    assert other._cfg.weather_label == "Weather here"
+                    assert other._cfg.organizer_label == "Organizer here"
+                    assert other._cfg.overall_results_label == "Overall here"
+                finally:
+                    other.deleteLater()
+        finally:
+            win.deleteLater()
+
     @pytest.mark.parametrize("field", _TEXT_FIELDS)
     def test_round_trip_survives_a_break_in_any_text_field(self, field: str) -> None:
         win = MainWindow()
