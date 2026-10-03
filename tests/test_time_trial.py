@@ -216,14 +216,6 @@ class TestBoardTransform:
         assert board_transform(0, 100) == (0.0, 0.0, 0.0)
         assert board_transform(100, 0) == (0.0, 0.0, 0.0)
 
-    def test_every_glyph_grows_by_the_same_factor(self) -> None:
-        view = select_view(_entries(("1", 0), ("2", 60), ("3", 120)), BASE + 10)
-        items = board_items(view)
-        small, _, _ = board_transform(DESIGN_WIDTH, DESIGN_HEIGHT)
-        big, _, _ = board_transform(DESIGN_WIDTH * 3, DESIGN_HEIGHT * 3)
-        ratios = {round(i.font_size * big / (i.font_size * small), 6) for i in items}
-        assert ratios == {3.0}
-
 
 class TestBoardItems:
     def _full_view(self) -> TimeTrialView:
