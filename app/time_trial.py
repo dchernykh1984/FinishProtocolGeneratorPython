@@ -23,6 +23,25 @@ _EPOCH = date(1970, 1, 1)
 DESIGN_WIDTH = 800.0
 DESIGN_HEIGHT = 480.0
 
+# Captions. They are written as escapes because a pre-commit hook keeps every
+# tracked Python file ASCII; the transliteration and the English sense are given
+# for each, so the board text stays readable to someone who cannot read the
+# alphabet it is written in.
+# "Tekushchee vremya" - current time
+CAPTION_CLOCK = (
+    "\u0422\u0435\u043a\u0443\u0449\u0435\u0435 \u0432\u0440\u0435\u043c\u044f"
+)
+# "do starta" - until the start of
+CAPTION_COUNTDOWN = "\u0434\u043e \u0441\u0442\u0430\u0440\u0442\u0430"
+# "uchastnika" - the rider
+CAPTION_NEXT = "\u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u0430"
+# "sleduyushchiy" - the one going after that
+CAPTION_AFTER_NEXT = "\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439"
+# "startovavshiy" - the one already away
+CAPTION_STARTED = (
+    "\u0441\u0442\u0430\u0440\u0442\u043e\u0432\u0430\u0432\u0448\u0438\u0439"
+)
+
 ALIGN_LEFT = "left"
 ALIGN_CENTER = "center"
 ALIGN_RIGHT = "right"
@@ -204,36 +223,66 @@ def board_items(view: TimeTrialView) -> list[BoardItem]:
     next_number, next_name = _entry_text(view.next_up)
     after_number, after_name = _entry_text(view.after_next)
     started_number, started_name = _entry_text(view.started)
+    countdown = format_countdown(view.countdown)
     margin = 24.0
     side_width = 260.0
+    side_right = DESIGN_WIDTH - margin - side_width
+
+    def caption(label: str, value: str) -> str:
+        """The caption, but only while the thing it names is on the board."""
+        return label if value else ""
+
     candidates = [
-        BoardItem(format_clock(view.now), 0, 18, DESIGN_WIDTH, 70, 54, ALIGN_CENTER),
+        BoardItem(CAPTION_CLOCK, 0, 4, DESIGN_WIDTH, 20, 17, ALIGN_CENTER),
+        BoardItem(format_clock(view.now), 0, 24, DESIGN_WIDTH, 58, 50, ALIGN_CENTER),
         BoardItem(
-            format_countdown(view.countdown),
+            caption(CAPTION_COUNTDOWN, countdown),
             0,
-            96,
+            86,
             DESIGN_WIDTH,
-            150,
-            132,
+            20,
+            17,
             ALIGN_CENTER,
         ),
-        BoardItem(next_number, 0, 250, DESIGN_WIDTH, 110, 104, ALIGN_CENTER),
-        BoardItem(next_name, 0, 360, DESIGN_WIDTH, 38, 30, ALIGN_CENTER, elide=True),
-        BoardItem(after_number, margin, 402, side_width, 42, 40, ALIGN_LEFT),
-        BoardItem(after_name, margin, 444, side_width, 26, 18, ALIGN_LEFT, elide=True),
+        BoardItem(countdown, 0, 106, DESIGN_WIDTH, 116, 108, ALIGN_CENTER),
         BoardItem(
-            started_number,
-            DESIGN_WIDTH - margin - side_width,
-            402,
-            side_width,
-            42,
-            40,
-            ALIGN_RIGHT,
+            caption(CAPTION_NEXT, next_number),
+            0,
+            224,
+            DESIGN_WIDTH,
+            20,
+            17,
+            ALIGN_CENTER,
         ),
+        BoardItem(next_number, 0, 244, DESIGN_WIDTH, 90, 84, ALIGN_CENTER),
+        BoardItem(next_name, 0, 334, DESIGN_WIDTH, 32, 27, ALIGN_CENTER, elide=True),
+        BoardItem(
+            caption(CAPTION_AFTER_NEXT, after_number),
+            margin,
+            384,
+            side_width,
+            18,
+            15,
+            ALIGN_LEFT,
+            elide=True,
+        ),
+        BoardItem(after_number, margin, 402, side_width, 38, 36, ALIGN_LEFT),
+        BoardItem(after_name, margin, 440, side_width, 26, 18, ALIGN_LEFT, elide=True),
+        BoardItem(
+            caption(CAPTION_STARTED, started_number),
+            side_right,
+            384,
+            side_width,
+            18,
+            15,
+            ALIGN_RIGHT,
+            elide=True,
+        ),
+        BoardItem(started_number, side_right, 402, side_width, 38, 36, ALIGN_RIGHT),
         BoardItem(
             started_name,
-            DESIGN_WIDTH - margin - side_width,
-            444,
+            side_right,
+            440,
             side_width,
             26,
             18,
