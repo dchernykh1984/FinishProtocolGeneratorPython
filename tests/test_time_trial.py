@@ -9,6 +9,11 @@ from app.time_trial import (
     ALIGN_CENTER,
     ALIGN_LEFT,
     ALIGN_RIGHT,
+    CAPTION_AFTER_NEXT,
+    CAPTION_CLOCK,
+    CAPTION_COUNTDOWN,
+    CAPTION_NEXT,
+    CAPTION_STARTED,
     DESIGN_HEIGHT,
     DESIGN_WIDTH,
     StartEntry,
@@ -263,6 +268,47 @@ class TestBoardItems:
         items = {i.text: i for i in board_items(self._full_view())}
         assert items["4"].font_size * 2 < items["3"].font_size
 
+    def test_every_field_is_captioned(self) -> None:
+        texts = [i.text for i in board_items(self._full_view())]
+        for caption in (
+            CAPTION_CLOCK,
+            CAPTION_COUNTDOWN,
+            CAPTION_NEXT,
+            CAPTION_AFTER_NEXT,
+            CAPTION_STARTED,
+        ):
+            assert caption in texts
+
+    def test_a_caption_sits_above_what_it_names_and_is_smaller(self) -> None:
+        items = {i.text: i for i in board_items(self._full_view())}
+        pairs = (
+            (CAPTION_CLOCK, format_clock(self._full_view().now)),
+            (CAPTION_COUNTDOWN, format_countdown(self._full_view().countdown)),
+            (CAPTION_NEXT, "3"),
+            (CAPTION_AFTER_NEXT, "4"),
+            (CAPTION_STARTED, "2"),
+        )
+        for caption, value in pairs:
+            assert items[caption].y < items[value].y, caption
+            assert items[caption].font_size < items[value].font_size, caption
+
+    def test_a_corner_caption_follows_its_column(self) -> None:
+        items = {i.text: i for i in board_items(self._full_view())}
+        assert items[CAPTION_AFTER_NEXT].align == ALIGN_LEFT
+        assert items[CAPTION_STARTED].align == ALIGN_RIGHT
+        assert items[CAPTION_AFTER_NEXT].x == items["4"].x
+        assert items[CAPTION_STARTED].x == items["2"].x
+
+    def test_a_caption_goes_when_its_field_does(self) -> None:
+        # Nobody left to start: the countdown and the next rider are gone, so their
+        # captions must not be left hanging over empty space.
+        view = select_view(_entries(("1", 0)), BASE + 600)
+        texts = [i.text for i in board_items(view)]
+        assert CAPTION_COUNTDOWN not in texts
+        assert CAPTION_NEXT not in texts
+        assert CAPTION_AFTER_NEXT not in texts
+        assert CAPTION_STARTED in texts
+
     def test_everything_stays_inside_the_design_area(self) -> None:
         for item in board_items(self._full_view()):
             assert item.x >= 0
@@ -277,13 +323,21 @@ class TestBoardItems:
 
     def test_empty_slots_are_simply_not_drawn(self) -> None:
         # Everyone has gone: no countdown, no next bib, no next name, no after-next.
+        # Each caption goes with the slot it names, so they drop out together.
         view = select_view(_entries(("1", 0), ("2", 60)), BASE + 600)
         texts = [i.text for i in board_items(view)]
-        assert texts == [format_clock(view.now), "2", "Rider 2"]
+        assert texts == [
+            CAPTION_CLOCK,
+            format_clock(view.now),
+            CAPTION_STARTED,
+            "2",
+            "Rider 2",
+        ]
 
     def test_an_empty_schedule_leaves_only_the_clock(self) -> None:
         view = select_view([], BASE)
-        assert [i.text for i in board_items(view)] == [format_clock(BASE)]
+        texts = [i.text for i in board_items(view)]
+        assert texts == [CAPTION_CLOCK, format_clock(BASE)]
 
     def test_a_rider_without_a_name_still_shows_a_bib(self) -> None:
         view = select_view([StartEntry("9", "", BASE + 10)], BASE)
