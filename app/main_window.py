@@ -693,9 +693,15 @@ class MainWindow(QMainWindow):
         holding an impossible value - so a first run and a half-written file still save
         without a question.
         """
-        if not Path(path).exists() or is_key_value_config(path):
+        try:
+            if not Path(path).exists() or is_key_value_config(path):
+                return False
+            problems = config_file_problems(load_config_file(path))
+        except OSError:
+            # Unreadable: nothing was loaded out of it either, so there is nothing
+            # misread to write back. Let the save run and report its own failure
+            # rather than block it with a question about a file nobody can read.
             return False
-        problems = config_file_problems(load_config_file(path))
         if not problems:
             return False
         reply = QMessageBox.question(
