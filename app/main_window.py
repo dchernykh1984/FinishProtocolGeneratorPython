@@ -678,6 +678,37 @@ class MainWindow(QMainWindow):
             edit.blockSignals(False)
         setattr(self._cfg, attr, clean)
 
+    def _keep_damaged_file(self, path: str) -> bool:
+        """Whether a damaged race-info file already at `path` must be left alone.
+
+        The values about to be written were themselves misread out of that file, so
+        writing them back is how the damage became permanent last time: file and
+        config then agreed with each other and nothing ever looked wrong again. The
+        copy on disk is the only record of what the settings used to be, so ask, and
+        default to keeping it.
+
+        A file that is merely absent, empty or short is not damaged - it has no anchor
+        holding an impossible value - so a first run and a half-written file still save
+        without a question.
+        """
+        if not Path(path).exists():
+            return False
+        problems = config_file_problems(load_config_file(path))
+        if not problems:
+            return False
+        reply = QMessageBox.question(
+            self,
+            "Damaged race info file",
+            f"{path}\n\nThe file already there does not line up:\n\n"
+            + "\n".join(f"- {problem}" for problem in problems)
+            + "\n\nThe settings now loaded were read out of that same file, so saving "
+            "over it loses the only record of what they used to be.\n\n"
+            "Overwrite it with the settings currently loaded?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return reply != QMessageBox.StandardButton.Yes
+
     def _warn_config_damaged(self, path: str, problems: list[str]) -> None:
         """Report a race-info file whose fields no longer line up.
 
@@ -1449,6 +1480,8 @@ class MainWindow(QMainWindow):
                 self._timer.stop()
 
     def _save_race_info_to_path(self, path: str) -> None:  # noqa: C901
+        if self._keep_damaged_file(path):
+            return
         cfg = self._cfg
         lines: list[str] = []
 
