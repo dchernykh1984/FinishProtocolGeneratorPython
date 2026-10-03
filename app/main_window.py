@@ -44,6 +44,7 @@ from app.config import (
     normalize_http_action,
 )
 from app.file_io import (
+    config_file_problems,
     load_config_file,
     load_template,
     read_finish_times,
@@ -676,6 +677,22 @@ class MainWindow(QMainWindow):
             edit.setText(clean)
             edit.blockSignals(False)
         setattr(self._cfg, attr, clean)
+
+    def _warn_config_damaged(self, path: str, problems: list[str]) -> None:
+        """Report a race-info file whose fields no longer line up.
+
+        Worth interrupting for: the file parses, so without this the wrong values
+        simply appear in the interface as though somebody had chosen them.
+        """
+        QMessageBox.critical(
+            self,
+            "Race info file damaged",
+            f"{path}\n\nThis file does not line up, so the settings shown are not "
+            "the ones it was saved with:\n\n"
+            + "\n".join(f"- {problem}" for problem in problems)
+            + "\n\nA value in it most likely holds a line break, which shifts every "
+            "field after it. Check the file before relying on these settings.",
+        )
 
     def _fold_cfg_line_breaks(self) -> None:
         """Fold line breaks out of every text value a load just took on.
@@ -1790,6 +1807,12 @@ class MainWindow(QMainWindow):
         else:
             # Original C++ positional format (load_config_file handles encoding)
             d = load_config_file(path)
+
+            # Anchors first: a shifted file still parses, so say so before its values
+            # reach the interface looking like settings somebody chose.
+            problems = config_file_problems(d)
+            if problems:
+                self._warn_config_damaged(path, problems)
 
             # Reset all optional flags -- C++ clears all controls before parsing,
             # so absent tags mean the feature is OFF, regardless of RaceConfig defaults.

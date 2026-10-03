@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.config import HtmlStyles
+from app.config import ALL_RACE_TYPES, HtmlStyles
+from app.ftp_io import DOWNLOAD_ACTIONS
 from app.models import (
     FinishCompetitorElement,
     GroupStartElement,
@@ -677,3 +678,39 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
             result["http_absolute_action"] = v
 
     return result
+
+
+# Positional fields whose value comes from a closed set, with the line the format puts
+# them on. They are the anchors: a shifted file lands something else in them, which is
+# the only way to notice that the file no longer means what it says.
+_ANCHORS: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
+    ("race_type", "race type", 13, tuple(ALL_RACE_TYPES)),
+    ("start_list_action", "start list action", 0, DOWNLOAD_ACTIONS),
+    ("group_times_action", "group times action", 0, DOWNLOAD_ACTIONS),
+    ("result_times_action", "result times action", 0, DOWNLOAD_ACTIONS),
+    ("remote_points_action", "remote points action", 0, DOWNLOAD_ACTIONS),
+)
+
+
+def config_file_problems(data: dict[str, str]) -> list[str]:
+    """Describe why a loaded race-info file cannot be trusted, if it cannot.
+
+    The format is positional, so one field holding a line break shifts every field
+    after it and the loader reads a value into the wrong name without noticing. The
+    fields below accept only a fixed set of values, so an unexpected one there means
+    the file no longer lines up - and that nothing read out of it can be relied on.
+
+    Returns one message per failed anchor, empty when the file looks consistent. A
+    field missing entirely is not reported: a truncated file is a separate matter, and
+    the loader already stops cleanly on one.
+    """
+    problems: list[str] = []
+    for key, name, line, allowed in _ANCHORS:
+        value = data.get(key)
+        if value is None or value in allowed:
+            continue
+        where = f" The {line}th line of the file should hold it." if line else ""
+        problems.append(
+            f'The {name} reads "{value}", which is not a known value.{where}'
+        )
+    return problems

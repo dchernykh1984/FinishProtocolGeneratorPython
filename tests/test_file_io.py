@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 
 from app.file_io import (
+    config_file_problems,
     load_config_file,
     load_template,
     read_finish_times,
@@ -727,3 +728,77 @@ class TestSanitizeConfigLine:
         for char in "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029":
             assert len(f"a{char}b".splitlines()) == 2, repr(char)
             assert sanitize_config_line(f"a{char}b") == "a b", repr(char)
+
+
+class TestConfigFileProblems:
+    """A shifted race-info file still parses, so it has to be caught by its anchors."""
+
+    def test_a_consistent_file_has_no_problems(self) -> None:
+        data = {
+            "race_type": "Mass/Splitted",
+            "start_list_action": "None",
+            "group_times_action": "Download",
+            "result_times_action": "Merge",
+            "remote_points_action": "Merge+Remove",
+        }
+        assert config_file_problems(data) == []
+
+    def test_an_unknown_race_type_is_reported_with_its_line(self) -> None:
+        # "1" is what the race type slot held in the file that triggered this check:
+        # the digits-after-decimal value, one line out of place.
+        problems = config_file_problems({"race_type": "1"})
+        assert len(problems) == 1
+        assert '"1"' in problems[0]
+        assert "13th line" in problems[0]
+
+    def test_an_unknown_action_is_reported(self) -> None:
+        problems = config_file_problems({"start_list_action": "RefreshProtocol"})
+        assert len(problems) == 1
+        assert "start list action" in problems[0]
+        assert "RefreshProtocol" in problems[0]
+
+    def test_every_failed_anchor_is_listed(self) -> None:
+        problems = config_file_problems(
+            {
+                "race_type": "1",
+                "start_list_action": "a",
+                "group_times_action": "b",
+                "result_times_action": "c",
+                "remote_points_action": "d",
+            }
+        )
+        assert len(problems) == 5
+
+    def test_absent_fields_are_not_a_problem(self) -> None:
+        # A truncated file is a different matter, and load_config_file stops cleanly
+        # on one rather than inventing values.
+        assert config_file_problems({}) == []
+
+    def test_a_shifted_file_is_caught_end_to_end(self) -> None:
+        lines = [
+            "sponsor",
+            "race name",
+            "date",
+            "place",
+            "weather",
+            "referee",
+            "secretary",
+            "organizer",
+            "track",
+            "0",
+            "0",
+            "1",
+            "Mass/Splitted",
+            "head",
+            "secretary head",
+            "None",
+            "None",
+            "None",
+            "None",
+        ]
+        assert config_file_problems(load_config_file(_tmp("\n".join(lines)))) == []
+        # One extra line anywhere above the anchors is all it takes.
+        shifted = [*lines[:1], "", *lines[1:]]
+        problems = config_file_problems(load_config_file(_tmp("\n".join(shifted))))
+        assert problems
+        assert any("race type" in problem for problem in problems)
