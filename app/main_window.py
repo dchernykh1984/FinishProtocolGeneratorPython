@@ -706,7 +706,7 @@ class MainWindow(QMainWindow):
             return False
         reply = QMessageBox.question(
             self,
-            "Damaged race info file",
+            "Overwrite damaged race info file?",
             f"{path}\n\nThe file already there does not line up:\n\n"
             + "\n".join(f"- {problem}" for problem in problems)
             + "\n\nThe settings now loaded were read out of that same file, so saving "

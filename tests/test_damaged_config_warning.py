@@ -122,7 +122,7 @@ class TestDamagedConfigWarning:
             win.deleteLater()
 
 
-_DAMAGED_TITLE = "Damaged race info file"
+_DAMAGED_TITLE = "Overwrite damaged race info file?"
 
 
 class TestSavingOverADamagedFile:
