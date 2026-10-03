@@ -166,6 +166,31 @@ class TestSavingOverADamagedFile:
         finally:
             win.deleteLater()
 
+    def test_a_tagged_file_is_overwritten_without_asking(
+        self, questions: _Questions
+    ) -> None:
+        """The key=value format names its fields, so it cannot have shifted.
+
+        Pointed at it, the positional parser reports damage that is not there, so the
+        guard has to recognise the format before judging the file.
+        """
+        win = MainWindow()
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                path = Path(td) / "fpg_info.txt"
+                path.write_text(
+                    "# FPG Race Info\n"
+                    "Sponsor=logo\nRaceName=Race\nRaceDate=1 May\nRacePlace=Place\n"
+                    "Weather=sunny\nMainReferee=Ref\nAdditionalReferee=Sec\n"
+                    "Organizer=Org\nTrackConditions=dry\nMinimalTimeForLap=600\n"
+                    "TimeLimit=0\nNSignsAfterPoint=1\nRaceType=Mass/Splitted\nEnd\n",
+                    encoding="utf-8",
+                )
+                win._save_race_info_to_path(str(path))
+            assert questions.titles == []
+        finally:
+            win.deleteLater()
+
     def test_declining_leaves_a_damaged_file_byte_identical(
         self, questions: _Questions
     ) -> None:

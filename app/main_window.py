@@ -44,7 +44,9 @@ from app.config import (
     normalize_http_action,
 )
 from app.file_io import (
+    KEY_VALUE_HEADER,
     config_file_problems,
+    is_key_value_config,
     load_config_file,
     load_template,
     read_finish_times,
@@ -691,7 +693,7 @@ class MainWindow(QMainWindow):
         holding an impossible value - so a first run and a half-written file still save
         without a question.
         """
-        if not Path(path).exists():
+        if not Path(path).exists() or is_key_value_config(path):
             return False
         problems = config_file_problems(load_config_file(path))
         if not problems:
@@ -1680,7 +1682,7 @@ class MainWindow(QMainWindow):
         first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
         cfg = self._cfg
 
-        if first_line == "# FPG Race Info":
+        if first_line == KEY_VALUE_HEADER:
             # New key=value format written by this application
             kv: dict[str, str] = {}
             for raw_line in text.splitlines():
