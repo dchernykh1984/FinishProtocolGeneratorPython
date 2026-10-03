@@ -129,3 +129,35 @@ class TestSaveKeepsOneLinePerField:
                     other.deleteLater()
         finally:
             win.deleteLater()
+
+
+class TestLoadFoldsLineBreaks:
+    """And a load cannot leave one in the config either.
+
+    The save folds on the way out, so the file is safe regardless, but the config is
+    read for more than saving: html_writer drops cfg.sponsor straight into the
+    protocol, which is how a pasted logo put a raw newline in the generated HTML.
+    """
+
+    def test_escaped_newline_in_the_kv_format_is_folded(self) -> None:
+        win = MainWindow()
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                path = Path(td) / "kv.txt"
+                # The key=value format decodes \n escapes, so it can hand the config a
+                # real line break that no positional file ever could.
+                path.write_text(
+                    "# FPG Race Info\n"
+                    "Sponsor=<div>a</div>\\n<div>b</div>\n"
+                    "RaceName=Race\n"
+                    "End\n",
+                    encoding="utf-8",
+                )
+                win._load_race_info_from_path(str(path))
+            assert win._cfg.sponsor == "<div>a</div> <div>b</div>"
+            edit = win.findChild(QLineEdit, "sponsor")
+            assert edit is not None
+            # The field must not claim something different from what is stored.
+            assert edit.text() == win._cfg.sponsor
+        finally:
+            win.deleteLater()
