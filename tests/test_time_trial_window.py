@@ -15,7 +15,9 @@ from app.time_trial import (
     ALIGN_LEFT,
     BoardItem,
     StartEntry,
+    board_items,
     now_seconds,
+    select_view,
 )
 from app.time_trial_window import TimeTrialWindow
 
@@ -129,6 +131,32 @@ def test_fonts_are_sized_in_pixels_so_dpi_cannot_rescale_them() -> None:
         assert font.pixelSize() == 64
         assert font.pointSize() == -1  # Qt reports -1 once a pixel size is set
         assert font.bold()
+    finally:
+        window.deleteLater()
+
+
+def test_every_run_of_text_grows_by_the_same_factor() -> None:
+    # The whole point of the board is that it keeps its arrangement when enlarged, so
+    # check every item it actually draws, not a hand-made one: a size that did not
+    # follow the window would show up here and nowhere else.
+    window = TimeTrialWindow(clock=lambda: BASE + 70)
+    try:
+        window.set_entries(
+            [
+                StartEntry("1", "Rider 1", BASE),
+                StartEntry("2", "Rider 2", BASE + 120),
+                StartEntry("3", "Rider 3", BASE + 180),
+            ]
+        )
+        items = board_items(select_view(window._entries, BASE + 70))
+        assert len(items) > 5
+        for scale in (0.5, 1.0, 2.5):
+            for item in items:
+                font = window._item_font(item, scale)
+                assert font.pixelSize() == max(1, round(item.font_size * scale)), (
+                    item.text,
+                    scale,
+                )
     finally:
         window.deleteLater()
 
