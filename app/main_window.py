@@ -677,6 +677,21 @@ class MainWindow(QMainWindow):
             edit.blockSignals(False)
         setattr(self._cfg, attr, clean)
 
+    def _fold_cfg_line_breaks(self) -> None:
+        """Fold line breaks out of every text value a load just took on.
+
+        The save folds them too, so the file is safe either way, but the config is read
+        for more than saving: html_writer writes cfg.sponsor into the protocol
+        verbatim, which is how a pasted logo left a raw line break in the generated
+        HTML. The "# FPG Race Info" import is the live source, because it decodes \\n
+        escapes into real breaks that no positional file could carry.
+        """
+        cfg = self._cfg
+        for name in type(cfg).__dataclass_fields__:
+            value = getattr(cfg, name)
+            if isinstance(value, str):
+                setattr(cfg, name, sanitize_config_line(value))
+
     def _make_main_tab(self) -> QWidget:
         w = QWidget()
         ly = QVBoxLayout(w)
@@ -2023,6 +2038,7 @@ class MainWindow(QMainWindow):
                     _db("upload_http_groups"), _db("upload_http_absolute")
                 )
 
+        self._fold_cfg_line_breaks()
         self._apply_template()
         self._sync_ui_from_cfg()
         self._on_refresh_toggled(self._cfg.auto_refresh_enabled)
