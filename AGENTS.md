@@ -8,6 +8,12 @@ in `.agents/skills/` tell an agent how to work in this repo. Detailed skills:
 - `.agents/skills/cycling-site` - how the app reads from and writes to the website.
 - `.agents/skills/local-testing` - running tests and Qt/test gotchas.
 
+Runtime file I/O uses `app.paths.app_path()`: relative inputs, templates, outputs
+and upload files belong next to the portable executable (outside the `.app`
+bundle on macOS). Absolute paths and config path strings stay unchanged. Finder
+may launch the app with `/` as its working directory; test file I/O with a frozen
+executable and a different working directory.
+
 ## Golden rules for commits and PRs
 
 - Commit messages are EXACTLY ONE LINE: a Conventional Commits subject
