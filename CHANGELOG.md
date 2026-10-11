@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.4.0...v0.4.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* resolve runtime files beside the portable application ([7f4a216](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7f4a21678177383683ab9ce6f196f8ad48f61458))
+
+
+### Documentation
+
+* clarify portable runtime paths for coding agents ([b17bb8d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b17bb8d818b320882ce74122e779c2736740967b))
+
 ## [0.4.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.3.0...v0.4.0) (2026-10-03)
 
 
