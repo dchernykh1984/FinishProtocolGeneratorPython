@@ -5,11 +5,11 @@ from __future__ import annotations
 import calendar
 import html
 from io import StringIO
-from pathlib import Path
 from typing import TextIO
 
 from app.config import RaceConfig
 from app.models import INF, FinishProtocolElement, GroupStartElement
+from app.paths import app_path
 
 # ---------------------------------------------------------------------------
 # time formatting
@@ -615,7 +615,7 @@ def write_group_protocol(  # noqa: C901
 
     _write_footer(buf, cfg)
 
-    with Path(path).open("w", encoding="utf-8") as out:
+    with app_path(path).open("w", encoding="utf-8") as out:
         out.write(buf.getvalue() + "\n")
 
     if cfg.generate_text_protocol_effective():
@@ -644,7 +644,7 @@ def _write_text_group_protocol(
                 f"#{fp.stages}#{fp.year_of_birth}#{fp.team}#{fp.city}"
                 f"#{fp.extra_info}#{place_ctr}#"
             )
-    with Path(path).open("w", encoding="utf-8") as f:
+    with app_path(path).open("w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
@@ -1043,5 +1043,5 @@ def write_absolute_protocol(  # noqa: C901
     buf.write("</table>\n")
     _write_footer(buf, cfg)
 
-    with Path(path).open("w", encoding="utf-8") as out:
+    with app_path(path).open("w", encoding="utf-8") as out:
         out.write(buf.getvalue() + "\n")

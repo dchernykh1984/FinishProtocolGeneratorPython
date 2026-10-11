@@ -256,7 +256,7 @@ class _FTPWorker(QThread):
             self.log_message.emit(f"  ERROR: {exc}")
             return False
         try:
-            path = Path(cfg.start_protocol_file)
+            path = app_path(cfg.start_protocol_file)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(
                 "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
@@ -270,7 +270,7 @@ class _FTPWorker(QThread):
     def _write_lines(self, path: str, lines: list[str], label: str) -> bool:
         """Overwrite *path* with *lines*; on error leave it and return False."""
         try:
-            p = Path(path)
+            p = app_path(path)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
         except OSError as exc:
@@ -694,7 +694,7 @@ class MainWindow(QMainWindow):
         without a question.
         """
         try:
-            if not Path(path).exists() or is_key_value_config(path):
+            if not app_path(path).exists() or is_key_value_config(path):
                 return False
             problems = config_file_problems(load_config_file(path))
         except OSError:
@@ -1654,7 +1654,7 @@ class MainWindow(QMainWindow):
         lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
 
         try:
-            with Path(path).open("w", encoding="utf-8") as f:
+            with app_path(path).open("w", encoding="utf-8") as f:
                 # One field per physical line is the whole format, so fold any line
                 # break a value picked up: writing it raw would split that field in
                 # two and shift every field below it on the next load.
@@ -1675,7 +1675,7 @@ class MainWindow(QMainWindow):
         text: str | None = None
         for enc in ("utf-8", "cp1251", "latin-1"):
             try:
-                text = Path(path).read_text(encoding=enc)
+                text = app_path(path).read_text(encoding=enc)
                 break
             except UnicodeDecodeError, OSError:
                 continue
