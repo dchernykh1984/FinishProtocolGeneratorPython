@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from app.config import ALL_RACE_TYPES, HtmlStyles
 from app.ftp_io import DOWNLOAD_ACTIONS
@@ -12,11 +11,12 @@ from app.models import (
     GroupStartElement,
     StartProtocolElement,
 )
+from app.paths import app_path
 
 
 def _read_lines(path: str) -> list[str]:
     """Read non-empty lines from a text file (auto-detect encoding)."""
-    p = Path(path)
+    p = app_path(path)
     for enc in ("utf-8", "cp1251", "latin-1"):
         try:
             text = p.read_text(encoding=enc)
@@ -50,7 +50,7 @@ def sanitize_config_line(value: str) -> str:
 
 def _read_all_lines(path: str) -> list[str]:
     """Read all lines (including empty) from a text file (auto-detect encoding)."""
-    p = Path(path)
+    p = app_path(path)
     for enc in ("utf-8", "cp1251", "latin-1"):
         try:
             return p.read_text(encoding=enc).splitlines()
@@ -76,7 +76,7 @@ _TEMPLATE_FIELDS = (
 
 def load_template(path: str) -> HtmlStyles | None:
     """Load an HTML styles template file (C++ positional format, 11 lines)."""
-    p = Path(path)
+    p = app_path(path)
     lines: list[str] = []
     for enc in ("utf-8", "cp1251", "latin-1"):
         try:

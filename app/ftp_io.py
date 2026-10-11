@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from app.paths import app_path
+
 DOWNLOAD_ACTIONS = ("None", "Download", "Merge", "Merge+Remove")
 
 
@@ -87,8 +89,8 @@ def merge_files(to_file: str, from_file: str, merge_by_id: bool) -> int:
     *from_file*, or -1 on I/O or decode error.
     """
     try:
-        to_path = Path(to_file)
-        from_path = Path(from_file)
+        to_path = app_path(to_file)
+        from_path = app_path(from_file)
 
         raw_to: list[str] = []
         if to_path.exists():
@@ -157,7 +159,7 @@ def upload_file(
         with ftplib.FTP() as ftp:  # noqa: S321
             ftp.connect(host, port, timeout=10)
             ftp.login(login or "anonymous", password or "")
-            with Path(local_path).open("rb") as f:
+            with app_path(local_path).open("rb") as f:
                 ftp.storbinary(f"STOR {remote_path}", f)
         return 0
     except Exception as exc:
@@ -211,7 +213,7 @@ def download_file(  # pragma: no cover
             decoded = _decode_lines(Path(tmp_path))
             if decoded is None:
                 return -1
-            local = Path(local_path)
+            local = app_path(local_path)
             local.parent.mkdir(parents=True, exist_ok=True)
             local.write_text(
                 "\n".join(decoded) + ("\n" if decoded else ""),

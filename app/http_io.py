@@ -7,7 +7,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from pathlib import Path
+
+from app.paths import app_path
 
 
 def fetch_start_list(site_url: str, token: str) -> list[str]:
@@ -119,7 +120,7 @@ def upload_protocol(  # noqa: C901
             errors_out.append("HTTP site URL or local file path is empty")
         return -1
 
-    local = Path(local_path)
+    local = app_path(local_path)
     if not local.exists():
         if errors_out is not None:
             errors_out.append(f"File not found: {local_path}")
