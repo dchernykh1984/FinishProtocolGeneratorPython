@@ -1254,6 +1254,20 @@ class MainWindow(QMainWindow):
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
             ly.addWidget(cb)
 
+        pack_row = QHBoxLayout()
+        pack_row.addWidget(QLabel("Participant pack max gap (seconds):"), 1)
+        pack_gap = QSpinBox()
+        pack_gap.setObjectName("pack_gap_seconds")
+        pack_gap.setRange(0, 2147483647)
+        pack_gap.setValue(self._cfg.pack_gap_seconds)
+        pack_gap.setEnabled(self._cfg.send_absolute_statistics)
+        pack_gap.valueChanged.connect(
+            lambda v: setattr(self._cfg, "pack_gap_seconds", v)
+        )
+        cb.toggled.connect(pack_gap.setEnabled)
+        pack_row.addWidget(pack_gap, 3)
+        ly.addLayout(pack_row)
+
         ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
 
         for label, attr, ivar in (
@@ -1652,6 +1666,7 @@ class MainWindow(QMainWindow):
         lines += ["HttpStageLabel", cfg.http_stage_label]
         lines += ["HttpGroupsAction", cfg.http_groups_action]
         lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
+        lines += ["PackGapSeconds", str(cfg.pack_gap_seconds)]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -1687,6 +1702,7 @@ class MainWindow(QMainWindow):
 
         first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
         cfg = self._cfg
+        cfg.pack_gap_seconds = 10
 
         if first_line == KEY_VALUE_HEADER:
             # New key=value format written by this application
@@ -1801,6 +1817,7 @@ class MainWindow(QMainWindow):
             cfg.send_absolute_statistics = _bool(
                 "SendAbsoluteStatistics", cfg.send_absolute_statistics
             )
+            cfg.pack_gap_seconds = _int("PackGapSeconds", 10)
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -1985,6 +2002,7 @@ class MainWindow(QMainWindow):
             cfg.send_absolute_statistics = _db(
                 "send_absolute_statistics", cfg.send_absolute_statistics
             )
+            cfg.pack_gap_seconds = _di("pack_gap_seconds", 10)
             cfg.show_finish_time = _db("show_finish_time", cfg.show_finish_time)
             cfg.finish_time_label = _ds("finish_time_label", cfg.finish_time_label)
             cfg.show_time_difference = _db(
@@ -2102,6 +2120,8 @@ class MainWindow(QMainWindow):
                     _db("upload_http_groups"), _db("upload_http_absolute")
                 )
 
+        if not 0 <= cfg.pack_gap_seconds <= 2147483647:
+            cfg.pack_gap_seconds = 10
         self._fold_cfg_line_breaks()
         self._apply_template()
         self._sync_ui_from_cfg()

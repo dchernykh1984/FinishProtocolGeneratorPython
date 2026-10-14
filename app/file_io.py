@@ -676,6 +676,14 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["http_absolute_action"] = v
+        tok = nxt()
+        if tok is None:
+            return result
+
+    if tok == "PackGapSeconds":
+        v = nxt()
+        if v is not None:
+            result["pack_gap_seconds"] = v
 
     return result
 
