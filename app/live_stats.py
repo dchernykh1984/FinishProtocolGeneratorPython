@@ -18,6 +18,10 @@ Keys (any subset, gated by the two config toggles):
 * gap_leader_* -- time behind the scope leader ("+2:05"); omitted for the leader.
 * gap_prev_*_delta / gap_next_*_delta / gap_leader_*_delta -- how the prev/next/leader
   gap changed over the last lap ("+" grew, "-" shrank); needs 2 laps, else absent.
+* gap_prev_pack_abs / gap_next_pack_abs -- time to the nearest member of the
+  neighbouring participant pack, excluding your own pack; signed like rider gaps.
+* qty_prev_pack_abs / qty_next_pack_abs -- size of that neighbouring pack.
+  Consecutive riders join one pack when their gap is <= pack_gap_seconds.
 
 Gaps render as "M:SS" (or "H:MM:SS" past an hour), with the same number of decimal
 seconds as the generator's "Digits after decimal" setting: 0 -> "+0:36", 1 -> "+0:36.1".
@@ -208,6 +212,61 @@ def _emit_scope(entry: dict[str, str], suffix: str, data: dict[str, str]) -> Non
             data[template.format(s=suffix)] = entry[base]
 
 
+def _participant_packs(
+    ranked: list[FinishProtocolElement], cfg: RaceConfig
+) -> list[list[FinishProtocolElement]]:
+    """Chain adjacent classified riders using the same common-lap gaps as stats.
+
+    No crossing means no measured pack membership. DSQ riders never bridge packs.
+    An unavailable or reversed common-lap gap cannot establish a connection.
+    """
+    packs: list[list[FinishProtocolElement]] = []
+    for elem in ranked:
+        if (
+            elem.disqualified
+            or _elapsed_at_lap(elem, cfg, _laps_done(elem, cfg)) is None
+        ):
+            continue
+        gap = None
+        if packs:
+            prev = packs[-1][-1]
+            common = min(_laps_done(elem, cfg), _laps_done(prev, cfg))
+            gap = _gap_value(elem, prev, cfg, common)
+        if gap is None or not 0 <= gap <= cfg.pack_gap_seconds:
+            packs.append([])
+        packs[-1].append(elem)
+    return packs
+
+
+def _emit_pack_stats(
+    ranked: list[FinishProtocolElement],
+    cfg: RaceConfig,
+    stats: dict[str, dict[str, str]],
+) -> None:
+    """Each rider sees the nearest boundary and size of the next distinct pack."""
+    packs = _participant_packs(ranked, cfg)
+    for index, pack in enumerate(packs):
+        for direction, offset, boundary_index, sign in (
+            ("prev", -1, -1, 1),
+            ("next", 1, 0, -1),
+        ):
+            neighbour_index = index + offset
+            if not 0 <= neighbour_index < len(packs):
+                continue
+            neighbour = packs[neighbour_index]
+            boundary = neighbour[boundary_index]
+            for elem in pack:
+                behind, ahead = (elem, boundary) if sign == 1 else (boundary, elem)
+                common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
+                gap = _gap_value(behind, ahead, cfg, common)
+                if gap is not None and gap >= 0:
+                    data = stats[elem.competitor_id]
+                    data[f"gap_{direction}_pack_abs"] = _format_gap(
+                        sign * gap, cfg.n_signs_after_point
+                    )
+                    data[f"qty_{direction}_pack_abs"] = str(len(neighbour))
+
+
 def build_live_stats(
     protocol: list[FinishProtocolElement], cfg: RaceConfig
 ) -> dict[str, dict[str, str]]:
@@ -241,4 +300,6 @@ def build_live_stats(
             _emit_scope(abs_scope[cid], "_abs", data)
         data["laps"] = f"{_laps_done(elem, cfg)}/{_total_laps(elem, cfg)}"
         stats[cid] = data
+    if cfg.send_absolute_statistics:
+        _emit_pack_stats(ranked, cfg, stats)
     return stats

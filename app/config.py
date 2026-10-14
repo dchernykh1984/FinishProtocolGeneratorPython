@@ -157,6 +157,7 @@ class RaceConfig:
     # Push per-competitor live standings (for the Garmin field) on each regeneration.
     send_group_statistics: bool = False
     send_absolute_statistics: bool = False
+    pack_gap_seconds: int = 10
     start_list_source: str = START_LIST_SOURCE_LOCAL
     group_times_source: str = START_LIST_SOURCE_LOCAL
     finish_times_source: str = START_LIST_SOURCE_LOCAL

@@ -78,6 +78,106 @@ def _one_group_scenario(cfg):
     return _run(start_list, finish_list, cfg, group_list)
 
 
+def _pack_scenario(times, cfg):
+    return _run(
+        [_start(str(i), "G", 1) for i in range(1, len(times) + 1)],
+        [_finish(str(i), START_T + t) for i, t in enumerate(times, 1)],
+        cfg,
+        [_group("G", START_T)],
+    )
+
+
+class TestParticipantPacks:
+    def test_each_rider_sees_the_nearest_member_of_the_next_distinct_pack(self):
+        cfg = _cfg(n_signs_after_point=0)
+        stats = build_live_stats(
+            _pack_scenario([100, 105, 115, 140, 145, 190], cfg), cfg
+        )
+        assert stats["2"]["gap_next_pack_abs"] == "-0:35"
+        assert stats["2"]["qty_next_pack_abs"] == "2"
+        assert "gap_prev_pack_abs" not in stats["2"]
+        assert stats["5"]["gap_prev_pack_abs"] == "+0:30"
+        assert stats["5"]["qty_prev_pack_abs"] == "3"
+        assert stats["5"]["gap_next_pack_abs"] == "-0:45"
+        assert stats["5"]["qty_next_pack_abs"] == "1"
+        assert stats["6"]["gap_prev_pack_abs"] == "+0:45"
+        assert stats["6"]["qty_prev_pack_abs"] == "2"
+        assert "gap_next_pack_abs" not in stats["6"]
+
+    def test_a_hundred_chained_riders_are_one_pack_despite_total_spread(self):
+        cfg = _cfg()
+        stats = build_live_stats(_pack_scenario([50, *range(100, 200), 250], cfg), cfg)
+        assert stats["1"]["qty_next_pack_abs"] == "100"
+        assert stats["102"]["qty_prev_pack_abs"] == "100"
+        assert stats["52"]["qty_prev_pack_abs"] == "1"
+        assert stats["52"]["qty_next_pack_abs"] == "1"
+
+    def test_threshold_is_inclusive_and_can_be_changed(self):
+        cfg = _cfg()
+        protocol = _pack_scenario([100, 110, 121], cfg)
+        stats = build_live_stats(protocol, cfg)
+        assert cfg.pack_gap_seconds == 10
+        assert stats["3"]["qty_prev_pack_abs"] == "2"
+        cfg.pack_gap_seconds = 11
+        stats = build_live_stats(protocol, cfg)
+        assert all(not any("_pack_" in key for key in s) for s in stats.values())
+
+    def test_threshold_uses_unrounded_seconds_and_zero_groups_only_ties(self):
+        cfg = _cfg(n_signs_after_point=0)
+        stats = build_live_stats(_pack_scenario([100, 110.001], cfg), cfg)
+        assert stats["2"]["qty_prev_pack_abs"] == "1"
+        cfg.pack_gap_seconds = 0
+        stats = build_live_stats(_pack_scenario([100, 100, 101], cfg), cfg)
+        assert stats["3"]["qty_prev_pack_abs"] == "2"
+
+    def test_disqualified_and_unmeasured_riders_do_not_join_or_bridge_packs(self):
+        cfg = _cfg()
+        protocol = _pack_scenario([100, 109, 118], cfg)
+        protocol[1].disqualified = True
+        protocol.append(_run([_start("DNS", "G")], [], cfg)[0])
+        stats = build_live_stats(protocol, cfg)
+        assert stats["3"]["qty_prev_pack_abs"] == "1"
+        assert stats["1"]["qty_next_pack_abs"] == "1"
+        for cid in ("2", "DNS"):
+            assert not any("_pack_" in key for key in stats[cid])
+
+    def test_group_only_statistics_never_emit_pack_fields(self):
+        cfg = _cfg(send_absolute_statistics=False)
+        stats = build_live_stats(_pack_scenario([100, 120], cfg), cfg)
+        assert all(not any("_pack_" in key for key in s) for s in stats.values())
+
+    def test_pack_gap_uses_last_common_lap_like_existing_rider_gaps(self):
+        cfg = _cfg()
+        stats = build_live_stats(_one_group_scenario(cfg), cfg)
+        assert stats["3"]["gap_prev_pack_abs"] == stats["3"]["gap_prev_abs"]
+        assert stats["3"]["qty_prev_pack_abs"] == "1"
+
+    def test_absolute_packs_span_classification_groups_without_changing_group_gaps(
+        self,
+    ):
+        cfg = _cfg()
+        protocol = _pack_scenario([100, 105, 120], cfg)
+        protocol[1].group_id = "OTHER"
+        stats = build_live_stats(protocol, cfg)
+        assert stats["3"]["qty_prev_pack_abs"] == "2"
+        assert stats["3"]["gap_prev_group"] == "+0:20.0"
+
+    def test_reversed_common_lap_gap_does_not_invent_a_pack_ahead(self):
+        cfg = _cfg()
+        protocol = _run(
+            [_start("1", "G"), _start("2", "G")],
+            [
+                _finish("1", START_T + 150),
+                _finish("1", START_T + 200),
+                _finish("2", START_T + 100),
+            ],
+            cfg,
+            [_group("G", START_T)],
+        )
+        stats = build_live_stats(protocol, cfg)
+        assert all(not any("_pack_" in key for key in s) for s in stats.values())
+
+
 class TestPlaceQtyLaps:
     def test_places_and_qty_absolute(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())

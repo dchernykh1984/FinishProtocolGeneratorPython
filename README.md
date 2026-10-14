@@ -217,10 +217,18 @@ group vs. the whole race), plus `laps`.
 | `gap_prev_group_delta` / `gap_prev_abs_delta` | How the gap to the rider ahead changed over your last lap: `"+..."` it grew, `"-..."` it shrank. Omitted with fewer than two shared laps. |
 | `gap_next_group_delta` / `gap_next_abs_delta` | How the gap to the rider behind changed over the last lap (`+` grew, `-` shrank). |
 | `gap_leader_group_delta` / `gap_leader_abs_delta` | How the gap to the leader changed over the last lap (`+` grew, `-` shrank). |
+| `gap_prev_pack_abs` / `gap_next_pack_abs` | Signed time to the nearest member of the distinct participant pack ahead / behind. Your own pack is skipped. |
+| `qty_prev_pack_abs` / `qty_next_pack_abs` | Number of competitors in that neighbouring pack, including a pack of one. |
 | `laps` | Completed vs. required laps, e.g. `"3/7"`. |
 
 Notes:
 
+- **Participant packs are absolute statistics only.** The HTTP tab's **Participant pack
+  max gap (seconds)** setting defaults to **10** and is saved with race info. A pack is
+  a chain of consecutive ranked riders whose unrounded common-lap gaps are at most this
+  threshold, regardless of the total spread or number of riders. Zero joins only ties.
+  DSQ riders and riders without a measured lap are excluded. Missing neighbouring packs
+  or uncomputable/reversed common-lap gaps omit both the gap and size keys.
 - **All values are strings.** Times are `"M:SS"` (or `"H:MM:SS"` past an hour), always
   carrying a leading sign: a rider ahead of you is `+`, a rider behind you is `-`.
 - **Gaps and their deltas use lap-finish crossings.** A gap is measured at the last lap **both**
