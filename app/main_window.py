@@ -1257,6 +1257,7 @@ class MainWindow(QMainWindow):
         pack_row = QHBoxLayout()
         pack_row.addWidget(QLabel("Participant pack max gap (seconds):"), 1)
         pack_gap = QSpinBox()
+        self._spin_pack_gap = pack_gap
         pack_gap.setObjectName("pack_gap_seconds")
         pack_gap.setRange(0, 2147483647)
         pack_gap.setValue(self._cfg.pack_gap_seconds)
@@ -2203,6 +2204,8 @@ class MainWindow(QMainWindow):
             self._combo_scl_action.setEnabled(cfg.use_start_check_list)
         if hasattr(self, "_spin_srp"):
             self._spin_srp.setEnabled(cfg.use_start_check_list)
+        if hasattr(self, "_spin_pack_gap"):
+            self._spin_pack_gap.setEnabled(cfg.send_absolute_statistics)
         self._sync_ftp_combos_from_cfg(cfg)
 
     def _sync_ftp_combos_from_cfg(self, cfg: RaceConfig) -> None:

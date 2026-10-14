@@ -54,6 +54,32 @@ def test_roundtrip_and_legacy_default(window, tmp_path):
     assert window._cfg.pack_gap_seconds == 10
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+@pytest.mark.parametrize("config_format", ["key_value", "positional"])
+def test_loading_config_synchronizes_threshold_availability(
+    window, tmp_path, enabled, config_format
+):
+    spin = window.findChild(QSpinBox, "pack_gap_seconds")
+    absolute = window.findChild(QCheckBox, "send_absolute_statistics")
+    absolute.setChecked(not enabled)
+    assert spin.isEnabled() is not enabled
+    path = tmp_path / "race.txt"
+    if config_format == "key_value":
+        path.write_text(
+            f"{KEY_VALUE_HEADER}\nSendAbsoluteStatistics={int(enabled)}\n"
+            "PackGapSeconds=20\n",
+            encoding="utf-8",
+        )
+    else:
+        window._cfg.send_absolute_statistics = enabled
+        window._cfg.pack_gap_seconds = 20
+        window._save_race_info_to_path(str(path))
+    window._load_race_info_from_path(str(path))
+    assert absolute.isChecked() is enabled
+    assert spin.value() == 20
+    assert spin.isEnabled() is enabled
+
+
 @pytest.mark.parametrize(
     "value, expected",
     [("7", 7), ("0", 0), ("-5", 10), ("bad", 10), ("99999999999", 10)],
