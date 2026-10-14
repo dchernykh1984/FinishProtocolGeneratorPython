@@ -1252,6 +1252,8 @@ class MainWindow(QMainWindow):
             cb.setObjectName(attr)
             cb.setChecked(bool(getattr(self._cfg, attr)))
             cb.toggled.connect(lambda v, a=attr: setattr(self._cfg, a, v))
+            if attr == "send_absolute_statistics":
+                self._chk_send_absolute_statistics = cb
             ly.addWidget(cb)
 
         pack_row = QHBoxLayout()
@@ -1265,7 +1267,7 @@ class MainWindow(QMainWindow):
         pack_gap.valueChanged.connect(
             lambda v: setattr(self._cfg, "pack_gap_seconds", v)
         )
-        cb.toggled.connect(pack_gap.setEnabled)
+        self._chk_send_absolute_statistics.toggled.connect(pack_gap.setEnabled)
         pack_row.addWidget(pack_gap, 3)
         ly.addLayout(pack_row)
 
