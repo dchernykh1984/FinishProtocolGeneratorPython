@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.4.1...v0.5.0) (2026-10-15)
+
+
+### Features
+
+* **stats:** report gaps and sizes of neighbouring participant packs ([48e42e6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/48e42e6ba38b264f24896bfa6c37d37acc364a83))
+
+
+### Bug Fixes
+
+* **settings:** bind pack threshold to the absolute statistics checkbox ([1372bbb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1372bbbe3ce0f38065f5ecaaf02fdddfaf7d1656))
+* **settings:** sync pack threshold availability when loading race info ([9ec5660](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9ec56601b49645526582a85031fe4d047731b1dd))
+
 ## [0.4.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.4.0...v0.4.1) (2026-10-11)
 
 
