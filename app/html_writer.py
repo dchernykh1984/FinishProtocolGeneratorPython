@@ -164,7 +164,7 @@ def _place_label(
     if fp.disqualified:
         return f"<td ALIGN=center ROWSPAN={rows}>DSQ</td>\n"
     if not fp.finished:
-        group_started = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
+        group_started = fp.has_started()
         if group_started or (
             cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF
         ):
@@ -396,13 +396,9 @@ def write_group_protocol(  # noqa: C901
         for fp in sorted_protocol:
             if fp.group_id != group_id:
                 continue
-            if not cfg.disable_dnf and (
-                fp.cross_line_times[0] == 0 or fp.cross_line_times[0] == INF
-            ):
+            group_started = fp.has_started()
+            if not cfg.disable_dnf and not group_started:
                 fp.finished = False
-            group_started = (
-                fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
-            )
             if not (
                 (fp.finished or cfg.print_dnf)
                 and (
@@ -789,11 +785,9 @@ def write_absolute_protocol(  # noqa: C901
     abs_place = 0
 
     for fp in sorted_protocol:
-        if not cfg.disable_dnf and (
-            fp.cross_line_times[0] == 0 or fp.cross_line_times[0] == INF
-        ):
+        group_started = fp.has_started()
+        if not cfg.disable_dnf and not group_started:
             fp.finished = False
-        group_started = fp.cross_line_times[0] != 0 and fp.cross_line_times[0] != INF
         if not (
             (fp.finished or cfg.print_dnf)
             and (
