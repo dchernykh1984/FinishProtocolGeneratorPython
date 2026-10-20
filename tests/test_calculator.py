@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.calculator import (
     _number_less,
     calculate_protocol,
@@ -22,6 +24,24 @@ from app.models import (
 # ---------------------------------------------------------------------------
 
 BASE_T = 15921 * 86400  # day offset used in realistic tests
+
+
+@pytest.mark.parametrize("disable_dsq", [False, True])
+def test_custom_start_keeps_legacy_start_at_an_earlier_dsq_mark(disable_dsq):
+    cfg = RaceConfig(race_type=RACE_TYPE_CUSTOM_START, disable_dsq=disable_dsq)
+    start = StartProtocolElement.from_line("1#Name#G#2#1#####")
+    marks = [
+        FinishCompetitorElement("1", 100, "DSQ"),
+        FinishCompetitorElement("1", 200, "nextLap"),
+        FinishCompetitorElement("1", 500, "nextLap"),
+    ]
+    fp = calculate_protocol([start], [], marks, [], [], cfg, [])[0]
+    assert fp.cross_line_times[0] == 100
+    assert fp.lap_times[:2] == [100, 300]
+    assert fp.n_laps_finished == 2
+    assert fp.finished
+    assert fp.get_total_time() == 400
+    assert fp.disqualified == (not disable_dsq)
 
 
 def _start(
