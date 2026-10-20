@@ -313,6 +313,10 @@ class FinishProtocolElement:
     def get_time_diff(
         self, leader: FinishProtocolElement, with_penalties: bool = True
     ) -> float:
-        return self.get_total_time(with_penalties) - leader.get_total_time(
+        """Positive gap behind the leader in the primary rule's scoring direction."""
+        difference = self.get_total_time(with_penalties) - leader.get_total_time(
             with_penalties
         )
+        if self.attempt_rules and self.attempt_rules[0].sort == "desc":
+            return -difference
+        return difference
