@@ -599,6 +599,9 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+            if not self._validate_attempt_rules():
+                event.ignore()
+                return
             self._close_time_trial_window()
             self._stop_workers()
             self._save_race_info_to_path(str(app_path("fpg_info.txt")))
