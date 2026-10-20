@@ -186,9 +186,7 @@ def calculate_protocol(  # noqa: C901
     Build FinishProtocolElement list from raw input data.
     Faithful port of C++ calculateProtocol().
     """
-    n_points = len(remote_points) - (
-        1 if cfg.is_number_of_tries() and remote_points else 0
-    )
+    n_points = cfg.intermediate_point_count(len(remote_points))
     result: list[FinishProtocolElement] = []
     rules = (
         parse_attempt_rules(cfg.attempt_rules_json) if cfg.is_number_of_tries() else ()
