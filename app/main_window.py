@@ -1366,8 +1366,14 @@ class MainWindow(QMainWindow):
 
     def _validate_attempt_rules(self) -> bool:
         try:
-            parse_attempt_rules(self._cfg.attempt_rules_json)
+            self._cfg.attempt_rules_json = rules_json(
+                parse_attempt_rules(self._cfg.attempt_rules_json)
+            )
         except ValueError as exc:
+            if not self._cfg.is_number_of_tries():
+                self._cfg.attempt_rules_json = "[]"
+                self._attempt_rules_editor.set_rules_json("[]")
+                return True
             QMessageBox.critical(self, "Invalid attempt rules", str(exc))
             return False
         return True
@@ -1702,10 +1708,7 @@ class MainWindow(QMainWindow):
         lines += ["HttpGroupsAction", cfg.http_groups_action]
         lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
         lines += ["PackGapSeconds", str(cfg.pack_gap_seconds)]
-        lines += [
-            "AttemptRules",
-            rules_json(parse_attempt_rules(cfg.attempt_rules_json)),
-        ]
+        lines += ["AttemptRules", cfg.attempt_rules_json]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2170,6 +2173,8 @@ class MainWindow(QMainWindow):
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         self._fold_cfg_line_breaks()
+        if not cfg.is_number_of_tries():
+            self._validate_attempt_rules()
         self._apply_template()
         self._sync_ui_from_cfg()
         self._on_refresh_toggled(self._cfg.auto_refresh_enabled)

@@ -7,7 +7,11 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app.attempt_rules import AttemptRule, parse_attempt_rules, rules_json
-from app.config import RACE_TYPE_MASS_SPLITTED, RACE_TYPE_NUMBER_OF_TRIES
+from app.config import (
+    ALL_RACE_TYPES,
+    RACE_TYPE_MASS_SPLITTED,
+    RACE_TYPE_NUMBER_OF_TRIES,
+)
 from app.file_io import KEY_VALUE_HEADER, load_config_file
 from app.main_window import MainWindow
 
@@ -102,7 +106,10 @@ def test_invalid_edit_blocks_generation_and_save_without_using_stale_rules(
 
 def test_invalid_loaded_rules_stay_visible_as_an_error(window, tmp_path):
     path = tmp_path / "race.txt"
-    path.write_text(f"{KEY_VALUE_HEADER}\nAttemptRules=[\n", encoding="utf-8")
+    path.write_text(
+        f"{KEY_VALUE_HEADER}\nRaceType={RACE_TYPE_NUMBER_OF_TRIES}\nAttemptRules=[\n",
+        encoding="utf-8",
+    )
     window._load_race_info_from_path(str(path))
     assert window._cfg.attempt_rules_json == "["
     assert window._attempt_rules_editor.error.text()
@@ -111,6 +118,7 @@ def test_invalid_loaded_rules_stay_visible_as_an_error(window, tmp_path):
 def test_invalid_rules_keep_window_open_before_any_shutdown_side_effects(
     window, monkeypatch
 ):
+    window._cfg.race_type = RACE_TYPE_NUMBER_OF_TRIES
     window._cfg.attempt_rules_json = "["
     monkeypatch.setattr(
         QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes
@@ -129,3 +137,54 @@ def test_invalid_rules_keep_window_open_before_any_shutdown_side_effects(
     assert not event.isAccepted()
     assert errors
     assert not calls
+
+
+@pytest.mark.parametrize("config_format", ["positional", "key_value"])
+@pytest.mark.parametrize(
+    "race_type", [r for r in ALL_RACE_TYPES if r != RACE_TYPE_NUMBER_OF_TRIES]
+)
+def test_invalid_inactive_rules_do_not_block_save_or_exit(
+    window, tmp_path, monkeypatch, config_format, race_type
+):
+    errors = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args: errors.append(args))
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes
+    )
+    path = tmp_path / "damaged.txt"
+    if config_format == "positional":
+        window._cfg.race_type = race_type
+        window._save_race_info_to_path(str(path))
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "AttemptRules\n[]\n", "AttemptRules\n{broken\n"
+            ),
+            encoding="utf-8",
+        )
+    else:
+        path.write_text(
+            f"{KEY_VALUE_HEADER}\nRaceType={race_type}\nAttemptRules={{broken\n",
+            encoding="utf-8",
+        )
+    window._load_race_info_from_path(str(path))
+    saved = tmp_path / "saved.txt"
+    window._save_race_info_to_path(str(saved))
+    closed_saves = []
+    monkeypatch.setattr(window, "_save_race_info_to_path", closed_saves.append)
+    event = QCloseEvent()
+    window.closeEvent(event)
+    assert (saved.exists(), event.isAccepted(), len(errors)) == (True, True, 0)
+    assert closed_saves
+    assert window._cfg.attempt_rules_json == "[]"
+    assert load_config_file(str(saved))["attempt_rules_json"] == "[]"
+    assert not window._attempt_rules_editor.error.text()
+
+
+def test_valid_inactive_rules_are_preserved_for_later_use(window, tmp_path):
+    text = rules_json((AttemptRule("Result", 1, (2, 3), "asc"),))
+    window._cfg.attempt_rules_json = text
+    path = tmp_path / "race.txt"
+    window._save_race_info_to_path(str(path))
+    window._load_race_info_from_path(str(path))
+    assert window._cfg.race_type == RACE_TYPE_MASS_SPLITTED
+    assert window._cfg.attempt_rules_json == text
