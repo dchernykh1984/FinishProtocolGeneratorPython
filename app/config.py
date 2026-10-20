@@ -199,6 +199,10 @@ class RaceConfig:
     def is_number_of_tries(self) -> bool:
         return self.race_type == RACE_TYPE_NUMBER_OF_TRIES
 
+    def intermediate_point_count(self, remote_count: int) -> int:
+        """Exclude the separate finish stream from attempt split columns."""
+        return remote_count - (1 if self.is_number_of_tries() and remote_count else 0)
+
     def use_spiridonov_coefficients(self) -> bool:
         return self.race_type == RACE_TYPE_SPIRIDONOV
 

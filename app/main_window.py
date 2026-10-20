@@ -534,9 +534,7 @@ class _GenerateWorker(QThread):
                 cfg,
                 log,
             )
-            n_points = len(remote_points) - (
-                1 if cfg.is_number_of_tries() and remote_points else 0
-            )
+            n_points = cfg.intermediate_point_count(len(remote_points))
             self.log_message.emit("Sorting protocol...")
             sorted_proto = generate_sorted_protocol(protocol, cfg, n_points)
 
