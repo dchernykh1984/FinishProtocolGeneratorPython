@@ -222,7 +222,7 @@ def calculate_protocol(  # noqa: C901
             for fe in finish_list:
                 if (
                     fp.is_same_competitor(fe)
-                    and not fe.is_dsq
+                    and (not cfg.is_number_of_tries() or not fe.is_dsq)
                     and fe.seconds < fp.cross_line_times[0]
                 ):
                     fp.cross_line_times[0] = fe.seconds
