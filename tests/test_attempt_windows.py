@@ -166,6 +166,7 @@ def test_html_has_splits_and_keeps_failed_attempt_slot(tmp_path, scope):
     assert "DNF</td>" in html
     assert "<B>00:00:20.0</B>" in html
     assert "Lap 3" in html
+    assert '<td id="0_Lap 6 splits_1" ALIGN=center>00:00:05.0</td>' in html
 
 
 def test_live_stats_use_counted_attempts_despite_a_hole():

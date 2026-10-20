@@ -577,7 +577,7 @@ def write_group_protocol(  # noqa: C901
                         cp_idx = lc * (n_points + 1) + cp_i
                         cell_id = f'id="{group_idx}_Lap {cp_idx} splits_{place_ctr}"'
                         buf.write(f"<td {cell_id} ALIGN=center>")
-                        if (lc < fp.n_laps_finished or in_progress) and lc < len(
+                        if (fp.lap_completed(lc) or in_progress) and lc < len(
                             fp.control_points
                         ):
                             sc_val = fp.control_points[lc].segment_crosses[cp_i]
@@ -589,7 +589,7 @@ def write_group_protocol(  # noqa: C901
                                     buf.write(
                                         _format_time(st_val, cfg.n_signs_after_point)
                                     )
-                            elif lc < fp.n_laps_finished or any(
+                            elif fp.lap_completed(lc) or any(
                                 v != -1 for v in fp.control_points[lc].segment_crosses
                             ):
                                 buf.write("UNKNOWN")
@@ -982,7 +982,7 @@ def write_absolute_protocol(  # noqa: C901
                     cp_idx = lc * (n_points + 1) + cp_i
                     cell_id = f'id="0_Lap {cp_idx} splits_{abs_place}"'
                     buf.write(f"<td {cell_id} ALIGN=center>")
-                    if (lc < fp.n_laps_finished or in_progress) and lc < len(
+                    if (fp.lap_completed(lc) or in_progress) and lc < len(
                         fp.control_points
                     ):
                         sc_val = fp.control_points[lc].segment_crosses[cp_i]
@@ -992,7 +992,7 @@ def write_absolute_protocol(  # noqa: C901
                                 buf.write("ERR")
                             else:
                                 buf.write(_format_time(st_val, cfg.n_signs_after_point))
-                        elif lc < fp.n_laps_finished or any(
+                        elif fp.lap_completed(lc) or any(
                             v != -1 for v in fp.control_points[lc].segment_crosses
                         ):
                             buf.write("UNKNOWN")
