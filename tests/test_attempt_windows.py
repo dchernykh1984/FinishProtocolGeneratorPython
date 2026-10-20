@@ -130,6 +130,15 @@ def test_penalties_and_time_cap_apply_inside_the_attempt():
     assert fp.lap_times[:3] == [30, 32, 20]
 
 
+def test_penalty_at_duplicate_crossing_timestamp_is_kept_and_explained():
+    first = marks(1010, 1108, 1205)
+    first.append(FinishCompetitorElement("1", 1108, "Penalty <judge>", 7))
+    fp, _, _ = run(points=[first, marks(1020, 1118, 1215), marks(1030, 1128, 1220)])
+    assert fp.lap_times[1] == 35
+    assert "Penalty &lt;judge&gt;:7sec" in fp.lap_penalty[1]
+    assert "<judge>" not in fp.lap_penalty[1]
+
+
 def test_minimal_time_check_does_not_shift_later_attempts():
     fp, _, log = run(minimal_time_for_lap=25)
     assert fp.lap_times[:3] == [30, 28, 0]

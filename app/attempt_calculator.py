@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+
 from app.config import RaceConfig
 from app.models import INF, FinishCompetitorElement, FinishProtocolElement
 
@@ -39,11 +41,8 @@ def calculate_attempts(
         finish = _find_finish(start.seconds, end, candidates, cfg, fp, index, log)
         if finish is not None:
             elapsed = finish.seconds - start.seconds
-            elapsed += sum(
-                mark.penalty
-                for stream in streams
-                for mark in stream
-                if start.seconds <= mark.seconds <= finish.seconds
+            elapsed += _penalties(
+                fp, index, start.seconds, finish.seconds, remote_points
             )
             if cfg.time_limit > 0:
                 elapsed = min(elapsed, cfg.time_limit)
@@ -66,6 +65,29 @@ def calculate_attempts(
         )
     elif fp.n_laps_finished == fp.n_laps:
         fp.finished = True
+
+
+def _penalties(
+    fp: FinishProtocolElement,
+    index: int,
+    start: float,
+    finish: float,
+    streams: list[list[FinishCompetitorElement]],
+) -> float:
+    # Timing duplicates are collapsed for matching, but judge decisions stay intact.
+    penalties = [
+        mark
+        for stream in streams
+        for mark in stream
+        if not mark.is_dsq
+        and fp.is_same_competitor(mark)
+        and start <= mark.seconds <= finish
+        and mark.penalty != 0
+    ]
+    fp.lap_penalty[index] = "".join(
+        f"<BR>{html.escape(mark.action)}:{mark.penalty:g}sec" for mark in penalties
+    )
+    return sum(mark.penalty for mark in penalties)
 
 
 def _find_finish(
