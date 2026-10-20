@@ -176,6 +176,44 @@ uv run python -m app.main
 > **Note:** use `-m app.main`, not `python app/main.py`. The `-m` flag adds the
 > project root to `sys.path` so that the `app` package is importable.
 
+## Number of Tries
+
+Select **Number of Tries** on the Main tab to show the scoring-rule editor below
+**Race type**. Rules apply to the whole event. The numeric lap count in the start
+protocol remains the number of attempts available to each competitor.
+
+Each rule has a descriptive label, the number of best attempts to sum, eligible
+attempt numbers (comma-separated, starting at 1), and an `asc` or `desc` sort order.
+The first rule defines the result. Further rules only break ties, in list order;
+the final tie-break is the competitor number. `desc` reverses the comparison, but
+still selects the fastest eligible attempts. Missing results rank after completed
+results in either direction. A competitor has a result when enough eligible
+attempts for the first rule are complete, even if another attempt was not finished.
+
+For example, the best of attempts 2 and 3, with reverse qualification time as a
+tie-break, is saved as one JSON line under the `AttemptRules` config tag:
+
+```json
+[{"label":"Result","attempts":1,"attempt_numbers":[2,3],"sort":"asc"},{"label":"Qualification","attempts":1,"attempt_numbers":[1],"sort":"desc"}]
+```
+
+Before a counted result exists, qualification orders the competitors. Once attempt
+2 produces different results, the first rule determines their order. This does not
+fix the qualification order for all later starts. Only attempts actually included
+in the first rule's current result are printed in bold; equal times select the
+earlier attempt. An empty rule list keeps legacy `N:1,2,3` rules in Additional info.
+
+With **Control points = 0**, one stream alternates start, finish, start, finish.
+With **Control points = N > 0**, stream 0 contains starts, streams 1 through N-1
+contain intermediate crossings, and stream N contains finishes. Every start opens
+an attempt window ending at the next start; the last window stays open. The first
+valid finish in that window completes the attempt. Intermediate crossings are
+matched in point order inside the window and before the finish. Missing crossings
+do not invalidate an available finish time; unknown segments are shown as
+`UNKNOWN` or `ERR`. A missing finish keeps that attempt's number, so later attempts
+are never shifted into its place. Closed unfinished attempts show `DNF` in their
+own columns. Enable **Show lap times** to see attempts and intermediate segments.
+
 ## Cycling-site integration
 
 The application can upload finish protocols directly to the cycling-site API.

@@ -87,12 +87,9 @@ def _write_header(
     f.write('<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n')
 
     # JS for collapsible columns
-    if (
-        cfg.use_buttons
-        and n_points > 0
-        and not cfg.is_number_of_tries()
-        and cfg.show_lap_times
-    ) or (cfg.use_all_buttons and cfg.show_lap_times):
+    if (cfg.use_buttons and n_points > 0 and cfg.show_lap_times) or (
+        cfg.use_all_buttons and cfg.show_lap_times
+    ):
         f.write(
             f"<script>\ndoShow = 0;\n"
             f"function showhideall(table, col, isFirst) {{\n"
@@ -176,6 +173,17 @@ def _place_label(
     return f"<td ALIGN=center ROWSPAN={rows}>{place}</td>\n"
 
 
+def _unfinished_attempt(fp: FinishProtocolElement, index: int, crossed: bool) -> str:
+    if fp.attempt_mode and fp.attempt_closed[index]:
+        return "DNF"
+    return "UNKNOWN" if crossed else ""
+
+
+def _attempt_time(fp: FinishProtocolElement, index: int, cfg: RaceConfig) -> str:
+    value = _format_time(fp.lap_times[index], cfg.n_signs_after_point)
+    return f"<B>{value}</B>" if index in fp.counted_attempts() else value
+
+
 def _id_cell(fp: FinishProtocolElement, rows: int) -> str:
     out = f"<td ALIGN=center ROWSPAN={rows}><NOBR>{fp.competitor_id}"
     if fp.stages != 1:
@@ -226,18 +234,13 @@ def write_group_protocol(  # noqa: C901
     all_max_laps = 0
     if cfg.hide_empty_columns:
         for fp in sorted_protocol:
-            all_max_laps = max(all_max_laps, fp.n_laps_finished)
+            all_max_laps = max(all_max_laps, fp.visible_laps())
     else:
         for fp in sorted_protocol:
             all_max_laps = max(all_max_laps, fp.n_laps)
 
     buf.write("<CENTER>")
-    if (
-        cfg.use_buttons
-        and n_points > 0
-        and not cfg.is_number_of_tries()
-        and cfg.show_lap_times
-    ):
+    if cfg.use_buttons and n_points > 0 and cfg.show_lap_times:
         _draw_button(
             buf,
             cfg.use_buttons_label,
@@ -247,7 +250,7 @@ def write_group_protocol(  # noqa: C901
             (n_points + 1) * all_max_laps,
         )
     if cfg.use_all_buttons and cfg.show_lap_times:
-        if cfg.use_buttons and n_points > 0 and not cfg.is_number_of_tries():
+        if cfg.use_buttons and n_points > 0:
             buf.write("&nbsp;&nbsp;")
         _draw_button(
             buf,
@@ -268,8 +271,8 @@ def write_group_protocol(  # noqa: C901
         if cfg.hide_empty_columns:
             for fp in sorted_protocol:
                 if fp.group_id == group_id:
-                    if fp.n_laps_finished > n_laps_group:
-                        n_laps_group = fp.n_laps_finished
+                    if fp.visible_laps() > n_laps_group:
+                        n_laps_group = fp.visible_laps()
                     if fp.n_laps > n_laps_configured:
                         n_laps_configured = fp.n_laps
                     if n_points > 0 and fp.n_laps_finished < fp.n_laps:
@@ -288,17 +291,11 @@ def write_group_protocol(  # noqa: C901
         multi_lap = (
             n_laps_configured > 1
             or not cfg.show_finish_time
-            or (n_points > 0 and cfg.show_lap_times and not cfg.is_number_of_tries())
+            or (n_points > 0 and cfg.show_lap_times)
         )
         rows = 1 + (
             (
-                (
-                    1
-                    if n_points > 0
-                    and not cfg.is_number_of_tries()
-                    and cfg.show_lap_times
-                    else 0
-                )
+                (1 if n_points > 0 and cfg.show_lap_times else 0)
                 + (1 if cfg.use_all_buttons and cfg.show_lap_times else 0)
             )
             if multi_lap
@@ -381,12 +378,7 @@ def write_group_protocol(  # noqa: C901
             buf.write("</tr>\n")
 
         # CP sub-header row (one cell per control point per lap)
-        if (
-            n_points > 0
-            and not cfg.is_number_of_tries()
-            and cfg.show_lap_times
-            and multi_lap
-        ):
+        if n_points > 0 and cfg.show_lap_times and multi_lap:
             buf.write(f'<tr style="{st.top_line_style}">')
             for j in range(n_laps_group):
                 for cp_i in range(n_points + 1):
@@ -441,12 +433,10 @@ def write_group_protocol(  # noqa: C901
 
             if cfg.show_lap_times and multi_lap:
                 for lc in range(n_laps_group):
-                    if fp.n_laps_finished > lc:
+                    if fp.lap_completed(lc):
                         if cfg.is_number_of_tries():
                             buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                            buf.write(
-                                _format_time(fp.lap_times[lc], cfg.n_signs_after_point)
-                            )
+                            buf.write(_attempt_time(fp, lc, cfg))
                             buf.write(f"<NOBR>{fp.lap_penalty[lc]}</NOBR>")
                         else:
                             buf.write(f"<td ALIGN=center COLSPAN={cols}>")
@@ -462,11 +452,11 @@ def write_group_protocol(  # noqa: C901
                                 f")</FONT>"
                             )
                         buf.write("</td>\n")
-                    elif lc == fp.n_laps_finished and lc < fp.n_laps:
+                    elif fp.lap_started(lc) and not fp.lap_completed(lc):
                         lp_crossed = lc < len(fp.control_points) and any(
                             v != -1 for v in fp.control_points[lc].segment_crosses
                         )
-                        cell = "UNKNOWN" if lp_crossed else ""
+                        cell = _unfinished_attempt(fp, lc, lp_crossed)
                         buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
                     else:
                         buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
@@ -532,13 +522,13 @@ def write_group_protocol(  # noqa: C901
                 buf.write(f'<tr style="{row_style}">')
                 for j in range(n_laps_group):
                     cell_id = f'id="{group_idx}_Additional {j} Laps_{place_ctr}"'
-                    if fp.n_laps_finished > j:
+                    if fp.lap_completed(j):
                         best_lap = fp.lap_times[j]
                         place_lap = 1
                         best_finish = fp.finish_lap_times[j]
                         place_finish = 1
                         for other in sorted_protocol:
-                            if other.group_id != group_id or other.n_laps_finished <= j:
+                            if other.group_id != group_id or not other.lap_completed(j):
                                 continue
                             if other.lap_times[j] < fp.lap_times[j]:
                                 place_lap += 1
@@ -579,15 +569,10 @@ def write_group_protocol(  # noqa: C901
                 buf.write("</tr>\n")
 
             # CP segment sub-row (n_points+1 segments per lap)
-            if (
-                cfg.show_lap_times
-                and multi_lap
-                and n_points > 0
-                and not cfg.is_number_of_tries()
-            ):
+            if cfg.show_lap_times and multi_lap and n_points > 0:
                 buf.write(f'<tr style="{row_style}">')
                 for lc in range(n_laps_group):
-                    in_progress = lc == fp.n_laps_finished and lc < fp.n_laps
+                    in_progress = fp.lap_started(lc) and not fp.lap_completed(lc)
                     for cp_i in range(n_points + 1):
                         cp_idx = lc * (n_points + 1) + cp_i
                         cell_id = f'id="{group_idx}_Lap {cp_idx} splits_{place_ctr}"'
@@ -671,7 +656,7 @@ def write_absolute_protocol(  # noqa: C901
     max_laps_configured = 0  # total laps in race -- drives multi_lap
     if cfg.hide_empty_columns:
         for fp in sorted_protocol:
-            max_laps = max(max_laps, fp.n_laps_finished)
+            max_laps = max(max_laps, fp.visible_laps())
             max_laps_configured = max(max_laps_configured, fp.n_laps)
     else:
         for fp in sorted_protocol:
@@ -679,12 +664,7 @@ def write_absolute_protocol(  # noqa: C901
         max_laps_configured = max_laps
 
     buf.write("<CENTER>")
-    if (
-        cfg.use_buttons
-        and n_points > 0
-        and not cfg.is_number_of_tries()
-        and cfg.show_lap_times
-    ):
+    if cfg.use_buttons and n_points > 0 and cfg.show_lap_times:
         _draw_button(
             buf,
             cfg.use_buttons_label,
@@ -694,12 +674,7 @@ def write_absolute_protocol(  # noqa: C901
             (n_points + 1) * max_laps,
         )
     if cfg.use_all_buttons and cfg.show_lap_times:
-        if (
-            cfg.use_buttons
-            and n_points > 0
-            and not cfg.is_number_of_tries()
-            and cfg.show_lap_times
-        ):
+        if cfg.use_buttons and n_points > 0 and cfg.show_lap_times:
             buf.write("&nbsp;&nbsp;")
         _draw_button(
             buf,
@@ -714,15 +689,11 @@ def write_absolute_protocol(  # noqa: C901
     multi_lap = (
         max_laps_configured > 1
         or not cfg.show_finish_time
-        or (n_points > 0 and cfg.show_lap_times and not cfg.is_number_of_tries())
+        or (n_points > 0 and cfg.show_lap_times)
     )
     rows = 1 + (
         (
-            (
-                1
-                if n_points > 0 and not cfg.is_number_of_tries() and cfg.show_lap_times
-                else 0
-            )
+            (1 if n_points > 0 and cfg.show_lap_times else 0)
             + (1 if cfg.use_all_buttons and cfg.show_lap_times else 0)
         )
         if multi_lap
@@ -803,12 +774,7 @@ def write_absolute_protocol(  # noqa: C901
         buf.write("</tr>\n")
 
     # CP sub-header row
-    if (
-        n_points > 0
-        and not cfg.is_number_of_tries()
-        and cfg.show_lap_times
-        and multi_lap
-    ):
+    if n_points > 0 and cfg.show_lap_times and multi_lap:
         buf.write(f'<tr style="{st.top_line_style}">')
         for j in range(max_laps):
             for cp_i in range(n_points + 1):
@@ -865,12 +831,10 @@ def write_absolute_protocol(  # noqa: C901
 
         if cfg.show_lap_times and multi_lap:
             for lc in range(max_laps):
-                if fp.n_laps_finished > lc:
+                if fp.lap_completed(lc):
                     if cfg.is_number_of_tries():
                         buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                        buf.write(
-                            _format_time(fp.lap_times[lc], cfg.n_signs_after_point)
-                        )
+                        buf.write(_attempt_time(fp, lc, cfg))
                         buf.write(f"<NOBR>{fp.lap_penalty[lc]}</NOBR>")
                     else:
                         buf.write(f"<td ALIGN=center COLSPAN={cols}>")
@@ -886,11 +850,11 @@ def write_absolute_protocol(  # noqa: C901
                             f")</FONT>"
                         )
                     buf.write("</td>\n")
-                elif lc == fp.n_laps_finished and lc < fp.n_laps:
+                elif fp.lap_started(lc) and not fp.lap_completed(lc):
                     lp_crossed = lc < len(fp.control_points) and any(
                         v != -1 for v in fp.control_points[lc].segment_crosses
                     )
-                    cell = "UNKNOWN" if lp_crossed else ""
+                    cell = _unfinished_attempt(fp, lc, lp_crossed)
                     buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
                 else:
                     buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
@@ -965,13 +929,13 @@ def write_absolute_protocol(  # noqa: C901
             buf.write(f'<tr style="{row_style}">')
             for j in range(max_laps):
                 cell_id = f'id="0_Additional {j} Laps_{abs_place}"'
-                if fp.n_laps_finished > j:
+                if fp.lap_completed(j):
                     best_lap = fp.lap_times[j]
                     place_lap = 1
                     best_finish = fp.finish_lap_times[j]
                     place_finish = 1
                     for other in sorted_protocol:
-                        if other.n_laps_finished <= j:
+                        if not other.lap_completed(j):
                             continue
                         if other.lap_times[j] < fp.lap_times[j]:
                             place_lap += 1
@@ -1010,15 +974,10 @@ def write_absolute_protocol(  # noqa: C901
             buf.write("</tr>\n")
 
         # CP segment sub-row (n_points+1 segments per lap)
-        if (
-            cfg.show_lap_times
-            and multi_lap
-            and n_points > 0
-            and not cfg.is_number_of_tries()
-        ):
+        if cfg.show_lap_times and multi_lap and n_points > 0:
             buf.write(f'<tr style="{row_style}">')
             for lc in range(max_laps):
-                in_progress = lc == fp.n_laps_finished and lc < fp.n_laps
+                in_progress = fp.lap_started(lc) and not fp.lap_completed(lc)
                 for cp_i in range(n_points + 1):
                     cp_idx = lc * (n_points + 1) + cp_i
                     cell_id = f'id="0_Lap {cp_idx} splits_{abs_place}"'

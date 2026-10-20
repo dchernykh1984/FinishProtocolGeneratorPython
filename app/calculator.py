@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+from app.attempt_calculator import calculate_attempts
+from app.attempt_rules import parse_attempt_rules
 from app.config import RaceConfig
 from app.models import (
     INF,
@@ -71,6 +73,15 @@ def _first_better(  # noqa: C901
         return False
 
     if cfg.is_number_of_tries():
+        if a.attempt_rules:
+            for rule in a.attempt_rules:
+                a_count, a_time = a.attempt_score(rule)
+                b_count, b_time = b.attempt_score(rule)
+                if a_count != b_count:
+                    return a_count > b_count
+                if a_time != b_time:
+                    return a_time < b_time if rule.sort == "asc" else a_time > b_time
+            return _number_less(a.competitor_id, b.competitor_id)
         if a.get_n_successful_tries() != b.get_n_successful_tries():
             return a.get_n_successful_tries() > b.get_n_successful_tries()
         if a.get_total_time() != b.get_total_time():
@@ -175,8 +186,17 @@ def calculate_protocol(  # noqa: C901
     Build FinishProtocolElement list from raw input data.
     Faithful port of C++ calculateProtocol().
     """
-    n_points = len(remote_points)
+    n_points = len(remote_points) - (
+        1 if cfg.is_number_of_tries() and remote_points else 0
+    )
     result: list[FinishProtocolElement] = []
+    rules = (
+        parse_attempt_rules(cfg.attempt_rules_json) if cfg.is_number_of_tries() else ()
+    )
+    if cfg.is_number_of_tries() and cfg.n_remote_points != len(remote_points):
+        raise ValueError(
+            "Number of Tries requires every configured control-point stream."
+        )
 
     if cfg.use_spiridonov_coefficients() and n_points > 0:
         log.append(
@@ -185,8 +205,11 @@ def calculate_protocol(  # noqa: C901
 
     for start in start_list:
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
+        fp.attempt_rules = rules
+        if rules:
+            fp.n_tries_for_result = rules[0].attempts
 
-        if cfg.is_number_of_tries() and not fp._attempts_string_valid:
+        if cfg.is_number_of_tries() and not rules and not fp._attempts_string_valid:
             log.append(
                 f"ERROR: {fp.competitor_id} invalid NumberOfTries format: "
                 f"{fp.extra_info!r}"
@@ -197,7 +220,11 @@ def calculate_protocol(  # noqa: C901
         if cfg.skip_first_lap_effective():
             fp.cross_line_times[0] = INF
             for fe in finish_list:
-                if fp.is_same_competitor(fe) and fe.seconds < fp.cross_line_times[0]:
+                if (
+                    fp.is_same_competitor(fe)
+                    and not fe.is_dsq
+                    and fe.seconds < fp.cross_line_times[0]
+                ):
                     fp.cross_line_times[0] = fe.seconds
         else:
             found = False
@@ -234,7 +261,7 @@ def calculate_protocol(  # noqa: C901
                 if fe.is_dsq:
                     fp.disqualified = not cfg.disable_dsq
                     _record_dsq_reason(fp, fe, "finish")
-                if fe.action == "finish":
+                if fe.action == "finish" and not cfg.is_number_of_tries():
                     _finish_count += 1
                     if _finish_count > 1:
                         log.append(
@@ -250,6 +277,11 @@ def calculate_protocol(  # noqa: C901
                     fp.disqualified = not cfg.disable_dsq
                     _record_dsq_reason(fp, rem, f"CP {pt_idx + 1}")
 
+        if cfg.is_number_of_tries():
+            calculate_attempts(fp, finish_list, remote_points, cfg, log)
+            result.append(fp)
+            continue
+
         # Log finish events that occur before this competitor's start time
         if 0.0 < fp.cross_line_times[0] < INF:
             for fe in finish_list:
@@ -264,125 +296,59 @@ def calculate_protocol(  # noqa: C901
                     )
 
         # --- find all line crossings ---
-        n_to_find = fp.n_laps * 2 if cfg.is_number_of_tries() else fp.n_laps + 1
         prev_cross = fp.cross_line_times[0]
-        prev_lap_start = fp.cross_line_times[0]
-        is_try_finish = True
-
-        for lap in range(1, n_to_find):
+        for lap in range(1, fp.n_laps + 1):
             next_cross = INF
-            next_crossed = False
-
             for fe in finish_list:
-                if fe.is_dsq:
+                if fe.is_dsq or not fp.is_same_competitor(fe):
                     continue
-                if not fp.is_same_competitor(fe):
+                if not prev_cross < fe.seconds < next_cross:
                     continue
-                if fe.seconds <= prev_cross:
-                    continue
-                if fe.seconds >= next_cross:
-                    continue
-                # minimal time check
                 if (
                     cfg.minimal_time_for_lap > 0
-                    and (is_try_finish or not cfg.is_number_of_tries())
                     and prev_cross > fe.seconds - cfg.minimal_time_for_lap
                 ):
                     log.append(
                         f"ERROR: {fp.competitor_id} lap faster than minimal time"
                     )
                     continue
-                # time limit check
                 if (
-                    not cfg.is_number_of_tries()
-                    and cfg.time_limit > 0
+                    cfg.time_limit > 0
                     and fp.cross_line_times[0] < fe.seconds - cfg.time_limit
                 ):
                     log.append(f"ERROR: {fp.competitor_id} crossed after time limit")
                     continue
                 next_cross = fe.seconds
-                next_crossed = True
-                if cfg.is_number_of_tries():
-                    if is_try_finish:
-                        idx = fp.n_laps_finished + 1
-                        if idx < len(fp.cross_line_times):
-                            fp.cross_line_times[idx] = (
-                                fp.cross_line_times[fp.n_laps_finished]
-                                + next_cross
-                                - prev_cross
-                            )
-                else:
-                    if lap < len(fp.cross_line_times):
-                        fp.cross_line_times[lap] = fe.seconds
-                    if fp.stages != 1:
-                        try:
-                            fp.lap_finish_numbers[lap - 1] = int(fe.competitor_id)
-                        except ValueError:
-                            pass
-
-            if next_crossed:
-                if not cfg.is_number_of_tries() or is_try_finish:
-                    fp.n_laps_finished += 1
-                    prev_lap_start = prev_cross
-
-                if not cfg.is_number_of_tries() or not is_try_finish:
-                    # apply penalties from remote points
-                    for _pt_idx, pts in enumerate(remote_points):
-                        for rem in pts:
-                            if rem.is_dsq:
-                                continue
-                            if (
-                                rem.competitor_id == fp.competitor_id
-                                and rem.seconds >= prev_lap_start
-                                and rem.seconds < next_cross
-                            ):
-                                idx = fp.n_laps_finished
-                                if idx < len(fp.cross_line_times):
-                                    fp.cross_line_times[idx] += rem.penalty
-                                if fp.n_laps_finished > 0:
-                                    lap_idx = fp.n_laps_finished - 1
-                                    if lap_idx < len(fp.lap_penalty):
-                                        fp.lap_penalty[lap_idx] += (
-                                            f"<BR>{rem.action}:{int(rem.penalty)}sec"
-                                        )
-                    # time limit clamp
-                    if cfg.time_limit > 0 and fp.n_laps_finished > 0:
-                        idx = fp.n_laps_finished
-                        prev_idx = fp.n_laps_finished - 1
-                        limit = fp.cross_line_times[prev_idx] + cfg.time_limit
-                        if (
-                            idx < len(fp.cross_line_times)
-                            and prev_idx >= 0
-                            and fp.cross_line_times[idx] > limit
-                        ):
-                            fp.cross_line_times[idx] = limit
-
-                is_try_finish = not is_try_finish
-                prev_cross = next_cross
-            else:
+                fp.cross_line_times[lap] = fe.seconds
+                if fp.stages != 1:
+                    try:
+                        fp.lap_finish_numbers[lap - 1] = int(fe.competitor_id)
+                    except ValueError:
+                        pass
+            if next_cross == INF:
                 if not fp.finished:
                     log.append(f"WARNING: lap {lap} not found for {fp.competitor_id}")
                 break
-
-        # --- penalties for isNumberOfTries last block ---
-        if cfg.is_number_of_tries():
+            fp.n_laps_finished += 1
             for pts in remote_points:
                 for rem in pts:
                     if rem.is_dsq:
                         continue
                     if (
                         rem.competitor_id == fp.competitor_id
-                        and rem.seconds >= prev_lap_start
+                        and prev_cross <= rem.seconds < next_cross
                     ):
-                        idx = fp.n_laps_finished
-                        if idx < len(fp.cross_line_times):
-                            fp.cross_line_times[idx] += rem.penalty
-            if cfg.time_limit > 0 and fp.n_laps_finished > 0:
-                idx = fp.n_laps_finished
-                prev_idx = fp.n_laps_finished - 1
-                limit = fp.cross_line_times[prev_idx] + cfg.time_limit
-                if idx < len(fp.cross_line_times) and fp.cross_line_times[idx] > limit:
-                    fp.cross_line_times[idx] = limit
+                        fp.cross_line_times[fp.n_laps_finished] += rem.penalty
+                        fp.lap_penalty[fp.n_laps_finished - 1] += (
+                            f"<BR>{rem.action}:{int(rem.penalty)}sec"
+                        )
+            if cfg.time_limit > 0:
+                index = fp.n_laps_finished
+                fp.cross_line_times[index] = min(
+                    fp.cross_line_times[index],
+                    fp.cross_line_times[index - 1] + cfg.time_limit,
+                )
+            prev_cross = next_cross
 
         # --- Spiridonov ---
         if cfg.use_spiridonov_coefficients():
@@ -487,7 +453,7 @@ def check_start_protocol(  # noqa: C901
             1 for fe in finish_list if fp.is_same_competitor(fe) and not fe.is_dsq
         )
         if cfg.is_number_of_tries():
-            expected = fp.n_laps * 2
+            expected = fp.n_laps if remote_points else fp.n_laps * 2
         else:
             expected = fp.n_laps + (1 if cfg.skip_first_lap_effective() else 0)
         if crossings > expected:
@@ -501,8 +467,7 @@ def check_start_protocol(  # noqa: C901
             if fp.n_laps_finished < 2:
                 continue
             lap_times = [
-                fp.cross_line_times[i + 1] - fp.cross_line_times[i]
-                for i in range(fp.n_laps_finished)
+                fp.lap_times[i] for i in range(fp.n_laps) if fp.lap_completed(i)
             ]
             avg = sum(lap_times) / len(lap_times)
             if avg <= 0:

@@ -461,9 +461,8 @@ class TestControlPointRendering:
             path = f.name
         write_group_protocol(path, sorted_proto, group_list, cfg, n_points)
         content = Path(path).read_text(encoding="utf-8")
-        # CP split header NOT rendered for NumberOfTries
-        assert "(1 split)" not in content
-        # COLSPAN=2 (n_points+1) used instead
+        # NumberOfTries now renders the intermediate split columns too.
+        assert "(1 split)" in content
         assert "COLSPAN=2" in content
 
     def test_group_cp_lap_time_uses_colspan(self) -> None:

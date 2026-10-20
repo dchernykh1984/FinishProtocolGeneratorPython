@@ -684,6 +684,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["pack_gap_seconds"] = v
+        tok = nxt()
+
+    if tok == "AttemptRules":
+        v = nxt()
+        if v is not None:
+            result["attempt_rules_json"] = v
 
     return result
 

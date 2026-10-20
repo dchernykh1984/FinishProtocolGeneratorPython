@@ -78,6 +78,7 @@ class HtmlStyles:
 @dataclass
 class RaceConfig:
     race_type: str = RACE_TYPE_MASS_SPLITTED
+    attempt_rules_json: str = "[]"
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"
