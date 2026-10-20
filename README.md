@@ -189,6 +189,8 @@ the final tie-break is the competitor number. `desc` reverses the comparison, bu
 still selects the fastest eligible attempts. Missing results rank after completed
 results in either direction. A competitor has a result when enough eligible
 attempts for the first rule are complete, even if another attempt was not finished.
+Time gaps follow the first rule's sort direction, so a gap to the competitor ahead
+stays positive for both `asc` and `desc`.
 
 For example, the best of attempts 2 and 3, with reverse qualification time as a
 tie-break, is saved as one JSON line under the `AttemptRules` config tag:

@@ -122,6 +122,8 @@ def _gap_value(
     e_ahead = _elapsed_at_lap(ahead, cfg, lap)
     if e_behind is None or e_ahead is None:
         return None
+    if cfg.is_number_of_tries():
+        return behind.get_time_diff(ahead)
     return e_behind - e_ahead
 
 

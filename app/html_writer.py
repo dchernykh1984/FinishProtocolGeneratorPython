@@ -475,7 +475,11 @@ def write_group_protocol(  # noqa: C901
                     if last_t > 0:
                         buf.write(_format_time(last_t, cfg.n_signs_after_point))
                         if cfg.show_time_difference and leader is not None:
-                            diff = last_t - last_leader_t
+                            diff = (
+                                fp.get_time_diff(leader)
+                                if cfg.is_number_of_tries()
+                                else last_t - last_leader_t
+                            )
                             sign = "+" if diff > 0 else ""
                             buf.write(
                                 f"<BR>{st.additional_text_style}({sign}"
@@ -880,7 +884,11 @@ def write_absolute_protocol(  # noqa: C901
                 if last_t > 0:
                     buf.write(_format_time(last_t, cfg.n_signs_after_point))
                     if cfg.show_time_difference and abs_leader is not None:
-                        diff = last_t - last_leader_t
+                        diff = (
+                            fp.get_time_diff(abs_leader)
+                            if cfg.is_number_of_tries()
+                            else last_t - last_leader_t
+                        )
                         sign = "+" if diff > 0 else ""
                         buf.write(
                             f"<BR>{st.additional_text_style}({sign}"
