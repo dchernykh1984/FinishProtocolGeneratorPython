@@ -6,6 +6,8 @@ import math
 import re
 from dataclasses import dataclass, field
 
+from app.attempt_rules import AttemptRule
+
 INF: float = math.inf
 
 
@@ -182,6 +184,12 @@ class FinishProtocolElement:
         self.dsq_reasons: list[str] = []
         self.sorted_flag: bool = False
         self.n_laps_finished: int = 0
+        self.attempt_rules: tuple[AttemptRule, ...] = ()
+        self.attempt_mode = False
+        self.attempts_seen = 0
+        self.attempt_starts = [INF] * start.n_laps
+        self.attempt_finishes = [INF] * start.n_laps
+        self.attempt_closed = [False] * start.n_laps
 
         # NumberOfTries: extra_info may encode "N:a1,a2,...,ak"
         _attempts_str = str(start.extra_info)
@@ -226,8 +234,12 @@ class FinishProtocolElement:
         return False
 
     def get_total_time(self, _with_penalties: bool = True) -> float:
+        if self.attempt_rules:
+            return self.attempt_score(self.attempt_rules[0])[1]
         if self.n_laps_finished == 0:
             return INF
+        if self.attempt_mode:
+            return sum(self.lap_times[i] for i in self.counted_attempts())
         if self._attempt_indices:
             # NumberOfTries explicit list: sum times of completed specified attempts
             times = [
@@ -243,12 +255,55 @@ class FinishProtocolElement:
         return sum(sorted(times)[: self.n_tries_for_result])
 
     def get_n_successful_tries(self, _with_penalties: bool = True) -> int:
+        if self.attempt_mode:
+            return len(self.counted_attempts())
+        if self.attempt_rules:
+            return self.attempt_score(self.attempt_rules[0])[0]
         if self._attempt_indices:
             completed = sum(
                 1 for i in self._attempt_indices if i < self.n_laps_finished
             )
             return min(completed, self.n_tries_for_result)
         return min(self.n_laps_finished, self.n_tries_for_result)
+
+    def selected_attempts(self, rule: AttemptRule) -> list[int]:
+        """Indices actually counted: best positive times, earlier attempt wins ties."""
+        eligible = [
+            n - 1
+            for n in rule.attempt_numbers
+            if self.lap_completed(n - 1) and self.lap_times[n - 1] > 0
+        ]
+        return sorted(eligible, key=lambda i: (self.lap_times[i], i))[: rule.attempts]
+
+    def attempt_score(self, rule: AttemptRule) -> tuple[int, float]:
+        indices = self.selected_attempts(rule)
+        return len(indices), sum(self.lap_times[i] for i in indices)
+
+    def counted_attempts(self) -> list[int]:
+        if self.attempt_rules:
+            return self.selected_attempts(self.attempt_rules[0])
+        indices = self._attempt_indices or list(range(self.n_laps))
+        eligible = [
+            i for i in indices if self.lap_completed(i) and self.lap_times[i] > 0
+        ]
+        return sorted(eligible, key=lambda i: (self.lap_times[i], i))[
+            : self.n_tries_for_result
+        ]
+
+    def lap_completed(self, index: int) -> bool:
+        if not 0 <= index < self.n_laps:
+            return False
+        if self.attempt_mode:
+            return self.attempt_finishes[index] < INF
+        return index < self.n_laps_finished
+
+    def lap_started(self, index: int) -> bool:
+        if self.attempt_mode:
+            return 0 <= index < self.attempts_seen
+        return index <= self.n_laps_finished and index < self.n_laps
+
+    def visible_laps(self) -> int:
+        return self.attempts_seen if self.attempt_mode else self.n_laps_finished
 
     def get_time_diff(
         self, leader: FinishProtocolElement, with_penalties: bool = True

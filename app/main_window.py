@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.attempt_rules import parse_attempt_rules, rules_json
+from app.attempt_rules_editor import AttemptRulesEditor
 from app.calculator import (
     calculate_protocol,
     check_start_protocol,
@@ -532,7 +534,9 @@ class _GenerateWorker(QThread):
                 cfg,
                 log,
             )
-            n_points = len(remote_points)
+            n_points = len(remote_points) - (
+                1 if cfg.is_number_of_tries() and remote_points else 0
+            )
             self.log_message.emit("Sorting protocol...")
             sorted_proto = generate_sorted_protocol(protocol, cfg, n_points)
 
@@ -874,6 +878,19 @@ class MainWindow(QMainWindow):
         row.addWidget(self._combo_race_type)
         row.addStretch()
         ly.addLayout(row)
+
+        self._attempt_rules_editor = AttemptRulesEditor()
+        self._attempt_rules_editor.set_rules_json(self._cfg.attempt_rules_json)
+        self._attempt_rules_editor.changed.connect(
+            lambda value: setattr(self._cfg, "attempt_rules_json", value)
+        )
+        self._attempt_rules_editor.setVisible(self._cfg.is_number_of_tries())
+        self._combo_race_type.currentTextChanged.connect(
+            lambda _value: self._attempt_rules_editor.setVisible(
+                self._cfg.is_number_of_tries()
+            )
+        )
+        ly.addWidget(self._attempt_rules_editor)
 
         # generate button
         self._btn_generate = QPushButton("Generate Protocol")
@@ -1344,7 +1361,17 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_btn_ftp_download"):
             self._btn_ftp_download.setEnabled(enabled)
 
+    def _validate_attempt_rules(self) -> bool:
+        try:
+            parse_attempt_rules(self._cfg.attempt_rules_json)
+        except ValueError as exc:
+            QMessageBox.critical(self, "Invalid attempt rules", str(exc))
+            return False
+        return True
+
     def _on_generate(self) -> None:
+        if self._cfg.is_number_of_tries() and not self._validate_attempt_rules():
+            return
         if self._worker and self._worker.isRunning():
             return
         if self._ftp_worker and self._ftp_worker.isRunning():
@@ -1505,6 +1532,8 @@ class MainWindow(QMainWindow):
                 self._timer.stop()
 
     def _save_race_info_to_path(self, path: str) -> None:  # noqa: C901
+        if not self._validate_attempt_rules():
+            return
         if self._keep_damaged_file(path):
             return
         cfg = self._cfg
@@ -1670,6 +1699,10 @@ class MainWindow(QMainWindow):
         lines += ["HttpGroupsAction", cfg.http_groups_action]
         lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
         lines += ["PackGapSeconds", str(cfg.pack_gap_seconds)]
+        lines += [
+            "AttemptRules",
+            rules_json(parse_attempt_rules(cfg.attempt_rules_json)),
+        ]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -1706,6 +1739,7 @@ class MainWindow(QMainWindow):
         first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
         cfg = self._cfg
         cfg.pack_gap_seconds = 10
+        cfg.attempt_rules_json = "[]"
 
         if first_line == KEY_VALUE_HEADER:
             # New key=value format written by this application
@@ -1716,7 +1750,11 @@ class MainWindow(QMainWindow):
                     continue
                 if "=" in line:
                     key, _, val = line.partition("=")
-                    kv[key.strip()] = val.replace("\\n", "\n")
+                    kv[key.strip()] = (
+                        val
+                        if key.strip() == "AttemptRules"
+                        else val.replace("\\n", "\n")
+                    )
 
             def _str(k: str, default: str = "") -> str:
                 return kv.get(k, default)
@@ -1821,6 +1859,7 @@ class MainWindow(QMainWindow):
                 "SendAbsoluteStatistics", cfg.send_absolute_statistics
             )
             cfg.pack_gap_seconds = _int("PackGapSeconds", 10)
+            cfg.attempt_rules_json = _str("AttemptRules", "[]")
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2123,6 +2162,8 @@ class MainWindow(QMainWindow):
                     _db("upload_http_groups"), _db("upload_http_absolute")
                 )
 
+        if first_line != KEY_VALUE_HEADER:
+            cfg.attempt_rules_json = d.get("attempt_rules_json", "[]")
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         self._fold_cfg_line_breaks()
@@ -2174,6 +2215,8 @@ class MainWindow(QMainWindow):
     def _sync_ui_from_cfg(self) -> None:
         cfg = self._cfg
         self._sync_named_widgets(cfg)
+        self._attempt_rules_editor.set_rules_json(cfg.attempt_rules_json)
+        self._attempt_rules_editor.setVisible(cfg.is_number_of_tries())
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)
             self._combo_race_type.setCurrentText(cfg.race_type)
