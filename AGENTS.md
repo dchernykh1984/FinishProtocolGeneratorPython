@@ -7,6 +7,7 @@ in `.agents/skills/` tell an agent how to work in this repo. Detailed skills:
 - `.agents/skills/contributing` - branch, commit, open a PR, drive CI to green.
 - `.agents/skills/cycling-site` - how the app reads from and writes to the website.
 - `.agents/skills/local-testing` - running tests and Qt/test gotchas.
+- `.agents/skills/number-of-tries` - scoring rules, timing windows and mode boundaries.
 
 Runtime file I/O uses `app.paths.app_path()`: relative inputs, templates, outputs
 and upload files belong next to the portable executable (outside the `.app`

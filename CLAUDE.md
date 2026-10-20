@@ -7,6 +7,7 @@ in `.claude/skills/` tell an agent how to work in this repo. Detailed skills:
 - `.claude/skills/contributing` - branch, commit, open a PR, drive CI to green.
 - `.claude/skills/cycling-site` - how the app reads from and writes to the website.
 - `.claude/skills/local-testing` - running tests and Qt/test gotchas.
+- `.claude/skills/number-of-tries` - scoring rules, timing windows and mode boundaries.
 
 ## Golden rules for commits and PRs
 
