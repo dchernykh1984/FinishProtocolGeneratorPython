@@ -305,6 +305,11 @@ class FinishProtocolElement:
     def visible_laps(self) -> int:
         return self.attempts_seen if self.attempt_mode else self.n_laps_finished
 
+    def has_started(self) -> bool:
+        if self.attempt_mode:
+            return self.attempts_seen > 0
+        return self.cross_line_times[0] not in (0, INF)
+
     def get_time_diff(
         self, leader: FinishProtocolElement, with_penalties: bool = True
     ) -> float:
