@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app.attempt_rules import AttemptRule, parse_attempt_rules, rules_json
@@ -105,3 +106,26 @@ def test_invalid_loaded_rules_stay_visible_as_an_error(window, tmp_path):
     window._load_race_info_from_path(str(path))
     assert window._cfg.attempt_rules_json == "["
     assert window._attempt_rules_editor.error.text()
+
+
+def test_invalid_rules_keep_window_open_before_any_shutdown_side_effects(
+    window, monkeypatch
+):
+    window._cfg.attempt_rules_json = "["
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes
+    )
+    errors, calls = [], []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args: errors.append(args))
+    monkeypatch.setattr(window, "_stop_workers", lambda: calls.append("stopped"))
+    monkeypatch.setattr(
+        window, "_close_time_trial_window", lambda: calls.append("closed")
+    )
+    monkeypatch.setattr(
+        window, "_save_race_info_to_path", lambda path: calls.append("saved")
+    )
+    event = QCloseEvent()
+    window.closeEvent(event)
+    assert not event.isAccepted()
+    assert errors
+    assert not calls
