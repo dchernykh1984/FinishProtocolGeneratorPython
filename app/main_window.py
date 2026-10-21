@@ -1390,6 +1390,9 @@ class MainWindow(QMainWindow):
             if not self._cfg.is_number_of_tries():
                 self._cfg.attempt_rules_json = "[]"
                 self._attempt_rules_editor.set_rules_json("[]")
+                self._append_log(
+                    f"WARNING: Invalid inactive attempt rules reset to []: {exc}"
+                )
                 return True
             if show_error:
                 QMessageBox.critical(self, "Invalid attempt rules", str(exc))
