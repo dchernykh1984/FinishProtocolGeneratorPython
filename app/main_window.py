@@ -589,14 +589,33 @@ class MainWindow(QMainWindow):
         self._try_auto_load()
 
     def closeEvent(self, event) -> None:  # type: ignore[override]  # noqa: N802
+        invalid_rules = self._cfg.is_number_of_tries() and not (
+            self._validate_attempt_rules(show_error=False)
+        )
+        message = (
+            "Attempt rules are invalid. Discard invalid rule edits and exit?\n"
+            "The last valid rules (or an empty list) and all other settings "
+            "will be saved."
+            if invalid_rules
+            else "Are you sure to exit?"
+        )
         reply = QMessageBox.question(
             self,
             "Exit",
-            "Are you sure to exit?",
+            message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
+            if invalid_rules:
+                self._cfg.attempt_rules_json = (
+                    self._attempt_rules_editor.last_valid_rules_json
+                )
+                self._attempt_rules_editor.set_rules_json(self._cfg.attempt_rules_json)
+                self._append_log(
+                    "WARNING: Invalid attempt rule edits discarded on exit; "
+                    "restored the last valid rules or an empty list."
+                )
             if not self._validate_attempt_rules():
                 event.ignore()
                 return
@@ -1362,7 +1381,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_btn_ftp_download"):
             self._btn_ftp_download.setEnabled(enabled)
 
-    def _validate_attempt_rules(self) -> bool:
+    def _validate_attempt_rules(self, *, show_error: bool = True) -> bool:
         try:
             self._cfg.attempt_rules_json = rules_json(
                 parse_attempt_rules(self._cfg.attempt_rules_json)
@@ -1372,7 +1391,8 @@ class MainWindow(QMainWindow):
                 self._cfg.attempt_rules_json = "[]"
                 self._attempt_rules_editor.set_rules_json("[]")
                 return True
-            QMessageBox.critical(self, "Invalid attempt rules", str(exc))
+            if show_error:
+                QMessageBox.critical(self, "Invalid attempt rules", str(exc))
             return False
         return True
 

@@ -118,10 +118,12 @@ def test_invalid_loaded_rules_stay_visible_as_an_error(window, tmp_path):
 def test_invalid_rules_keep_window_open_before_any_shutdown_side_effects(
     window, monkeypatch
 ):
-    window._cfg.race_type = RACE_TYPE_NUMBER_OF_TRIES
-    window._cfg.attempt_rules_json = "["
+    window._combo_race_type.setCurrentText(RACE_TYPE_NUMBER_OF_TRIES)
+    window._attempt_rules_editor._add()
+    window._attempt_rules_editor.table.cellWidget(0, 2).setText("1,")
+    draft = window._cfg.attempt_rules_json
     monkeypatch.setattr(
-        QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes
+        QMessageBox, "question", lambda *args: QMessageBox.StandardButton.No
     )
     errors, calls = [], []
     monkeypatch.setattr(QMessageBox, "critical", lambda *args: errors.append(args))
@@ -135,8 +137,67 @@ def test_invalid_rules_keep_window_open_before_any_shutdown_side_effects(
     event = QCloseEvent()
     window.closeEvent(event)
     assert not event.isAccepted()
-    assert errors
+    assert not errors
     assert not calls
+    assert window._cfg.attempt_rules_json == draft
+    assert window._attempt_rules_editor.error.text()
+
+
+@pytest.mark.parametrize("draft", ["", "1,"])
+def test_exit_can_discard_partial_edit_and_save_last_valid_rules_and_other_settings(
+    window, tmp_path, monkeypatch, draft
+):
+    window._combo_race_type.setCurrentText(RACE_TYPE_NUMBER_OF_TRIES)
+    editor = window._attempt_rules_editor
+    editor._add()
+    editor.table.cellWidget(0, 2).setText("2,3")
+    last_valid = window._cfg.attempt_rules_json
+    editor.table.cellWidget(0, 2).setText(draft)
+    window._cfg.http_stage_label = "Final"
+    assert editor.error.text()
+    path = tmp_path / "fpg_info.txt"
+    monkeypatch.setattr("app.main_window.app_path", lambda name: path)
+    questions, errors = [], []
+
+    def discard(*args):
+        questions.append(args)
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", discard)
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args: errors.append(args))
+    event = QCloseEvent()
+    window.closeEvent(event)
+    assert event.isAccepted()
+    assert not errors
+    assert len(questions) == 1
+    assert "discard" in questions[0][2].lower()
+    saved = load_config_file(str(path))
+    assert saved["attempt_rules_json"] == last_valid
+    assert saved["http_stage_label"] == "Final"
+    assert not editor.error.text()
+
+
+def test_exit_with_invalid_new_race_does_not_restore_rules_from_previous_race(
+    window, tmp_path, monkeypatch
+):
+    window._attempt_rules_editor._add()
+    path = tmp_path / "new-race.txt"
+    path.write_text(
+        f"{KEY_VALUE_HEADER}\nRaceType={RACE_TYPE_NUMBER_OF_TRIES}\nAttemptRules=[\n",
+        encoding="utf-8",
+    )
+    window._load_race_info_from_path(str(path))
+    monkeypatch.setattr("app.main_window.app_path", lambda name: path)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *args: QMessageBox.StandardButton.Yes
+    )
+    errors = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args: errors.append(args))
+    event = QCloseEvent()
+    window.closeEvent(event)
+    assert event.isAccepted()
+    assert not errors
+    assert load_config_file(str(path))["attempt_rules_json"] == "[]"
 
 
 @pytest.mark.parametrize("config_format", ["positional", "key_value"])
