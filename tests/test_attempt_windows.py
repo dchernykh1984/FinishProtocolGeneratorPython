@@ -1,5 +1,7 @@
 """Separate start/finish streams, incomplete windows and chronological splits."""
 
+from itertools import accumulate
+
 import pytest
 
 from app.attempt_rules import AttemptRule, rules_json
@@ -144,6 +146,34 @@ def test_minimal_time_check_does_not_shift_later_attempts():
     assert fp.lap_times[:3] == [30, 28, 0]
     assert fp.get_total_time() == 28
     assert any("faster than minimal" in message for message in log)
+
+
+@pytest.mark.parametrize("minimum", [0, 5])
+@pytest.mark.parametrize(
+    "gaps,unfiltered,filtered",
+    [
+        ([10, 3, 20, 20], [3, 20], [0, 20]),
+        ([10, 2, 20, 20, 30, 30], [2, 20, 30], [0, 20, 30]),
+    ],
+)
+def test_legacy_minimum_time_rejects_finish_without_merging_attempts(
+    minimum, gaps, unfiltered, filtered
+):
+    n_attempts = len(unfiltered)
+    eligible = ",".join(str(i) for i in range(1, n_attempts + 1))
+    start = StartProtocolElement.from_line(
+        f"1#Name#G#{n_attempts}#1#1990#T#C#{n_attempts}:{eligible}#"
+    )
+    cfg = RaceConfig(race_type=RACE_TYPE_NUMBER_OF_TRIES, minimal_time_for_lap=minimum)
+    log = []
+    fp = calculate_protocol([start], [], marks(*accumulate(gaps)), [], [], cfg, log)[0]
+    expected = filtered if minimum else unfiltered
+    assert fp.lap_times[:n_attempts] == expected
+    assert fp.get_total_time() == sum(expected)
+    assert fp.n_laps_finished == (n_attempts - 1 if minimum else n_attempts)
+    assert [fp.lap_completed(i) for i in range(n_attempts)] == [t > 0 for t in expected]
+    assert fp.counted_attempts() == list(range(1 if minimum else 0, n_attempts))
+    assert any("faster than minimal" in message for message in log) == bool(minimum)
 
 
 def test_dsq_is_not_a_start_but_still_disqualifies():
