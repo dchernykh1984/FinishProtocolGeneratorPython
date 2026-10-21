@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.6.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.5.0...v0.6.0) (2026-10-21)
+
+
+### Features
+
+* **tries:** configure scoring rules and attempt timing windows ([7ebd866](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7ebd866262e9efa9c881372e4c665ae8f033430d))
+
+
+### Bug Fixes
+
+* **tries:** align time gaps with scoring direction ([929f641](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/929f6419b3c9e24f3670dde67fa459adcaa14e15))
+* **tries:** allow discarding unfinished rule edits on exit ([802af60](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/802af604f88f79036ac97f3a58985eecd9c87892))
+* **tries:** ignore invalid inactive rules when saving settings ([b09fbdc](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b09fbdc0f4a966bbb8688b269615b96ba3cf2412))
+* **tries:** preserve legacy Custom Start crossing selection ([9debad1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9debad1240ccf0bc19a673b439cc8cc285a4fb2d))
+* **tries:** preserve results starting at zero timestamp ([05f3fa4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/05f3fa4c4a98849eb95d6449e31299001b53706b))
+* **tries:** prevent closing with invalid scoring rules ([9579a58](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9579a5828f7c8b0bf9bf7dadae2837b52b51f49c))
+* **tries:** retain attempt penalties and their explanations ([03264ce](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/03264ce8b200c03993fb8bee5b61e2156c051b46))
+* **tries:** show later splits after incomplete attempts ([d064e64](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d064e647139394b81c5e846e0b07ee5dda21319f))
+* **tries:** warn when invalid inactive rules are reset ([8c3fe78](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8c3fe788a600a7b304d5650db8b9243fddb87aa2))
+
+
+### Documentation
+
+* **tries:** document scoring and timing contracts for agents ([7dbe2c5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7dbe2c54b127b374d5386dfef95dd6eafa1e560e))
+
 ## [0.5.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.4.1...v0.5.0) (2026-10-15)
 
 
