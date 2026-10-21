@@ -228,6 +228,14 @@ def test_invalid_inactive_rules_do_not_block_save_or_exit(
             encoding="utf-8",
         )
     window._load_race_info_from_path(str(path))
+    warnings = [
+        window._log_list.item(i).text()
+        for i in range(window._log_list.count())
+        if "WARNING" in window._log_list.item(i).text()
+    ]
+    assert len(warnings) == 1
+    assert "inactive attempt rules" in warnings[0]
+    assert "reset to []" in warnings[0]
     saved = tmp_path / "saved.txt"
     window._save_race_info_to_path(str(saved))
     closed_saves = []
@@ -239,6 +247,7 @@ def test_invalid_inactive_rules_do_not_block_save_or_exit(
     assert window._cfg.attempt_rules_json == "[]"
     assert load_config_file(str(saved))["attempt_rules_json"] == "[]"
     assert not window._attempt_rules_editor.error.text()
+    assert window._log_list.count() == 1
 
 
 def test_valid_inactive_rules_are_preserved_for_later_use(window, tmp_path):
@@ -249,3 +258,4 @@ def test_valid_inactive_rules_are_preserved_for_later_use(window, tmp_path):
     window._load_race_info_from_path(str(path))
     assert window._cfg.race_type == RACE_TYPE_MASS_SPLITTED
     assert window._cfg.attempt_rules_json == text
+    assert window._log_list.count() == 0

@@ -59,8 +59,9 @@ Example: best of attempts 2 and 3, with reverse qualification as a tie-break:
   Without a valid rule in the loaded race, fall back to `[]`; never restore rules
   from a previously loaded race. Log discarded edits as a warning.
 - In other modes, preserve valid inactive rules, but reset invalid ones to `[]`
-  without blocking config load, save or exit. Do not decode JSON escapes as config
-  line breaks in the key/value loader.
+  without blocking config load, save or exit. Log each reset as a warning, without
+  a modal dialog; subsequent saves of the cleared value must not warn again.
+  Do not decode JSON escapes as config line breaks in the key/value loader.
 - `skip_first_lap_effective()` also includes Custom Start. Restrict attempt-specific
   changes to Number of Tries; Custom Start keeps its legacy earliest-crossing behavior,
   including an earlier DSQ mark even when Disable DSQ is enabled.
