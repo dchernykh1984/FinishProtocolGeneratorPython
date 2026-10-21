@@ -205,6 +205,11 @@ fix the qualification order for all later starts. Only attempts actually include
 in the first rule's current result are printed in bold; equal times select the
 earlier attempt. An empty rule list keeps legacy `N:1,2,3` rules in Additional info.
 
+Invalid or unfinished rule edits block generation and explicit config saves. On
+exit, choose to stay and correct the edits or discard them and save the last valid
+rules along with all other settings. If the loaded race has no valid rules, exit
+uses an empty list; it never restores rules from a previously loaded race.
+
 With **Control points = 0**, one stream alternates start, finish, start, finish.
 With **Control points = N > 0**, stream 0 contains starts, streams 1 through N-1
 contain intermediate crossings, and stream N contains finishes. Every start opens

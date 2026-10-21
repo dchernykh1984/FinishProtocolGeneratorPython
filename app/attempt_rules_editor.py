@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.attempt_rules import parse_attempt_rules
+from app.attempt_rules import parse_attempt_rules, rules_json
 
 
 class AttemptRulesEditor(QWidget):
@@ -27,6 +27,7 @@ class AttemptRulesEditor(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
+        self.last_valid_rules_json = "[]"
         layout = QVBoxLayout(self)
         layout.addWidget(
             QLabel(
@@ -59,12 +60,15 @@ class AttemptRulesEditor(QWidget):
         layout.addWidget(self.error)
 
     def set_rules_json(self, value: str) -> None:
+        # A newly loaded race must never inherit another race's fallback rules.
+        self.last_valid_rules_json = "[]"
         try:
             rules = parse_attempt_rules(value)
         except ValueError as exc:
             self._set_data([])
             self.error.setText(str(exc))
             return
+        self.last_valid_rules_json = rules_json(rules)
         self._set_data(
             [
                 {
@@ -129,6 +133,7 @@ class AttemptRulesEditor(QWidget):
         except ValueError as exc:
             self.error.setText(str(exc))
         else:
+            self.last_valid_rules_json = value
             self.error.clear()
         self.changed.emit(value)
 

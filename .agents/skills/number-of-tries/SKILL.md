@@ -54,7 +54,10 @@ Example: best of attempts 2 and 3, with reverse qualification as a tie-break:
 ## Boundaries and regression checks
 
 - Keep the rule editor directly below Race type, visible only for Number of Tries.
-  Invalid active rules block generation, saving and exit with an actionable error.
+  Invalid active rules block generation and explicit saves. On exit, offer to stay
+  with the draft or discard it and save the last valid rules plus other settings.
+  Without a valid rule in the loaded race, fall back to `[]`; never restore rules
+  from a previously loaded race. Log discarded edits as a warning.
 - In other modes, preserve valid inactive rules, but reset invalid ones to `[]`
   without blocking config load, save or exit. Do not decode JSON escapes as config
   line breaks in the key/value loader.
