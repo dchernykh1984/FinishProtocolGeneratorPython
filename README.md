@@ -211,6 +211,9 @@ rules along with all other settings. If the loaded race has no valid rules, exit
 uses an empty list; it never restores rules from a previously loaded race.
 
 With **Control points = 0**, one stream alternates start, finish, start, finish.
+If **Minimal time for lap** rejects a finish, that attempt stays unfinished and the
+next pair keeps its number. This also applies to legacy Additional info rules;
+older versions could incorrectly consume the next start as the rejected finish.
 With **Control points = N > 0**, stream 0 contains starts, streams 1 through N-1
 contain intermediate crossings, and stream N contains finishes. Every start opens
 an attempt window ending at the next start; the last window stays open. The first

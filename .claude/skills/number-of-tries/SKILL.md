@@ -35,6 +35,9 @@ Example: best of attempts 2 and 3, with reverse qualification as a tie-break:
 ## Timing contract
 
 - With Control points = 0, the main stream alternates start, finish, start, finish.
+  A finish rejected by `minimal_time_for_lap` leaves that slot unfinished, including
+  with legacy Additional info rules. Never borrow the next start as its finish;
+  older versions could merge attempts this way. Keep later pair numbers intact.
 - With N > 0, stream 0 contains starts, streams 1..N-1 contain intermediate marks,
   and stream N contains finishes. Each start opens a window ending at the next start;
   the last window stays open. Choose the earliest valid finish inside that window.
