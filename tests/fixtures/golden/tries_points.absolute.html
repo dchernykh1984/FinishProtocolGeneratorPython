@@ -1,0 +1,134 @@
+<head><title>Protocol Scenario race</title><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<script>
+doShow = 0;
+function showhideall(table, col, isFirst) {
+  if(isFirst != 0) {
+    if(document.getElementById(table + '_' + col + '_' + 0) != null) {
+    if(document.getElementById(table + '_' + col + '_' + 0).style.display == 'none') {
+      doShow = 1;
+    } else {
+      doShow = 0;
+    }
+}
+  }
+  if(doShow != 0) { show(table, col); } else { hide(table, col); }
+}
+function showhide(table, col) {
+  if(document.getElementById(table + '_' + col + '_' + 0).style.display == 'none') {
+    show(table, col);
+  } else { hide(table, col); }
+}
+function show(table, col) {
+  for(i=0;i<6;i++) {
+    if(document.getElementById(table + '_' + col + '_' + i) != null)
+      document.getElementById(table + '_' + col + '_' + i).style.display = 'table-cell';
+  }
+}
+function hide(table, col) {
+  for(i=0;i<6;i++) {
+    if(document.getElementById(table + '_' + col + '_' + i) != null)
+      document.getElementById(table + '_' + col + '_' + i).style.display = 'none';
+  }
+}
+</script>
+</head>
+<CENTER><a href="https://example.com/sponsor">Sponsor</a></CENTER><FONT SIZE="4" COLOR=""><B><CENTER>Scenario race</CENTER></B></FONT><BR><FONT SIZE="4" COLOR=""><B><CENTER>2026-07-18, Medeu</CENTER></B></FONT><BR><FONT SIZE="4" COLOR=""><B><CENTER>Track: dry</CENTER></B></FONT><BR><FONT SIZE="4" COLOR=""><B><CENTER>Weather: +14, sunny</CENTER></B></FONT><BR><CENTER><button type="submit" name="Submit" onclick="showhideall(0, 'Lap 0 splits', 1),showhideall(0, 'Lap 1 splits', 1),showhideall(0, 'Lap 2 splits', 1),showhideall(0, 'Lap 3 splits', 1),showhideall(0, 'Lap 4 splits', 1),showhideall(0, 'Lap 5 splits', 1)" ><FONT SIZE="2"><B><I>Show/Hide<BR>CP Splits<BR>By Lap</I></B></FONT></button></CENTER><BR><FONT SIZE="4" COLOR="#FF0066"><B><CENTER><U>Overall results</U></CENTER></B></FONT><BR><table style="" border=0><tr style="background-color: rgb(175, 175, 175)"><td ALIGN=center ROWSPAN=2><B>Place</B></td>
+<td ALIGN=center ROWSPAN=2><B>Number</B></td>
+<td ALIGN=center ROWSPAN=2><B>Name</B></td>
+<td ALIGN=center ROWSPAN=2><B>Year of birth</B></td>
+<td ALIGN=center ROWSPAN=2><B>Group</B></td>
+<td ALIGN=center ROWSPAN=2><B><NOBR>Team</NOBR></B></td>
+<td ALIGN=center ROWSPAN=2><B>City</B></td>
+<td ALIGN=center COLSPAN=2><B>Lap 1</B></td>
+<td ALIGN=center COLSPAN=2><B>Lap 2</B></td>
+<td ALIGN=center COLSPAN=2><B>Lap 3</B></td>
+<td ALIGN=center ROWSPAN=2><B>Time<BR><FONT SIZE="2" COLOR="#339900">(gap)</FONT></B></B></td>
+</tr>
+<tr style="background-color: rgb(175, 175, 175)"><td id="0_Lap 0 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(1 split)</NOBR></B></FONT></td>
+<td id="0_Lap 1 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(2 split)</NOBR></B></FONT></td>
+<td id="0_Lap 2 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(1 split)</NOBR></B></FONT></td>
+<td id="0_Lap 3 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(2 split)</NOBR></B></FONT></td>
+<td id="0_Lap 4 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(1 split)</NOBR></B></FONT></td>
+<td id="0_Lap 5 splits_0" ALIGN=center><FONT SIZE="1"><B><NOBR>(2 split)</NOBR></B></FONT></td>
+</tr>
+<tr style="background-color: rgb(215, 215, 215)"><td ALIGN=center ROWSPAN=2>1</td>
+<td ALIGN=center ROWSPAN=2><NOBR>2</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Boris Tries</td>
+<td ALIGN=center ROWSPAN=2>1980</td>
+<td ALIGN=center ROWSPAN=2><NOBR>M(1)</NOBR></td>
+<td ALIGN=center ROWSPAN=2><NOBR>Team B</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Bishkek</td>
+<td ALIGN=center COLSPAN=2>00:02:20.0<NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2>00:02:35.0<NOBR><BR>Gate &lt;7&gt; &amp; flag:5sec</NOBR></td>
+<td ALIGN=center COLSPAN=2><B>00:02:00.0</B><NOBR></NOBR></td>
+<td ALIGN=center ROWSPAN=2>00:02:00.0<BR><FONT SIZE="2" COLOR="#339900">(00:00:00.0)</FONT></td>
+</tr>
+<tr style="background-color: rgb(215, 215, 215)"><td id="0_Lap 0 splits_1" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 1 splits_1" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 2 splits_1" ALIGN=center>00:01:15.0</td>
+<td id="0_Lap 3 splits_1" ALIGN=center>00:01:15.0</td>
+<td id="0_Lap 4 splits_1" ALIGN=center>00:01:00.0</td>
+<td id="0_Lap 5 splits_1" ALIGN=center>00:01:00.0</td>
+</tr>
+<tr style="background-color: rgb(175, 175, 175)"><td ALIGN=center ROWSPAN=2>2</td>
+<td ALIGN=center ROWSPAN=2><NOBR>1</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Anna Tries</td>
+<td ALIGN=center ROWSPAN=2>1990</td>
+<td ALIGN=center ROWSPAN=2><NOBR>W(1)</NOBR></td>
+<td ALIGN=center ROWSPAN=2><NOBR>Team A</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Almaty</td>
+<td ALIGN=center COLSPAN=2>00:02:30.0<NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2><B>00:02:20.0</B><NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2>UNKNOWN</td>
+<td ALIGN=center ROWSPAN=2>00:02:20.0<BR><FONT SIZE="2" COLOR="#339900">(+00:00:20.0)</FONT></td>
+</tr>
+<tr style="background-color: rgb(175, 175, 175)"><td id="0_Lap 0 splits_2" ALIGN=center>00:01:15.0</td>
+<td id="0_Lap 1 splits_2" ALIGN=center>00:01:15.0</td>
+<td id="0_Lap 2 splits_2" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 3 splits_2" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 4 splits_2" ALIGN=center>00:01:00.0</td>
+<td id="0_Lap 5 splits_2" ALIGN=center>UNKNOWN</td>
+</tr>
+<tr style="background-color: rgb(215, 215, 215)"><td ALIGN=center ROWSPAN=2>3</td>
+<td ALIGN=center ROWSPAN=2><NOBR>5</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Dina Equal</td>
+<td ALIGN=center ROWSPAN=2>1993</td>
+<td ALIGN=center ROWSPAN=2><NOBR>W(2)</NOBR></td>
+<td ALIGN=center ROWSPAN=2><NOBR></NOBR></td>
+<td ALIGN=center ROWSPAN=2></td>
+<td ALIGN=center COLSPAN=2>00:02:20.0<NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2><B>00:02:20.0</B><NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2>00:02:20.0<NOBR></NOBR></td>
+<td ALIGN=center ROWSPAN=2>00:02:20.0<BR><FONT SIZE="2" COLOR="#339900">(+00:00:20.0)</FONT></td>
+</tr>
+<tr style="background-color: rgb(215, 215, 215)"><td id="0_Lap 0 splits_3" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 1 splits_3" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 2 splits_3" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 3 splits_3" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 4 splits_3" ALIGN=center>00:01:10.0</td>
+<td id="0_Lap 5 splits_3" ALIGN=center>00:01:10.0</td>
+</tr>
+<tr style="background-color: rgb(175, 175, 175)"><td ALIGN=center ROWSPAN=2>4</td>
+<td ALIGN=center ROWSPAN=2><NOBR>3</NOBR></td>
+<td ALIGN=center ROWSPAN=2>Vera Tries</td>
+<td ALIGN=center ROWSPAN=2>1992</td>
+<td ALIGN=center ROWSPAN=2><NOBR>W(3)</NOBR></td>
+<td ALIGN=center ROWSPAN=2><NOBR>Team A</NOBR></td>
+<td ALIGN=center ROWSPAN=2></td>
+<td ALIGN=center COLSPAN=2>00:03:00.0<NOBR></NOBR></td>
+<td ALIGN=center COLSPAN=2>DNF</td>
+<td ALIGN=center COLSPAN=2><B>00:02:30.0</B><NOBR></NOBR></td>
+<td ALIGN=center ROWSPAN=2>00:02:30.0<BR><FONT SIZE="2" COLOR="#339900">(+00:00:30.0)</FONT></td>
+</tr>
+<tr style="background-color: rgb(175, 175, 175)"><td id="0_Lap 0 splits_4" ALIGN=center>00:01:30.0</td>
+<td id="0_Lap 1 splits_4" ALIGN=center>00:01:30.0</td>
+<td id="0_Lap 2 splits_4" ALIGN=center>00:01:00.0</td>
+<td id="0_Lap 3 splits_4" ALIGN=center>UNKNOWN</td>
+<td id="0_Lap 4 splits_4" ALIGN=center>00:01:15.0</td>
+<td id="0_Lap 5 splits_4" ALIGN=center>00:01:15.0</td>
+</tr>
+</table>
+<FONT SIZE="3" COLOR=""><B><p align="right">Organizer: Club & Co</p></B></FONT>
+<FONT SIZE="3" COLOR=""><B><p align="right">Referee: Chief Referee</p></B></FONT><FONT SIZE="3" COLOR=""><B><p align="right">Secretary: Secretary Name</p></B></FONT><p align="left">
+</p>
+<p>Thanks</p>

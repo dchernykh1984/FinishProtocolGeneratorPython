@@ -4,8 +4,11 @@ repos:
     hooks:
       - id: check-yaml
       - id: check-toml
+      # Golden protocol files are compared byte for byte with what the writers produce.
       - id: end-of-file-fixer
+        exclude: ^tests/fixtures/golden/
       - id: trailing-whitespace
+        exclude: ^tests/fixtures/golden/
       - id: mixed-line-ending
         args: [--fix=lf]
 
