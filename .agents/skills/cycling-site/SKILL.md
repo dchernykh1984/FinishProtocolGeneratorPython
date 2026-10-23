@@ -36,6 +36,26 @@ Delete. Any stored value that is not exactly `Upload` or `Delete` is treated as
 `Nothing` (safe default). There is no separate edit call: re-uploading with the same
 competition token overwrites the stored protocol; `delete` removes it.
 
+## Protocols as data (issue #310)
+
+An upload carries the HTML, the structured document (`app/protocol_document.py`), or
+both -- `http_protocol_format` (`HttpProtocolFormat`): `HTML + Data` (default), `HTML`,
+`Data`. The site draws a document in its own look (phone, desktop, skins) and keeps the
+HTML of the same upload as the original; the last upload wins.
+
+- The document is built from `app/protocol_rows.py`, the same calculations the HTML
+  writer uses, after `prepare_statuses`; never compute a protocol value in one of them
+  only. `tests/test_protocol_document.py` checks every value of the HTML appears in the
+  document, for every scenario in `tests/protocol_scenarios.py`.
+- Schema: `tests/fixtures/protocol-document-v1.json`, a copy of the site's
+  `protocols/schema/protocol-document-v1.json` -- refresh it when the site's schema
+  changes. A new column or header line needs only the builder.
+- A document the site refuses comes back as `document_error`: logged as a warning, the
+  HTML is still shown. A failing build is logged and the HTML still goes out.
+- `protocol_language` (`ProtocolLanguage`) tells the site the labels' language.
+- `tests/fixtures/golden/` pins the HTML byte for byte; regenerate
+  (`REGENERATE_GOLDEN=1`) only for a change to the HTML that is meant.
+
 ## Live stats (Garmin data field)
 
 When "Send group statistics" / "Send absolute statistics" is on, every regeneration also

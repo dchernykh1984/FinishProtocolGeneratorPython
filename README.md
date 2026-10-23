@@ -233,9 +233,13 @@ The application can upload finish protocols directly to the cycling-site API.
 3. Enter the upload token - find it on the competition detail page when logged
    in as an organizer or admin.
 
-After generating a protocol, the **Upload** button sends it to
-`POST /api/v1/protocols/upload/` as a multipart HTML file with the competition
-token. The site stores the protocol and makes it visible on the competition page.
+After generating a protocol, the **Upload** action sends it to
+`POST /api/v1/protocols/upload/` with the competition token. **Send protocols to the
+site as** chooses what goes: `HTML + Data` (default) sends the HTML file and the
+protocol as structured data, which the site shows in its own look on phones and
+desktops; `HTML` sends the file only, as before; `Data` sends the data only. Local HTML
+files and their FTP upload do not change. **Protocol language** tells the site which
+language the protocol's labels are in.
 
 ## Live race statistics (for the Garmin data field)
 

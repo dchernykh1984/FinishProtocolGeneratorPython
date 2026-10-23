@@ -690,6 +690,18 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["attempt_rules_json"] = v
+        tok = nxt()
+
+    if tok == "HttpProtocolFormat":
+        v = nxt()
+        if v is not None:
+            result["http_protocol_format"] = v
+        tok = nxt()
+
+    if tok == "ProtocolLanguage":
+        v = nxt()
+        if v is not None:
+            result["protocol_language"] = v
 
     return result
 

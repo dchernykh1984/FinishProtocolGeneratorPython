@@ -36,6 +36,9 @@ from app.config import (
     HTTP_ACTION_DELETE,
     HTTP_ACTION_UPLOAD,
     HTTP_ACTIONS,
+    PROTOCOL_FORMAT_DATA,
+    PROTOCOL_FORMAT_HTML,
+    PROTOCOL_FORMATS,
     START_LIST_SOURCE_SITE,
     START_LIST_SOURCES,
     TIMING_SOURCE_SITE,
@@ -44,6 +47,7 @@ from app.config import (
     RaceConfig,
     migrate_http_actions,
     normalize_http_action,
+    normalize_protocol_format,
 )
 from app.file_io import (
     KEY_VALUE_HEADER,
@@ -70,6 +74,7 @@ from app.http_io import upload_protocol as http_upload_protocol
 from app.live_stats import build_live_stats
 from app.models import FinishProtocolElement, GroupStartElement
 from app.paths import app_path
+from app.protocol_document import build_absolute_document, build_group_document
 from app.time_trial import StartEntry, build_start_entries
 from app.time_trial_window import TimeTrialWindow
 
@@ -349,9 +354,15 @@ class _GenerateWorker(QThread):
         self._cfg = cfg
 
     def _do_uploads(  # noqa: C901
-        self, cfg: RaceConfig, protocol: list[FinishProtocolElement]
+        self,
+        cfg: RaceConfig,
+        protocol: list[FinishProtocolElement],
+        documents: dict[str, dict] | None = None,
     ) -> tuple[bool, list[str]]:
         """Attempt configured FTP and HTTP uploads.
+
+        *documents* maps "group" / "absolute" to the structured protocol sent with (or
+        instead of) the HTML, per ``cfg.http_protocol_format``.
 
         Returns (any_failed, error_messages).
         """
@@ -399,12 +410,23 @@ class _GenerateWorker(QThread):
             # request falls back to removing any stale copy from the site.
             if absolute_action == HTTP_ACTION_UPLOAD and cfg.is_eliminator_finals():
                 absolute_action = HTTP_ACTION_DELETE
+            documents = documents or {}
             if self._publish_http_protocol(
-                cfg, "group", cfg.group_protocol_file, group_action, errors
+                cfg,
+                "group",
+                cfg.group_protocol_file,
+                group_action,
+                errors,
+                documents.get("group"),
             ):
                 failed = True
             if self._publish_http_protocol(
-                cfg, "absolute", cfg.absolute_protocol_file, absolute_action, errors
+                cfg,
+                "absolute",
+                cfg.absolute_protocol_file,
+                absolute_action,
+                errors,
+                documents.get("absolute"),
             ):
                 failed = True
 
@@ -424,11 +446,18 @@ class _GenerateWorker(QThread):
 
         return failed, errors
 
-    def _publish_http_protocol(self, cfg, protocol_type, local_path, action, errors):
+    def _publish_http_protocol(
+        self, cfg, protocol_type, local_path, action, errors, document=None
+    ):
         """Perform the configured HTTP *action* for one protocol; True on error."""
         label = protocol_type.capitalize()
         if action == HTTP_ACTION_UPLOAD:
             self.log_message.emit(f"Uploading {protocol_type} protocol via HTTP...")
+            fmt = normalize_protocol_format(cfg.http_protocol_format)
+            send = document if fmt != PROTOCOL_FORMAT_HTML else None
+            # Data only, but the data could not be built: the HTML still goes out.
+            send_html = fmt != PROTOCOL_FORMAT_DATA or send is None
+            warnings: list[str] = []
             if (
                 http_upload_protocol(
                     cfg.http_site_url,
@@ -438,10 +467,15 @@ class _GenerateWorker(QThread):
                     is_live=cfg.http_is_live,
                     stage_label=cfg.http_stage_label,
                     errors_out=errors,
+                    document=send,
+                    send_html=send_html,
+                    warnings_out=warnings,
                 )
                 == -1
             ):
                 return True
+            for warning in warnings:
+                self.log_message.emit(f"  WARNING: {label} protocol: {warning}")
             self.log_message.emit(f"  {label} protocol: uploaded via HTTP")
             return False
 
@@ -464,6 +498,30 @@ class _GenerateWorker(QThread):
 
         # HTTP_ACTION_NOTHING or any unrecognised value: leave the site untouched.
         return False
+
+    def _build_documents(self, cfg, sorted_proto, group_list, n_points):
+        """The structured protocols for the site, when it is to be sent any.
+
+        A failure here must not cost a live race its publication: it is logged and the
+        HTML goes out as before.
+        """
+        if normalize_protocol_format(cfg.http_protocol_format) == PROTOCOL_FORMAT_HTML:
+            return {}
+        if not cfg.http_site_url or HTTP_ACTION_UPLOAD not in (
+            cfg.http_groups_action,
+            cfg.http_absolute_action,
+        ):
+            return {}
+        try:
+            return {
+                "group": build_group_document(sorted_proto, group_list, cfg, n_points),
+                "absolute": build_absolute_document(
+                    sorted_proto, group_list, cfg, n_points
+                ),
+            }
+        except Exception as exc:
+            self.log_message.emit(f"  WARNING: protocol data not built: {exc}")
+            return {}
 
     def _emit_upload_result(
         self, upload_failed: bool, upload_errors: list[str]
@@ -555,7 +613,8 @@ class _GenerateWorker(QThread):
             for msg in log:
                 self.log_message.emit(msg)
 
-            upload_failed, upload_errors = self._do_uploads(cfg, protocol)
+            documents = self._build_documents(cfg, sorted_proto, group_list, n_points)
+            upload_failed, upload_errors = self._do_uploads(cfg, protocol, documents)
             self._emit_upload_result(upload_failed, upload_errors)
             self.finished_ok.emit()
         except Exception as exc:
@@ -1310,6 +1369,23 @@ class MainWindow(QMainWindow):
 
         ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
 
+        row_format = QHBoxLayout()
+        row_format.addWidget(QLabel("Send protocols to the site as:"), 1)
+        self._combo_protocol_format = QComboBox()
+        self._combo_protocol_format.setObjectName("http_protocol_format")
+        self._combo_protocol_format.addItems(PROTOCOL_FORMATS)
+        self._combo_protocol_format.setCurrentText(
+            normalize_protocol_format(self._cfg.http_protocol_format)
+        )
+        self._combo_protocol_format.currentTextChanged.connect(
+            lambda t: setattr(self._cfg, "http_protocol_format", t)
+        )
+        row_format.addWidget(self._combo_protocol_format, 3)
+        ly.addLayout(row_format)
+        ly.addLayout(
+            _http_row("Protocol language (e.g. ru, kk, en):", "protocol_language")
+        )
+
         for label, attr, ivar in (
             (
                 "Groups protocol HTTP action after generate:",
@@ -1730,6 +1806,8 @@ class MainWindow(QMainWindow):
         lines += ["HttpAbsoluteAction", cfg.http_absolute_action]
         lines += ["PackGapSeconds", str(cfg.pack_gap_seconds)]
         lines += ["AttemptRules", cfg.attempt_rules_json]
+        lines += ["HttpProtocolFormat", cfg.http_protocol_format]
+        lines += ["ProtocolLanguage", cfg.protocol_language]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -1887,6 +1965,10 @@ class MainWindow(QMainWindow):
             )
             cfg.pack_gap_seconds = _int("PackGapSeconds", 10)
             cfg.attempt_rules_json = _str("AttemptRules", "[]")
+            cfg.http_protocol_format = normalize_protocol_format(
+                _str("HttpProtocolFormat", cfg.http_protocol_format)
+            )
+            cfg.protocol_language = _str("ProtocolLanguage", cfg.protocol_language)
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2177,6 +2259,10 @@ class MainWindow(QMainWindow):
             )
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
+            cfg.http_protocol_format = normalize_protocol_format(
+                _ds("http_protocol_format", cfg.http_protocol_format)
+            )
+            cfg.protocol_language = _ds("protocol_language", cfg.protocol_language)
             if "http_groups_action" in d or "http_absolute_action" in d:
                 cfg.http_groups_action = normalize_http_action(
                     _ds("http_groups_action", cfg.http_groups_action)

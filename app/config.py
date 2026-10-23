@@ -37,6 +37,20 @@ HTTP_ACTION_DELETE = "Delete"
 HTTP_ACTIONS = (HTTP_ACTION_NOTHING, HTTP_ACTION_UPLOAD, HTTP_ACTION_DELETE)
 
 
+# How a protocol is sent to the site: the HTML as written, the structured document the
+# site draws itself (app/protocol_document.py), or both from one run -- the site then
+# shows the document and keeps the HTML as the original.
+PROTOCOL_FORMAT_HTML = "HTML"
+PROTOCOL_FORMAT_DATA = "Data"
+PROTOCOL_FORMAT_BOTH = "HTML + Data"
+PROTOCOL_FORMATS = (PROTOCOL_FORMAT_BOTH, PROTOCOL_FORMAT_HTML, PROTOCOL_FORMAT_DATA)
+
+
+def normalize_protocol_format(value: str) -> str:
+    """A saved format, or both when it is unknown (a typo in a hand-edited file)."""
+    return value if value in PROTOCOL_FORMATS else PROTOCOL_FORMAT_BOTH
+
+
 def normalize_http_action(value: str) -> str:
     """Coerce an HTTP action to a known value; anything unrecognised becomes Nothing.
 
@@ -155,6 +169,7 @@ class RaceConfig:
     http_stage_label: str = ""
     # Language of the protocol's labels (e.g. "ru"), told to the site with the document.
     protocol_language: str = ""
+    http_protocol_format: str = PROTOCOL_FORMAT_BOTH
     http_groups_action: str = HTTP_ACTION_NOTHING
     http_absolute_action: str = HTTP_ACTION_NOTHING
     # Push per-competitor live standings (for the Garmin field) on each regeneration.
