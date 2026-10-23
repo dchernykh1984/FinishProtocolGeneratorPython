@@ -125,6 +125,9 @@ def _lap_columns(cfg: RaceConfig, j: int, n_points: int) -> list[dict[str, Any]]
                 priority=3,
             )
         )
+    if len(columns) == 1:
+        # A lap of one column needs no heading above its own heading.
+        columns[0].pop("group", None)
     return columns
 
 

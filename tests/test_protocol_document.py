@@ -261,3 +261,11 @@ def test_building_the_document_leaves_the_html_unchanged(tmp_path):
         Path(__file__).parent / "fixtures" / "golden" / "example_race.absolute.html"
     )
     assert path.read_text(encoding="utf-8") == golden.read_text(encoding="utf-8")
+
+
+def test_a_lap_is_grouped_only_when_it_has_several_columns():
+    plain = _documents(SCENARIOS["mass_basic"]())["group"]["sections"][0]["columns"]
+    assert all("group" not in c for c in plain)
+    split = _documents(SCENARIOS["mass_points_buttons"]())["group"]["sections"][0]
+    lap1 = [c for c in split["columns"] if c["id"].startswith("lap1")]
+    assert len(lap1) > 1 and {c["group"] for c in lap1} == {"Lap 1"}
