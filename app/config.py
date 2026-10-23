@@ -153,6 +153,8 @@ class RaceConfig:
     http_upload_token: str = ""
     http_is_live: bool = True
     http_stage_label: str = ""
+    # Language of the protocol's labels (e.g. "ru"), told to the site with the document.
+    protocol_language: str = ""
     http_groups_action: str = HTTP_ACTION_NOTHING
     http_absolute_action: str = HTTP_ACTION_NOTHING
     # Push per-competitor live standings (for the Garmin field) on each regeneration.
