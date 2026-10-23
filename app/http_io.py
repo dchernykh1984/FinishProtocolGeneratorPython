@@ -109,19 +109,31 @@ def upload_protocol(  # noqa: C901
     is_live: bool = True,
     stage_label: str = "",
     errors_out: list[str] | None = None,
+    document: dict | None = None,
+    send_html: bool = True,
+    warnings_out: list[str] | None = None,
 ) -> int:
-    """Upload a protocol HTML file to the cycling-site web API via HTTP POST.
+    """Upload a protocol to the cycling-site web API via HTTP POST.
+
+    Sends the HTML file at *local_path* (unless *send_html* is off) and, when given, the
+    structured *document* -- together they are one run, and the site shows the
+    document. A site that could not accept the document keeps the HTML and says why;
+    that reason goes to *warnings_out*, since the protocol is still published.
 
     Returns 0 on success, -1 on error. Appends a human-readable message to
     *errors_out* on failure when provided.
     """
-    if not site_url or not local_path:
+    if not site_url or (send_html and not local_path):
         if errors_out is not None:
             errors_out.append("HTTP site URL or local file path is empty")
         return -1
+    if not send_html and document is None:
+        if errors_out is not None:
+            errors_out.append("Nothing to upload: no HTML and no protocol data")
+        return -1
 
-    local = app_path(local_path)
-    if not local.exists():
+    local = app_path(local_path) if send_html else None
+    if local is not None and not local.exists():
         if errors_out is not None:
             errors_out.append(f"File not found: {local_path}")
         return -1
@@ -129,8 +141,6 @@ def upload_protocol(  # noqa: C901
     upload_url = site_url.rstrip("/") + "/api/v1/protocols/upload/"
 
     try:
-        content = local.read_bytes()
-        filename = local.name
         boundary = uuid.uuid4().hex
 
         def _field(name: str, value: str) -> bytes:
@@ -145,16 +155,30 @@ def upload_protocol(  # noqa: C901
             _field("protocol_type", protocol_type),
             _field("is_live", "true" if is_live else "false"),
             _field("stage_label", stage_label),
-            (
-                f"--{boundary}\r\n"
-                'Content-Disposition: form-data; name="html_file";'
-                f' filename="{filename}"\r\n'
-                "Content-Type: text/html\r\n\r\n"
-            ).encode()
-            + content
-            + b"\r\n",
-            f"--{boundary}--\r\n".encode(),
         ]
+        if local is not None:
+            parts.append(
+                (
+                    f"--{boundary}\r\n"
+                    'Content-Disposition: form-data; name="html_file";'
+                    f' filename="{local.name}"\r\n'
+                    "Content-Type: text/html\r\n\r\n"
+                ).encode()
+                + local.read_bytes()
+                + b"\r\n"
+            )
+        if document is not None:
+            parts.append(
+                (
+                    f"--{boundary}\r\n"
+                    'Content-Disposition: form-data; name="document";'
+                    ' filename="protocol.json"\r\n'
+                    "Content-Type: application/json\r\n\r\n"
+                ).encode()
+                + json.dumps(document, ensure_ascii=False).encode("utf-8")
+                + b"\r\n"
+            )
+        parts.append(f"--{boundary}--\r\n".encode())
         body = b"".join(parts)
 
         req = urllib.request.Request(  # noqa: S310
@@ -170,6 +194,8 @@ def upload_protocol(  # noqa: C901
                         f"HTTP upload to {upload_url} failed: status {resp.status}"
                     )
                 return -1
+            answer = resp.read()
+        _note_document_error(answer, warnings_out)
         return 0
 
     except urllib.error.HTTPError as exc:
@@ -182,6 +208,20 @@ def upload_protocol(  # noqa: C901
         if errors_out is not None:
             errors_out.append(f"HTTP upload to {upload_url} failed: {exc}")
         return -1
+
+
+def _note_document_error(answer: bytes, warnings_out: list[str] | None) -> None:
+    """Pass on the site's reason for not taking the protocol data, if it gave one."""
+    # An older site answers without the field, or not in JSON at all: the upload
+    # still succeeded.
+    try:
+        reason = json.loads(answer.decode("utf-8")).get("document_error")
+    except ValueError, AttributeError, TypeError:
+        return
+    if reason and warnings_out is not None:
+        warnings_out.append(
+            f"The site did not accept the protocol data ({reason}); it shows the HTML"
+        )
 
 
 def delete_protocol(

@@ -74,3 +74,6 @@ Example: best of attempts 2 and 3, with reverse qualification as a tie-break:
   behavior in other race modes. Relevant tests: `tests/test_attempt_*.py`,
   `tests/test_calculator.py`, `tests/test_html_writer.py`, `tests/test_live_stats.py`
   and the untouched `tests/test_example_data.py` golden fixtures.
+- The structured protocol document shows the same as the HTML: the attempts selected by
+  the first rule are `strong`, each attempt's penalties are its `sub` lines
+  (`lap_penalty_texts`), a closed unfinished attempt says `DNF`.
