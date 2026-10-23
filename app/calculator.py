@@ -340,6 +340,9 @@ def calculate_protocol(  # noqa: C901
                         fp.lap_penalty[fp.n_laps_finished - 1] += (
                             f"<BR>{rem.action}:{int(rem.penalty)}sec"
                         )
+                        fp.lap_penalty_texts[fp.n_laps_finished - 1].append(
+                            f"{rem.action}:{int(rem.penalty)}sec"
+                        )
             if cfg.time_limit > 0:
                 index = fp.n_laps_finished
                 fp.cross_line_times[index] = min(

@@ -2,14 +2,26 @@
 
 from __future__ import annotations
 
-import calendar
 import html
 from io import StringIO
 from typing import TextIO
 
 from app.config import RaceConfig
-from app.models import INF, FinishProtocolElement, GroupStartElement
+from app.models import FinishProtocolElement, GroupStartElement
 from app.paths import app_path
+from app.protocol_rows import format_time as _format_time
+from app.protocol_rows import (
+    group_places,
+    is_printed,
+    lap_parts,
+    lap_ranks,
+    laps_to_show,
+    place_status,
+    prepare_statuses,
+    result_parts,
+    split_text,
+    time_shift_text,
+)
 
 # ---------------------------------------------------------------------------
 # time formatting
@@ -23,52 +35,6 @@ def _dsq_reasons_html(fp: FinishProtocolElement) -> str:
     with ``<BR>`` so they stack inside the finish-time cell.
     """
     return "<BR>".join(html.escape(entry) for entry in fp.dsq_reasons)
-
-
-def _format_time(t: float, n_signs: int, write_date: bool = False) -> str:
-    """Format a float seconds value the same way as C++ writeTimeByDouble."""
-    if t > 356.0 * 24 * 3600 and not write_date:
-        return "UNKNOWN"
-    neg = t < 0
-    if neg:
-        t = -t
-
-    n_signs = min(n_signs, 4)
-    factor = 10**n_signs
-    t_rounded = round(t * factor)
-    frac = int(t_rounded % factor)
-    t_int = int(t_rounded // factor)
-    seconds = t_int % 60
-    t_int //= 60
-    minutes = t_int % 60
-    t_int //= 60
-    hours = t_int % 24
-    t_int //= 24
-    days = t_int
-
-    out = "-" if neg else ""
-    if days != 0:
-        if write_date:
-            year, month, day = 1970, 1, days + 1
-            while True:
-                dim = calendar.monthrange(year, month)[1]
-                if day <= dim:
-                    break
-                day -= dim
-                month += 1
-                if month > 12:
-                    month = 1
-                    year += 1
-            out += f"{year}-{month:02d}-{day:02d} "
-        else:
-            out += f"{days} {'day' if days == 1 else 'days'} "
-    out += f"{hours:02d}:{minutes:02d}:"
-    if n_signs > 0:
-        frac_str = str(frac).zfill(n_signs)
-        out += f"{seconds:02d}.{frac_str}"
-    else:
-        out += f"{seconds:02d}"
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -161,27 +127,69 @@ def _write_footer(f: TextIO, cfg: RaceConfig) -> None:
 def _place_label(
     fp: FinishProtocolElement, place: int, rows: int, cfg: RaceConfig
 ) -> str:
-    if fp.disqualified:
-        return f"<td ALIGN=center ROWSPAN={rows}>DSQ</td>\n"
-    if not fp.finished:
-        group_started = fp.has_started()
-        if group_started or (
-            cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF
-        ):
-            return f"<td ALIGN=center ROWSPAN={rows}>DNF</td>\n"
-        return f"<td ALIGN=center ROWSPAN={rows}>DNS</td>\n"
-    return f"<td ALIGN=center ROWSPAN={rows}>{place}</td>\n"
+    text, _status = place_status(fp, place, cfg)
+    return f"<td ALIGN=center ROWSPAN={rows}>{text}</td>\n"
 
 
-def _unfinished_attempt(fp: FinishProtocolElement, index: int, crossed: bool) -> str:
-    if fp.attempt_mode and fp.attempt_closed[index]:
-        return "DNF"
-    return "UNKNOWN" if crossed else ""
+def _lap_cell(fp: FinishProtocolElement, lc: int, cfg: RaceConfig, cols: int) -> str:
+    parts = lap_parts(fp, lc, cfg)
+    out = f"<td ALIGN=center COLSPAN={cols}>"
+    if parts.state != "done":
+        return f"{out}{parts.text}</td>\n"
+    if cfg.is_number_of_tries():
+        out += f"<B>{parts.text}</B>" if parts.strong else parts.text
+        out += f"<NOBR>{fp.lap_penalty[lc]}</NOBR>"
+    else:
+        out += parts.text
+    out += parts.finish_number
+    if parts.finish_time:
+        out += f"<BR>{cfg.styles.additional_text_style}{parts.finish_time}</FONT>"
+    return out + "</td>\n"
 
 
-def _attempt_time(fp: FinishProtocolElement, index: int, cfg: RaceConfig) -> str:
-    value = _format_time(fp.lap_times[index], cfg.n_signs_after_point)
-    return f"<B>{value}</B>" if index in fp.counted_attempts() else value
+def _result_cell(
+    fp: FinishProtocolElement,
+    leader: FinishProtocolElement | None,
+    cfg: RaceConfig,
+    rows: int,
+) -> str:
+    out = f"<td ALIGN=center ROWSPAN={rows}>"
+    parts = result_parts(fp, leader, cfg)
+    if parts.time:
+        out += parts.time
+        if parts.gap:
+            out += f"<BR>{cfg.styles.additional_text_style}{parts.gap}</FONT>"
+        if parts.count:
+            out += f'<BR><FONT SIZE="3">{parts.count}</FONT>'
+    elif fp.disqualified and fp.dsq_reasons:
+        out += _dsq_reasons_html(fp)
+    return out + "</td>\n"
+
+
+def _lap_ranks_cell(
+    fp: FinishProtocolElement,
+    j: int,
+    peers: list[FinishProtocolElement],
+    cfg: RaceConfig,
+    cols: int,
+    cell_id: str,
+) -> str:
+    st = cfg.styles
+    ranks = lap_ranks(fp, j, peers)
+    if ranks is None:
+        return f"<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center></td>\n"
+    b_open = "<B>" if ranks.place_lap == 1 else ""
+    b_close = "</B>" if ranks.place_lap == 1 else ""
+    out = f'<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center><FONT SIZE="1">{b_open}'
+    out += _format_time(ranks.gap_lap, cfg.n_signs_after_point)
+    out += f"&nbsp({ranks.place_lap}){b_close}"
+    if cfg.show_lap_finish:
+        bf_open = "<B>" if ranks.place_finish == 1 else ""
+        bf_close = "</B>" if ranks.place_finish == 1 else ""
+        out += f"<BR>{bf_open}{st.additional_info_style}"
+        out += _format_time(ranks.gap_finish, cfg.n_signs_after_point)
+        out += f"&nbsp({ranks.place_finish})</FONT>{bf_close}"
+    return out + "</FONT></td>\n"
 
 
 def _id_cell(fp: FinishProtocolElement, rows: int) -> str:
@@ -226,6 +234,7 @@ def write_group_protocol(  # noqa: C901
 ) -> None:
     st = cfg.styles
     cols = n_points + 1
+    prepare_statuses(sorted_protocol, cfg)
 
     buf = StringIO()
     n_fp = len(sorted_protocol)
@@ -265,34 +274,7 @@ def write_group_protocol(  # noqa: C901
     for group_idx, gs in enumerate(group_list):
         group_id = gs.group_id
 
-        # n_laps_group: columns to render; n_laps_configured: total laps (for multi_lap)
-        n_laps_group = 0
-        n_laps_configured = 0
-        if cfg.hide_empty_columns:
-            for fp in sorted_protocol:
-                if fp.group_id == group_id:
-                    if fp.visible_laps() > n_laps_group:
-                        n_laps_group = fp.visible_laps()
-                    if fp.n_laps > n_laps_configured:
-                        n_laps_configured = fp.n_laps
-                    if n_points > 0 and fp.n_laps_finished < fp.n_laps:
-                        lp = fp.n_laps_finished
-                        if lp < len(fp.control_points) and any(
-                            v != -1 for v in fp.control_points[lp].segment_crosses
-                        ):
-                            n_laps_group = max(n_laps_group, lp + 1)
-        else:
-            for fp in sorted_protocol:
-                if fp.group_id == group_id and fp.n_laps > n_laps_group:
-                    n_laps_group = fp.n_laps
-                    n_laps_configured = fp.n_laps
-                    break
-
-        multi_lap = (
-            n_laps_configured > 1
-            or not cfg.show_finish_time
-            or (n_points > 0 and cfg.show_lap_times)
-        )
+        n_laps_group, multi_lap = laps_to_show(sorted_protocol, group_id, cfg, n_points)
         rows = 1 + (
             (
                 (1 if n_points > 0 and cfg.show_lap_times else 0)
@@ -392,22 +374,12 @@ def write_group_protocol(  # noqa: C901
 
         leader: FinishProtocolElement | None = None
         place_ctr = 0
+        members = [fp for fp in sorted_protocol if fp.group_id == group_id]
 
         for fp in sorted_protocol:
             if fp.group_id != group_id:
                 continue
-            group_started = fp.has_started()
-            if not cfg.disable_dnf and not group_started:
-                fp.finished = False
-            if not (
-                (fp.finished or cfg.print_dnf)
-                and (
-                    fp.n_laps_finished != 0
-                    or cfg.print_dns
-                    or (cfg.print_dnf and group_started)
-                )
-                and (not fp.disqualified or cfg.print_dsq)
-            ):
+            if not is_printed(fp, cfg):
                 continue
 
             place_ctr += 1
@@ -429,91 +401,19 @@ def write_group_protocol(  # noqa: C901
 
             if cfg.show_lap_times and multi_lap:
                 for lc in range(n_laps_group):
-                    if fp.lap_completed(lc):
-                        if cfg.is_number_of_tries():
-                            buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                            buf.write(_attempt_time(fp, lc, cfg))
-                            buf.write(f"<NOBR>{fp.lap_penalty[lc]}</NOBR>")
-                        else:
-                            buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                            buf.write(
-                                _format_time(fp.lap_times[lc], cfg.n_signs_after_point)
-                            )
-                        if fp.stages != 1 and fp.lap_finish_numbers[lc] != -1:
-                            buf.write(f"({fp.lap_finish_numbers[lc]})")
-                        if cfg.show_lap_finish:
-                            buf.write(
-                                f"<BR>{st.additional_text_style}("
-                                f"{_format_time(fp.finish_lap_times[lc], cfg.n_signs_after_point)}"  # noqa: E501
-                                f")</FONT>"
-                            )
-                        buf.write("</td>\n")
-                    elif fp.lap_started(lc) and not fp.lap_completed(lc):
-                        lp_crossed = lc < len(fp.control_points) and any(
-                            v != -1 for v in fp.control_points[lc].segment_crosses
-                        )
-                        cell = _unfinished_attempt(fp, lc, lp_crossed)
-                        buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
-                    else:
-                        buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
+                    buf.write(_lap_cell(fp, lc, cfg, cols))
 
             if cfg.show_finish_time:
-                buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-                if fp.finished and not fp.disqualified:
-                    if leader is None:
-                        leader = fp
-                    if cfg.is_number_of_tries():
-                        last_t = fp.get_total_time()
-                        last_leader_t = leader.get_total_time()
-                    else:
-                        last_t = fp.finish_lap_times[fp.n_laps_finished - 1]
-                        last_leader_t = (
-                            leader.finish_lap_times[fp.n_laps_finished - 1]
-                            if fp.n_laps_finished <= leader.n_laps_finished
-                            else 0.0
-                        )
-                    if last_t > 0:
-                        buf.write(_format_time(last_t, cfg.n_signs_after_point))
-                        if cfg.show_time_difference and leader is not None:
-                            diff = (
-                                fp.get_time_diff(leader)
-                                if cfg.is_number_of_tries()
-                                else last_t - last_leader_t
-                            )
-                            sign = "+" if diff > 0 else ""
-                            buf.write(
-                                f"<BR>{st.additional_text_style}({sign}"
-                                f"{_format_time(diff, cfg.n_signs_after_point)})</FONT>"
-                            )
-                        if cfg.show_n_finished_laps:
-                            n_laps_shown = (
-                                fp.get_n_successful_tries()
-                                if cfg.is_number_of_tries()
-                                else fp.n_laps_finished
-                            )
-                            buf.write(f'<BR><FONT SIZE="3">({n_laps_shown})</FONT>')
-                elif fp.disqualified and fp.dsq_reasons:
-                    buf.write(_dsq_reasons_html(fp))
-                buf.write("</td>\n")
+                if fp.finished and not fp.disqualified and leader is None:
+                    leader = fp
+                buf.write(_result_cell(fp, leader, cfg, rows))
 
             if cfg.show_additional_info:
                 buf.write(f"<td ALIGN=center ROWSPAN={rows}>{fp.extra_info}</td>\n")
             if cfg.show_time_shift:
-                buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-                if cfg.skip_first_lap_effective():
-                    if fp.cross_line_times[0] == INF:
-                        buf.write("NOT STARTED")
-                    else:
-                        buf.write(
-                            _format_time(
-                                fp.cross_line_times[0],
-                                cfg.n_signs_after_point,
-                                write_date=True,
-                            )
-                        )
-                else:
-                    buf.write(_format_time(fp.start_delay, cfg.n_signs_after_point))
-                buf.write("</td>\n")
+                buf.write(
+                    f"<td ALIGN=center ROWSPAN={rows}>{time_shift_text(fp, cfg)}</td>\n"
+                )
 
             buf.write("</tr>\n")
 
@@ -522,78 +422,18 @@ def write_group_protocol(  # noqa: C901
                 buf.write(f'<tr style="{row_style}">')
                 for j in range(n_laps_group):
                     cell_id = f'id="{group_idx}_Additional {j} Laps_{place_ctr}"'
-                    if fp.lap_completed(j):
-                        best_lap = fp.lap_times[j]
-                        place_lap = 1
-                        best_finish = fp.finish_lap_times[j]
-                        place_finish = 1
-                        for other in sorted_protocol:
-                            if other.group_id != group_id or not other.lap_completed(j):
-                                continue
-                            if other.lap_times[j] < fp.lap_times[j]:
-                                place_lap += 1
-                                best_lap = min(best_lap, other.lap_times[j])
-                            if other.finish_lap_times[j] < fp.finish_lap_times[j]:
-                                place_finish += 1
-                                best_finish = min(
-                                    best_finish, other.finish_lap_times[j]
-                                )
-                        b_open = "<B>" if place_lap == 1 else ""
-                        b_close = "</B>" if place_lap == 1 else ""
-                        buf.write(
-                            f"<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center>"
-                            f'<FONT SIZE="1">{b_open}'
-                        )
-                        buf.write(
-                            _format_time(
-                                fp.lap_times[j] - best_lap, cfg.n_signs_after_point
-                            )
-                        )
-                        buf.write(f"&nbsp({place_lap}){b_close}")
-                        if cfg.show_lap_finish:
-                            bf_open = "<B>" if place_finish == 1 else ""
-                            bf_close = "</B>" if place_finish == 1 else ""
-                            buf.write(f"<BR>{bf_open}{st.additional_info_style}")
-                            buf.write(
-                                _format_time(
-                                    fp.finish_lap_times[j] - best_finish,
-                                    cfg.n_signs_after_point,
-                                )
-                            )
-                            buf.write(f"&nbsp({place_finish})</FONT>{bf_close}")
-                        buf.write("</FONT></td>\n")
-                    else:
-                        buf.write(
-                            f"<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center></td>\n"  # noqa: E501
-                        )
+                    buf.write(_lap_ranks_cell(fp, j, members, cfg, cols, cell_id))
                 buf.write("</tr>\n")
 
             # CP segment sub-row (n_points+1 segments per lap)
             if cfg.show_lap_times and multi_lap and n_points > 0:
                 buf.write(f'<tr style="{row_style}">')
                 for lc in range(n_laps_group):
-                    in_progress = fp.lap_started(lc) and not fp.lap_completed(lc)
                     for cp_i in range(n_points + 1):
                         cp_idx = lc * (n_points + 1) + cp_i
                         cell_id = f'id="{group_idx}_Lap {cp_idx} splits_{place_ctr}"'
-                        buf.write(f"<td {cell_id} ALIGN=center>")
-                        if (fp.lap_completed(lc) or in_progress) and lc < len(
-                            fp.control_points
-                        ):
-                            sc_val = fp.control_points[lc].segment_crosses[cp_i]
-                            st_val = fp.control_points[lc].segment_times[cp_i]
-                            if sc_val != -1:
-                                if st_val == -2.0:
-                                    buf.write("ERR")
-                                else:
-                                    buf.write(
-                                        _format_time(st_val, cfg.n_signs_after_point)
-                                    )
-                            elif fp.lap_completed(lc) or any(
-                                v != -1 for v in fp.control_points[lc].segment_crosses
-                            ):
-                                buf.write("UNKNOWN")
-                        buf.write("</td>\n")
+                        text = split_text(fp, lc, cp_i, cfg)
+                        buf.write(f"<td {cell_id} ALIGN=center>{text}</td>\n")
                 buf.write("</tr>\n")
 
         buf.write("</table>\n")
@@ -647,21 +487,14 @@ def write_absolute_protocol(  # noqa: C901
 ) -> None:
     st = cfg.styles
     cols = n_points + 1
+    prepare_statuses(sorted_protocol, cfg)
+    places = group_places(sorted_protocol, group_list, cfg)
 
     buf = StringIO()
     n_fp = len(sorted_protocol)
     _write_header(buf, cfg, n_fp, n_points)
 
-    max_laps = 0  # columns to render
-    max_laps_configured = 0  # total laps in race -- drives multi_lap
-    if cfg.hide_empty_columns:
-        for fp in sorted_protocol:
-            max_laps = max(max_laps, fp.visible_laps())
-            max_laps_configured = max(max_laps_configured, fp.n_laps)
-    else:
-        for fp in sorted_protocol:
-            max_laps = max(max_laps, fp.n_laps)
-        max_laps_configured = max_laps
+    max_laps, multi_lap = laps_to_show(sorted_protocol, None, cfg, n_points)
 
     buf.write("<CENTER>")
     if cfg.use_buttons and n_points > 0 and cfg.show_lap_times:
@@ -686,11 +519,6 @@ def write_absolute_protocol(  # noqa: C901
         )
     buf.write("</CENTER>")
 
-    multi_lap = (
-        max_laps_configured > 1
-        or not cfg.show_finish_time
-        or (n_points > 0 and cfg.show_lap_times)
-    )
     rows = 1 + (
         (
             (1 if n_points > 0 and cfg.show_lap_times else 0)
@@ -789,20 +617,8 @@ def write_absolute_protocol(  # noqa: C901
     abs_place = 0
 
     for fp in sorted_protocol:
-        group_started = fp.has_started()
-        if not cfg.disable_dnf and not group_started:
-            fp.finished = False
-        if not (
-            (fp.finished or cfg.print_dnf)
-            and (
-                fp.n_laps_finished != 0
-                or cfg.print_dns
-                or (cfg.print_dnf and group_started)
-            )
-            and (not fp.disqualified or cfg.print_dsq)
-        ):
+        if not is_printed(fp, cfg):
             continue
-
         abs_place += 1
         row_style = st.odd_line_style if abs_place % 2 == 0 else st.even_line_style
         buf.write(f'<tr style="{row_style}">')
@@ -817,10 +633,8 @@ def write_absolute_protocol(  # noqa: C901
             buf.write(f"<td ALIGN=center ROWSPAN={rows}>{fp.year_of_birth}</td>\n")
         if cfg.show_group:
             buf.write(f"<td ALIGN=center ROWSPAN={rows}><NOBR>{fp.group_id}")
-            found_gs = next((g for g in group_list if g.group_id == fp.group_id), None)
-            if found_gs and not fp.disqualified and fp.finished:
-                buf.write(f"({found_gs.place})")
-                found_gs.place += 1
+            if id(fp) in places:
+                buf.write(f"({places[id(fp)]})")
             buf.write("</NOBR></td>\n")
         if cfg.show_team:
             buf.write(f"<td ALIGN=center ROWSPAN={rows}><NOBR>{fp.team}</NOBR></td>\n")
@@ -829,101 +643,19 @@ def write_absolute_protocol(  # noqa: C901
 
         if cfg.show_lap_times and multi_lap:
             for lc in range(max_laps):
-                if fp.lap_completed(lc):
-                    if cfg.is_number_of_tries():
-                        buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                        buf.write(_attempt_time(fp, lc, cfg))
-                        buf.write(f"<NOBR>{fp.lap_penalty[lc]}</NOBR>")
-                    else:
-                        buf.write(f"<td ALIGN=center COLSPAN={cols}>")
-                        buf.write(
-                            _format_time(fp.lap_times[lc], cfg.n_signs_after_point)
-                        )
-                    if fp.stages != 1 and fp.lap_finish_numbers[lc] != -1:
-                        buf.write(f"({fp.lap_finish_numbers[lc]})")
-                    if cfg.show_lap_finish:
-                        buf.write(
-                            f"<BR>{st.additional_text_style}("
-                            f"{_format_time(fp.finish_lap_times[lc], cfg.n_signs_after_point)}"  # noqa: E501
-                            f")</FONT>"
-                        )
-                    buf.write("</td>\n")
-                elif fp.lap_started(lc) and not fp.lap_completed(lc):
-                    lp_crossed = lc < len(fp.control_points) and any(
-                        v != -1 for v in fp.control_points[lc].segment_crosses
-                    )
-                    cell = _unfinished_attempt(fp, lc, lp_crossed)
-                    buf.write(f"<td ALIGN=center COLSPAN={cols}>{cell}</td>\n")
-                else:
-                    buf.write(f"<td ALIGN=center COLSPAN={cols}></td>\n")
+                buf.write(_lap_cell(fp, lc, cfg, cols))
 
         if cfg.show_finish_time:
-            buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-            if fp.finished and not fp.disqualified:
-                if abs_leader is None:
-                    abs_leader = fp
-                last_t = (
-                    fp.get_total_time()
-                    if cfg.is_number_of_tries()
-                    else (
-                        fp.finish_lap_times[fp.n_laps_finished - 1]
-                        if fp.n_laps_finished > 0
-                        else 0.0
-                    )
-                )
-                last_leader_t = (
-                    abs_leader.get_total_time()
-                    if cfg.is_number_of_tries()
-                    else (
-                        abs_leader.finish_lap_times[fp.n_laps_finished - 1]
-                        if fp.n_laps_finished > 0
-                        and fp.n_laps_finished <= abs_leader.n_laps_finished
-                        else 0.0
-                    )
-                )
-                if last_t > 0:
-                    buf.write(_format_time(last_t, cfg.n_signs_after_point))
-                    if cfg.show_time_difference and abs_leader is not None:
-                        diff = (
-                            fp.get_time_diff(abs_leader)
-                            if cfg.is_number_of_tries()
-                            else last_t - last_leader_t
-                        )
-                        sign = "+" if diff > 0 else ""
-                        buf.write(
-                            f"<BR>{st.additional_text_style}({sign}"
-                            f"{_format_time(diff, cfg.n_signs_after_point)})</FONT>"
-                        )
-                    if cfg.show_n_finished_laps:
-                        n_shown = (
-                            fp.get_n_successful_tries()
-                            if cfg.is_number_of_tries()
-                            else fp.n_laps_finished
-                        )
-                        buf.write(f'<BR><FONT SIZE="3">({n_shown})</FONT>')
-            elif fp.disqualified and fp.dsq_reasons:
-                buf.write(_dsq_reasons_html(fp))
-            buf.write("</td>\n")
+            if fp.finished and not fp.disqualified and abs_leader is None:
+                abs_leader = fp
+            buf.write(_result_cell(fp, abs_leader, cfg, rows))
 
         if cfg.show_additional_info:
             buf.write(f"<td ALIGN=center ROWSPAN={rows}>{fp.extra_info}</td>\n")
         if cfg.show_time_shift:
-            buf.write(f"<td ALIGN=center ROWSPAN={rows}>")
-            if cfg.skip_first_lap_effective():
-                if fp.cross_line_times[0] == INF:
-                    buf.write("NOT STARTED")
-                else:
-                    buf.write(
-                        _format_time(
-                            fp.cross_line_times[0],
-                            cfg.n_signs_after_point,
-                            write_date=True,
-                        )
-                    )
-            else:
-                buf.write(_format_time(fp.start_delay, cfg.n_signs_after_point))
-            buf.write("</td>\n")
-
+            buf.write(
+                f"<td ALIGN=center ROWSPAN={rows}>{time_shift_text(fp, cfg)}</td>\n"
+            )
         buf.write("</tr>\n")
 
         # use_all_buttons data sub-row
@@ -931,74 +663,18 @@ def write_absolute_protocol(  # noqa: C901
             buf.write(f'<tr style="{row_style}">')
             for j in range(max_laps):
                 cell_id = f'id="0_Additional {j} Laps_{abs_place}"'
-                if fp.lap_completed(j):
-                    best_lap = fp.lap_times[j]
-                    place_lap = 1
-                    best_finish = fp.finish_lap_times[j]
-                    place_finish = 1
-                    for other in sorted_protocol:
-                        if not other.lap_completed(j):
-                            continue
-                        if other.lap_times[j] < fp.lap_times[j]:
-                            place_lap += 1
-                            best_lap = min(best_lap, other.lap_times[j])
-                        if other.finish_lap_times[j] < fp.finish_lap_times[j]:
-                            place_finish += 1
-                            best_finish = min(best_finish, other.finish_lap_times[j])
-                    b_open = "<B>" if place_lap == 1 else ""
-                    b_close = "</B>" if place_lap == 1 else ""
-                    buf.write(
-                        f"<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center>"
-                        f'<FONT SIZE="1">{b_open}'
-                    )
-                    buf.write(
-                        _format_time(
-                            fp.lap_times[j] - best_lap, cfg.n_signs_after_point
-                        )
-                    )
-                    buf.write(f"&nbsp({place_lap}){b_close}")
-                    if cfg.show_lap_finish:
-                        bf_open = "<B>" if place_finish == 1 else ""
-                        bf_close = "</B>" if place_finish == 1 else ""
-                        buf.write(f"<BR>{bf_open}{st.additional_info_style}")
-                        buf.write(
-                            _format_time(
-                                fp.finish_lap_times[j] - best_finish,
-                                cfg.n_signs_after_point,
-                            )
-                        )
-                        buf.write(f"&nbsp({place_finish})</FONT>{bf_close}")
-                    buf.write("</FONT></td>\n")
-                else:
-                    buf.write(
-                        f"<td COLSPAN={cols} ROWSPAN=1 {cell_id} ALIGN=center></td>\n"
-                    )
+                buf.write(_lap_ranks_cell(fp, j, sorted_protocol, cfg, cols, cell_id))
             buf.write("</tr>\n")
 
-        # CP segment sub-row (n_points+1 segments per lap)
+        # CP segment sub-row
         if cfg.show_lap_times and multi_lap and n_points > 0:
             buf.write(f'<tr style="{row_style}">')
             for lc in range(max_laps):
-                in_progress = fp.lap_started(lc) and not fp.lap_completed(lc)
                 for cp_i in range(n_points + 1):
                     cp_idx = lc * (n_points + 1) + cp_i
                     cell_id = f'id="0_Lap {cp_idx} splits_{abs_place}"'
-                    buf.write(f"<td {cell_id} ALIGN=center>")
-                    if (fp.lap_completed(lc) or in_progress) and lc < len(
-                        fp.control_points
-                    ):
-                        sc_val = fp.control_points[lc].segment_crosses[cp_i]
-                        st_val = fp.control_points[lc].segment_times[cp_i]
-                        if sc_val != -1:
-                            if st_val == -2.0:
-                                buf.write("ERR")
-                            else:
-                                buf.write(_format_time(st_val, cfg.n_signs_after_point))
-                        elif fp.lap_completed(lc) or any(
-                            v != -1 for v in fp.control_points[lc].segment_crosses
-                        ):
-                            buf.write("UNKNOWN")
-                    buf.write("</td>\n")
+                    text = split_text(fp, lc, cp_i, cfg)
+                    buf.write(f"<td {cell_id} ALIGN=center>{text}</td>\n")
             buf.write("</tr>\n")
 
     buf.write("</table>\n")

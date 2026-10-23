@@ -87,6 +87,7 @@ def _penalties(
     fp.lap_penalty[index] = "".join(
         f"<BR>{html.escape(mark.action)}:{mark.penalty:g}sec" for mark in penalties
     )
+    fp.lap_penalty_texts[index] = [f"{m.action}:{m.penalty:g}sec" for m in penalties]
     return sum(mark.penalty for mark in penalties)
 
 

@@ -46,3 +46,20 @@ def test_protocol_html_matches_golden(name, tmp_path):
         assert text == (GOLDEN / f"{name}.{kind}").read_text(encoding="utf-8"), (
             f"{name}.{kind}"
         )
+
+
+@pytest.mark.parametrize(
+    "name", ["mass_basic", "example_race", "tries_asc", "custom_basic"]
+)
+def test_writing_twice_gives_the_same_html(name, tmp_path):
+    race = SCENARIOS[name]()
+    outputs = []
+    for i in range(2):
+        for writer, kind in (
+            (write_group_protocol, "g"),
+            (write_absolute_protocol, "a"),
+        ):
+            path = tmp_path / f"{kind}{i}.html"
+            writer(str(path), race.protocol, race.groups, race.cfg, race.n_points)
+            outputs.append(path.read_text(encoding="utf-8"))
+    assert outputs[:2] == outputs[2:]
