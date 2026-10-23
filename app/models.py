@@ -218,6 +218,9 @@ class FinishProtocolElement:
         self.lap_times: list[float] = [0.0] * sz
         self.finish_lap_times: list[float] = [0.0] * sz
         self.lap_penalty: list[str] = [""] * sz
+        # The same penalties as plain "<action>:<seconds>sec" lines, unescaped, for the
+        # structured protocol document; lap_penalty stays the HTML the writer prints.
+        self.lap_penalty_texts: list[list[str]] = [[] for _ in range(sz)]
         self.lap_finish_numbers: list[int] = [-1] * sz
         # n_points+1 slots: segments start->CP1, CP1->CP2, ..., last_CP->finish
         self.control_points: list[IntermediateCrosses] = [
