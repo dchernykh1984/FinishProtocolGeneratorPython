@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLineEdit
 
 from app import http_io
 from app.config import (
@@ -207,3 +207,47 @@ def test_format_and_language_survive_save_and_load(value):
 def test_an_old_config_without_the_format_sends_both():
     assert RaceConfig().http_protocol_format == PROTOCOL_FORMAT_BOTH
     assert normalize_protocol_format("HTML+Data typo") == PROTOCOL_FORMAT_BOTH
+
+
+def _window_after_loading(text: str) -> MainWindow:
+    win = MainWindow()
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "fpg_info.txt"
+        path.write_text(text, encoding="utf-8")
+        win._cfg.http_protocol_format = PROTOCOL_FORMAT_BOTH
+        win._combo_protocol_format.setCurrentText(PROTOCOL_FORMAT_BOTH)
+        win._load_race_info_from_path(str(path))
+    return win
+
+
+def test_loaded_format_shows_in_the_window_from_the_saved_file():
+    win = MainWindow()
+    try:
+        win._cfg.http_protocol_format = PROTOCOL_FORMAT_DATA
+        win._cfg.protocol_language = "kk"
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "fpg_info.txt")
+            win._save_race_info_to_path(path)
+            text = Path(path).read_text(encoding="utf-8")
+    finally:
+        win.deleteLater()
+    loaded = _window_after_loading(text)
+    try:
+        assert loaded._cfg.http_protocol_format == PROTOCOL_FORMAT_DATA
+        assert loaded._combo_protocol_format.currentText() == PROTOCOL_FORMAT_DATA
+        assert loaded.findChild(QLineEdit, "protocol_language").text() == "kk"
+    finally:
+        loaded.deleteLater()
+
+
+def test_loaded_format_shows_in_the_window_from_a_key_value_file():
+    from app.file_io import KEY_VALUE_HEADER
+
+    text = f"{KEY_VALUE_HEADER}\nHttpProtocolFormat=Data\nProtocolLanguage=en\nEnd\n"
+    loaded = _window_after_loading(text)
+    try:
+        assert loaded._cfg.http_protocol_format == PROTOCOL_FORMAT_DATA
+        assert loaded._combo_protocol_format.currentText() == PROTOCOL_FORMAT_DATA
+        assert loaded.findChild(QLineEdit, "protocol_language").text() == "en"
+    finally:
+        loaded.deleteLater()

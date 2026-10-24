@@ -2346,6 +2346,7 @@ class MainWindow(QMainWindow):
             ("_combo_rp_source", "remote_points_source"),
             ("_combo_http_groups_action", "http_groups_action"),
             ("_combo_http_absolute_action", "http_absolute_action"),
+            ("_combo_protocol_format", "http_protocol_format"),
         ):
             combo = getattr(self, ivar, None)
             if combo is not None:
