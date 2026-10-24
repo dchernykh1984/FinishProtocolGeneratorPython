@@ -241,6 +241,14 @@ desktops; `HTML` sends the file only, as before; `Data` sends the data only. Loc
 files and their FTP upload do not change. **Protocol language** tells the site which
 language the protocol's labels are in.
 
+The data leaves out what the site's event page already shows -- the date, the place, the
+course and the sponsors' logos -- and keeps the weather above the tables and the officials
+below them. Each column carries how much it matters, so a screen too narrow for all of them
+drops extra info first, then the year of birth, city, team, laps and number, and the start
+delay last; a lap's statistics sit under its time behind their switch, as in the HTML. Upload
+data only to a site that understands it (cycling-site after its #375): an older site refuses
+it and the HTML is published instead.
+
 ## Live race statistics (for the Garmin data field)
 
 When **Send group statistics** and/or **Send absolute statistics** are enabled in
