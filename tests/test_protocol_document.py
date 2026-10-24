@@ -247,12 +247,8 @@ def test_absolute_rows_carry_their_group_even_without_a_group_column():
 
 def test_header_and_footer_carry_the_race_info():
     document = _documents(SCENARIOS["mass_basic"]())["group"]
-    keys = [i.get("key") for i in document["header"]]
-    assert keys == [None, None, "track", "weather"]
-    assert document["header"][0] == {
-        "type": "html",
-        "html": '<a href="https://example.com/sponsor">Sponsor</a>',
-    }
+    # The date, the place, the course and the sponsors are on the site's event page.
+    assert [i.get("key") for i in document["header"]] == ["weather"]
     assert [i.get("key") for i in document["footer"]] == [
         "organizer",
         "referee",

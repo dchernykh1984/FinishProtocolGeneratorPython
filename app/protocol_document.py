@@ -344,11 +344,8 @@ def _items(cfg: RaceConfig, header: bool) -> list[dict[str, Any]]:
             )
 
     if header:
-        if cfg.sponsor:
-            items.append({"type": "html", "html": cfg.sponsor})
-        if cfg.race_date and cfg.race_place:
-            items.append({"type": "text", "text": f"{cfg.race_date}, {cfg.race_place}"})
-        field("track", cfg.track_conditions_label, cfg.track_conditions)
+        # The date, the place, the course and the sponsors are the event page's on the
+        # site; the protocol page above its tables keeps what changes on the day.
         field("weather", cfg.weather_label, cfg.weather)
     else:
         field("organizer", cfg.organizer_label, cfg.organizer)
