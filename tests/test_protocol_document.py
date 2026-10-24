@@ -327,3 +327,17 @@ def test_lap_ranks_are_not_computed_when_they_are_not_shown(monkeypatch):
     assert calls == []
     _documents(SCENARIOS["mass_lap_stats"]())
     assert calls
+
+
+@pytest.mark.parametrize("kind", ["group", "absolute"])
+def test_a_short_name_equal_to_a_long_names_id_stays_its_own_group(kind):
+    from app.protocol_document import _group_id
+
+    long_name = "A" * 101
+    short_name = _group_id(long_name)  # a legitimate 100-character name
+    document = _documents(_race_with_groups(long_name, short_name))[kind]
+    check_document_rules(document)
+    ids = [g["id"] for g in document["groups"]]
+    assert len(ids) == len(set(ids)) == 2
+    assert [g["label"] for g in document["groups"]] == [long_name, short_name]
+    assert _group_id(short_name) == _group_id(short_name)  # stable from run to run
