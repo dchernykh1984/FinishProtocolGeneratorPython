@@ -341,3 +341,21 @@ def test_a_short_name_equal_to_a_long_names_id_stays_its_own_group(kind):
     assert len(ids) == len(set(ids)) == 2
     assert [g["label"] for g in document["groups"]] == [long_name, short_name]
     assert _group_id(short_name) == _group_id(short_name)  # stable from run to run
+
+
+@pytest.mark.parametrize(
+    ("typed", "sent"),
+    [
+        (" RU ", "ru"),
+        ("kk", "kk"),
+        ("pt-BR", "pt-br"),
+        ("Russian", None),
+        ("ru_RU", None),
+    ],
+)
+def test_the_language_field_sends_only_a_language_code(typed, sent):
+    race = SCENARIOS["mass_basic"]()
+    race.cfg.protocol_language = typed
+    document = _documents(race)["group"]
+    assert document.get("lang") == sent
+    jsonschema.validate(document, SCHEMA)

@@ -39,6 +39,7 @@ GENERATOR = "FinishProtocolGenerator"
 #: The site's limit on a group id; longer group names are cut for the id only.
 _MAX_GROUP_ID = 100
 _HASHED_ID = re.compile(r"~[0-9a-f]{8}$")
+_LANGUAGE = re.compile(r"^[a-z]{2,3}(-[a-z0-9]{2,8})?$")
 _TAG = re.compile(r"<[^>]*>")
 _BREAK = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
@@ -347,8 +348,11 @@ def _document(
     }
     if cfg.race_name:
         document["title"] = cfg.race_name
-    if cfg.protocol_language:
-        document["lang"] = cfg.protocol_language
+    lang = cfg.protocol_language.strip().lower()
+    # A free-text field: only a language code the site understands ("ru", "kk", "en",
+    # "pt-br") is sent; anything else would make the site refuse the whole document.
+    if _LANGUAGE.match(lang):
+        document["lang"] = lang
     return document
 
 
