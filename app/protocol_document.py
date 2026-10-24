@@ -257,7 +257,8 @@ def _table(
             n_points,
             places.get(id(fp)),
         )
-        if absolute:
+        if absolute and fp.group_id:
+            # A rider without a group has no group to filter by (the site wants none).
             row["group"] = _group_id(fp.group_id)
         rows.append(row)
     return {"type": "table", "columns": columns, "rows": rows}
