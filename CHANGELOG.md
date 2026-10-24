@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.8.0...v0.8.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **document:** give each kind of column a rank of its own, so only the laps fall out together ([2252dd8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2252dd8bcf1f912d259d2102fa7d6f458a14ae62))
+
 ## [0.8.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.7.0...v0.8.0) (2026-10-24)
 
 
