@@ -12,6 +12,7 @@ protocols/schema/protocol-document-v1.json.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 from importlib import metadata
@@ -54,8 +55,14 @@ def _version() -> str:
         return ""
 
 
-def _group_id(group_id: str) -> str:
-    return group_id[:_MAX_GROUP_ID]
+def _group_id(name: str) -> str:
+    """A group's id on the site: its name, or -- for a name longer than the site
+    allows -- the name cut short plus a hash of the whole, so two long names never
+    become one group and the id stays the same from one run to the next."""
+    if len(name) <= _MAX_GROUP_ID:
+        return name
+    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]  # noqa: S324 -- an id
+    return f"{name[: _MAX_GROUP_ID - len(digest) - 1]}~{digest}"
 
 
 def _cell(text: str, sub: list[str] | None = None, strong: bool = False) -> Any:
