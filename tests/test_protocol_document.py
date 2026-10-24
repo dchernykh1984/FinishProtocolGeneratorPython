@@ -393,6 +393,17 @@ def test_columns_are_ranked_for_a_screen_that_cannot_show_them_all():
     assert len({rank[c] for c in order}) == len(order)
 
 
+def test_every_lap_and_its_splits_share_one_rank_and_nothing_else_does():
+    document = _documents(SCENARIOS["mass_points_everything"]())["absolute"]
+    columns = document["sections"][0]["columns"]
+    laps = [c for c in columns if c["id"].startswith("lap")]
+    assert len(laps) > 3 and len({c["priority"] for c in laps}) == 1
+    others = [c.get("priority") for c in columns if not c["id"].startswith("lap")]
+    assert laps[0]["priority"] not in others
+    ranked = [p for p in others if p]
+    assert len(ranked) == len(set(ranked))  # bib and group no longer fall out together
+
+
 def test_more_second_lines_than_the_site_takes_are_joined_keeping_switched_ones():
     from app.protocol_document import _fit_lines
 
