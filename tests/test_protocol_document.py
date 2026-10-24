@@ -291,3 +291,27 @@ def test_a_rider_without_a_group_gives_a_valid_document(kind):
     rows = [r for s in document["sections"] for r in s["rows"]]
     no_group = next(r for r in rows if r["cells"]["name"] == "Rider 1")
     assert "group" not in no_group
+
+
+@pytest.mark.parametrize("kind", ["group", "absolute"])
+def test_long_group_names_with_one_beginning_stay_two_groups(kind):
+    first, second = "A" * 100 + "1", "A" * 100 + "2"
+    document = _documents(_race_with_groups(first, second))[kind]
+    jsonschema.validate(document, SCHEMA)
+    check_document_rules(document)
+    ids = [g["id"] for g in document["groups"]]
+    assert len(ids) == len(set(ids)) == 2
+    assert all(len(i) <= 100 for i in ids)
+    assert [g["label"] for g in document["groups"]] == [first, second]
+    rows = [r for s in document["sections"] for r in s["rows"]]
+    if kind == "absolute":
+        assert {r["group"] for r in rows} == set(ids)
+    else:
+        assert [s["group"] for s in document["sections"]] == ids
+
+
+def test_group_ids_stay_the_same_from_run_to_run():
+    long_name = "B" * 150
+    once = _documents(_race_with_groups(long_name))["group"]["groups"]
+    again = _documents(_race_with_groups(long_name))["group"]["groups"]
+    assert once == again
