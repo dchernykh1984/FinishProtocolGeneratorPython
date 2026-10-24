@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.7.0...v0.8.0) (2026-10-24)
+
+
+### Features
+
+* **document:** leave the date, place, course and sponsors to the site's event page ([cce8825](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/cce88256ae8745f057228a1b8a74139f5458f8e5))
+* **document:** put a lap's statistics under its time behind their switch, as the HTML does ([6141cd6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6141cd66f20c4264d0cc13d04b9f02149d48a45b))
+* **document:** rank the columns so a narrow screen leaves out extra info first and the start delay last ([fde3254](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/fde325421e2832e868ce98859f5223c5e27cf6be))
+
+
+### Documentation
+
+* **readme:** say what the protocol data leaves to the event page and how its columns are ranked ([64a3158](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/64a31586811a8973081e4fb4e6efcac062c855fe))
+
 ## [0.7.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.6.0...v0.7.0) (2026-10-24)
 
 
