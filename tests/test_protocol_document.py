@@ -387,6 +387,16 @@ def test_the_language_field_sends_only_a_language_code(typed, sent):
     jsonschema.validate(document, SCHEMA)
 
 
+def test_columns_are_ranked_for_a_screen_that_cannot_show_them_all():
+    document = _documents(SCENARIOS["mass_all_columns"]())["group"]
+    rank = {c["id"]: c.get("priority", 1) for c in document["sections"][0]["columns"]}
+    assert rank["place"] == rank["name"] == rank["result"] == 1
+    # Left out first to last: extra info, year, city, team, laps, number, start delay.
+    order = ["extra", "year", "city", "team", "lap1", "bib", "start"]
+    assert [rank[c] for c in order] == sorted((rank[c] for c in order), reverse=True)
+    assert len({rank[c] for c in order}) == len(order)
+
+
 def test_more_second_lines_than_the_site_takes_are_joined_keeping_switched_ones():
     from app.protocol_document import _fit_lines
 

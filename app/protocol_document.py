@@ -38,6 +38,20 @@ SCHEMA_VERSION = 1
 GENERATOR = "FinishProtocolGenerator"
 #: The site's limit on the second lines under one cell.
 _MAX_SUB_LINES = 10
+#: How much each column matters when the site leaves some out to fit a screen: 1 always
+#: stays (place, name and result, by their roles), the highest number goes first. The
+#: start delay is read before the results exist -- when each rider starts -- so it is
+#: kept longest.
+_PRIORITY = {
+    "start": 2,
+    "bib": 3,
+    "group": 3,
+    "lap": 4,
+    "team": 5,
+    "city": 6,
+    "year": 7,
+    "extra": 8,
+}
 #: The site's limit on a group id; longer group names are cut for the id only.
 _MAX_GROUP_ID = 100
 _HASHED_ID = re.compile(r"~[0-9a-f]{8}$")
@@ -113,23 +127,23 @@ def _person_columns(cfg: RaceConfig, absolute: bool) -> list[dict[str, Any]]:
             cfg.show_id,
             "bib",
             cfg.id_label,
-            {"role": "bib"},
+            {"role": "bib", "priority": _PRIORITY["bib"]},
         ),
         (cfg.show_name, "name", cfg.name_label, {"role": "name"}),
-        (cfg.show_age, "year", cfg.age_label, {"priority": 3}),
+        (cfg.show_age, "year", cfg.age_label, {"priority": _PRIORITY["year"]}),
         (
             absolute and cfg.show_group,
             "group",
             cfg.group_label,
-            {"role": "group", "priority": 2},
+            {"role": "group", "priority": _PRIORITY["group"]},
         ),
         (
             cfg.show_team,
             "team",
             cfg.team_label,
-            {"role": "team", "priority": 2},
+            {"role": "team", "priority": _PRIORITY["team"]},
         ),
-        (cfg.show_city, "city", cfg.city_label, {"priority": 3}),
+        (cfg.show_city, "city", cfg.city_label, {"priority": _PRIORITY["city"]}),
     ]
     return [_column(cid, label, **extra) for on, cid, label, extra in specs if on]
 
@@ -159,7 +173,7 @@ def _lap_columns(cfg: RaceConfig, j: int, n_points: int) -> list[dict[str, Any]]
             lap,
             group=lap,
             sub_label=heading,
-            priority=3,
+            priority=_PRIORITY["lap"],
         )
     ]
     # Splits are switchable only where the HTML has their button; without it they
@@ -172,7 +186,7 @@ def _lap_columns(cfg: RaceConfig, j: int, n_points: int) -> list[dict[str, Any]]
                 f"({cp_i + 1} split)",
                 group=lap,
                 toggle=toggle,
-                priority=3,
+                priority=_PRIORITY["lap"],
             )
         )
     if len(columns) == 1:
@@ -193,9 +207,13 @@ def _closing_columns(cfg: RaceConfig) -> list[dict[str, Any]]:
             _column("result", cfg.finish_time_label, role="result", sub_label=sub)
         )
     if cfg.show_additional_info:
-        columns.append(_column("extra", cfg.additional_info_label, priority=3))
+        columns.append(
+            _column("extra", cfg.additional_info_label, priority=_PRIORITY["extra"])
+        )
     if cfg.show_time_shift:
-        columns.append(_column("start", cfg.time_shift_label, priority=3))
+        columns.append(
+            _column("start", cfg.time_shift_label, priority=_PRIORITY["start"])
+        )
     return columns
 
 
