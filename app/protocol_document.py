@@ -207,7 +207,8 @@ def _row(
             [*parts.penalties, parts.finish_number, parts.finish_time],
             parts.strong,
         )
-        ranks = lap_ranks(fp, lc, peers)
+        # Ranks compare every rider of the table, lap by lap: only when they are shown.
+        ranks = lap_ranks(fp, lc, peers) if f"lap{lc + 1}_rank" in ids else None
         if ranks is not None:
             values[f"lap{lc + 1}_rank"] = _rank_text(
                 ranks.gap_lap, ranks.place_lap, cfg

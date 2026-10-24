@@ -315,3 +315,15 @@ def test_group_ids_stay_the_same_from_run_to_run():
     once = _documents(_race_with_groups(long_name))["group"]["groups"]
     again = _documents(_race_with_groups(long_name))["group"]["groups"]
     assert once == again
+
+
+def test_lap_ranks_are_not_computed_when_they_are_not_shown(monkeypatch):
+    import app.protocol_document as builder
+
+    calls = []
+    real = builder.lap_ranks
+    monkeypatch.setattr(builder, "lap_ranks", lambda *a: calls.append(1) or real(*a))
+    _documents(SCENARIOS["mass_basic"]())
+    assert calls == []
+    _documents(SCENARIOS["mass_lap_stats"]())
+    assert calls
