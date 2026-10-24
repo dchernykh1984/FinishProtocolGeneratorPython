@@ -251,3 +251,69 @@ def test_loaded_format_shows_in_the_window_from_a_key_value_file():
         assert loaded.findChild(QLineEdit, "protocol_language").text() == "en"
     finally:
         loaded.deleteLater()
+
+
+def _refusing(tmp_path, **kwargs):
+    import io
+    import urllib.error
+
+    html = tmp_path / "gr.html"
+    html.write_text("<html></html>", encoding="utf-8")
+
+    def refuse(req, timeout):
+        raise urllib.error.HTTPError(
+            req.full_url, 400, "Bad Request", {}, io.BytesIO(b'{"detail": "too big"}')
+        )
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    with patch("app.http_io.urllib.request.urlopen", side_effect=refuse):
+        code = http_io.upload_protocol(
+            "https://s",
+            "tok",
+            "group",
+            str(html),
+            errors_out=errors,
+            warnings_out=warnings,
+            **kwargs,
+        )
+    return code, errors, warnings
+
+
+def test_a_refused_data_only_upload_is_told_apart_with_the_reason(tmp_path):
+    code, errors, warnings = _refusing(tmp_path, document=DOCUMENT, send_html=False)
+    assert code == http_io.REFUSED_DATA
+    assert errors == []
+    assert "too big" in warnings[0]
+
+
+def test_a_refused_upload_with_html_stays_an_error(tmp_path):
+    code, errors, _ = _refusing(tmp_path, document=DOCUMENT)
+    assert code == -1
+    assert "400" in errors[0]
+
+
+def test_refused_data_only_publishes_the_html_instead():
+    cfg = _cfg(PROTOCOL_FORMAT_DATA)
+    cfg.http_absolute_action = "Nothing"
+    calls: list[dict] = []
+
+    def site(*args, **kwargs):
+        calls.append(kwargs)
+        if not kwargs["send_html"]:
+            kwargs["warnings_out"].append("The site refused the protocol data: too big")
+            return http_io.REFUSED_DATA
+        return 0
+
+    worker = _GenerateWorker(cfg)
+    logged: list[str] = []
+    worker.log_message.connect(logged.append)
+    with patch("app.main_window.http_upload_protocol", side_effect=site):
+        failed, errors = worker._do_uploads(cfg, [], DOCS)
+    assert not failed and errors == []
+    assert [(c["document"] is not None, c["send_html"]) for c in calls] == [
+        (True, False),
+        (False, True),
+    ]
+    assert any("too big" in line for line in logged)
+    assert any("HTML was published instead" in line for line in logged)
