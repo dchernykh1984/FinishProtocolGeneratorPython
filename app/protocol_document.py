@@ -36,6 +36,8 @@ from app.protocol_rows import (
 
 SCHEMA_VERSION = 1
 GENERATOR = "FinishProtocolGenerator"
+#: The site's limit on the second lines under one cell.
+_MAX_SUB_LINES = 10
 #: The site's limit on a group id; longer group names are cut for the id only.
 _MAX_GROUP_ID = 100
 _HASHED_ID = re.compile(r"~[0-9a-f]{8}$")
@@ -71,8 +73,21 @@ def _group_id(name: str) -> str:
     return f"{name[: _MAX_GROUP_ID - len(digest) - 1]}~{digest}"
 
 
-def _cell(text: str, sub: list[str] | None = None, strong: bool = False) -> Any:
-    sub = [line for line in (sub or []) if line]
+def _fit_lines(lines: list[Any]) -> list[Any]:
+    """At most the site's number of second lines: plain ones over are joined into one.
+
+    A line a switch hides stays on its own, so the switch still hides exactly it.
+    """
+    if len(lines) <= _MAX_SUB_LINES:
+        return lines
+    toggled = [line for line in lines if isinstance(line, dict)]
+    plain = [line for line in lines if not isinstance(line, dict)]
+    keep = max(_MAX_SUB_LINES - len(toggled) - 1, 0)
+    return [*plain[:keep], "; ".join(plain[keep:]), *toggled][:_MAX_SUB_LINES]
+
+
+def _cell(text: str, sub: list[Any] | None = None, strong: bool = False) -> Any:
+    sub = _fit_lines([line for line in (sub or []) if line])
     if not sub and not strong:
         return text
     cell: dict[str, Any] = {"text": text}
@@ -94,7 +109,12 @@ def _column(column_id: str, label: str, **extra: Any) -> dict[str, Any]:
 def _person_columns(cfg: RaceConfig, absolute: bool) -> list[dict[str, Any]]:
     specs: list[tuple[bool, str, str, dict[str, Any]]] = [
         (cfg.show_place, "place", cfg.place_label, {"role": "place"}),
-        (cfg.show_id, "bib", cfg.id_label, {"role": "bib"}),
+        (
+            cfg.show_id,
+            "bib",
+            cfg.id_label,
+            {"role": "bib"},
+        ),
         (cfg.show_name, "name", cfg.name_label, {"role": "name"}),
         (cfg.show_age, "year", cfg.age_label, {"priority": 3}),
         (
@@ -103,28 +123,45 @@ def _person_columns(cfg: RaceConfig, absolute: bool) -> list[dict[str, Any]]:
             cfg.group_label,
             {"role": "group", "priority": 2},
         ),
-        (cfg.show_team, "team", cfg.team_label, {"role": "team", "priority": 2}),
+        (
+            cfg.show_team,
+            "team",
+            cfg.team_label,
+            {"role": "team", "priority": 2},
+        ),
         (cfg.show_city, "city", cfg.city_label, {"priority": 3}),
     ]
     return [_column(cid, label, **extra) for on, cid, label, extra in specs if on]
 
 
+def _rank_labels(cfg: RaceConfig) -> list[str]:
+    """The lap statistics under a lap's time (use_all_buttons), in the HTML's order."""
+    if not cfg.use_all_buttons:
+        return []
+    labels = [cfg.lap_rank_label]
+    if cfg.show_lap_finish:
+        labels.append(cfg.lap_finish_rank_label)
+    return labels
+
+
 def _lap_columns(cfg: RaceConfig, j: int, n_points: int) -> list[dict[str, Any]]:
-    """One lap: its time, then its ranks (use_all_buttons), then its splits."""
+    """One lap: its time with its statistics under it, as in the HTML, then splits."""
     lap = f"{cfg.lap_name} {j + 1}"
-    finish = [_plain(cfg.lap_additional_info)] if cfg.show_lap_finish else []
-    columns = [_column(f"lap{j + 1}", lap, group=lap, sub_label=finish, priority=3)]
-    ranks = []
-    if cfg.use_all_buttons:
-        ranks.append(("rank", cfg.lap_rank_label))
-        if cfg.show_lap_finish:
-            ranks.append(("finish_rank", cfg.lap_finish_rank_label))
-    for suffix, label in ranks:
-        columns.append(
-            _column(
-                f"lap{j + 1}_{suffix}", label, group=lap, toggle="lap_stats", priority=3
-            )
+    heading: list[Any] = []
+    if cfg.show_lap_finish:
+        heading.append(_plain(cfg.lap_additional_info))
+    heading += [
+        {"text": _plain(label), "toggle": "lap_stats"} for label in _rank_labels(cfg)
+    ]
+    columns = [
+        _column(
+            f"lap{j + 1}",
+            lap,
+            group=lap,
+            sub_label=heading,
+            priority=3,
         )
+    ]
     # Splits are switchable only where the HTML has their button; without it they
     # are simply shown.
     toggle = "splits" if cfg.use_buttons else None
@@ -173,10 +210,14 @@ def _columns(
     return columns + _closing_columns(cfg)
 
 
-def _rank_text(gap: float, place: int, cfg: RaceConfig) -> Any:
-    return _cell(
-        f"{format_time(gap, cfg.n_signs_after_point)} ({place})", strong=place == 1
-    )
+def _rank_line(gap: float, place: int, cfg: RaceConfig) -> dict[str, Any]:
+    line: dict[str, Any] = {
+        "text": f"{format_time(gap, cfg.n_signs_after_point)} ({place})",
+        "toggle": "lap_stats",
+    }
+    if place == 1:
+        line["strong"] = True
+    return line
 
 
 def _row(
@@ -206,22 +247,19 @@ def _row(
         "extra": fp.extra_info,
         "start": time_shift_text(fp, cfg),
     }
+    n_ranks = len(_rank_labels(cfg))
     for lc in range(n_laps):
         parts = lap_parts(fp, lc, cfg)
-        values[f"lap{lc + 1}"] = _cell(
-            parts.text,
-            [*parts.penalties, parts.finish_number, parts.finish_time],
-            parts.strong,
-        )
+        lines: list[Any] = [*parts.penalties, parts.finish_number, parts.finish_time]
         # Ranks compare every rider of the table, lap by lap: only when they are shown.
-        ranks = lap_ranks(fp, lc, peers) if f"lap{lc + 1}_rank" in ids else None
+        ranks = lap_ranks(fp, lc, peers) if n_ranks and f"lap{lc + 1}" in ids else None
         if ranks is not None:
-            values[f"lap{lc + 1}_rank"] = _rank_text(
-                ranks.gap_lap, ranks.place_lap, cfg
-            )
-            values[f"lap{lc + 1}_finish_rank"] = _rank_text(
-                ranks.gap_finish, ranks.place_finish, cfg
-            )
+            pairs = [
+                (ranks.gap_lap, ranks.place_lap),
+                (ranks.gap_finish, ranks.place_finish),
+            ]
+            lines += [_rank_line(gap, place, cfg) for gap, place in pairs[:n_ranks]]
+        values[f"lap{lc + 1}"] = _cell(parts.text, lines, parts.strong)
         for cp_i in range(n_points + 1 if n_points > 0 else 0):
             values[f"lap{lc + 1}_s{cp_i + 1}"] = split_text(fp, lc, cp_i, cfg)
     result = result_parts(fp, leader, cfg)
@@ -328,7 +366,12 @@ def _document(
     if (
         cfg.use_all_buttons
         and cfg.show_lap_times
-        and any(c.get("toggle") == "lap_stats" for s in sections for c in s["columns"])
+        and any(
+            isinstance(line, dict) and line.get("toggle") == "lap_stats"
+            for s in sections
+            for c in s["columns"]
+            for line in c.get("sub_label", [])
+        )
     ):
         toggles.append(
             {

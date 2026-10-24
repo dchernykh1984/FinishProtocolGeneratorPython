@@ -34,13 +34,25 @@ def check_document_rules(document: dict) -> None:
         assert len(ids) == len(set(ids)), "column ids are unique"
         for column in section["columns"]:
             assert column.get("toggle") in (None, *toggles)
+            _check_lines(column.get("sub_label", []), toggles)
         assert section.get("group") in (None, *groups)
         for row in section["rows"]:
             assert set(row["cells"]) <= set(ids)
             assert row.get("group") in (None, *groups)
+            for cell in row["cells"].values():
+                if isinstance(cell, dict):
+                    _check_lines(cell.get("sub", []), toggles)
         cells += len(ids) * len(section["rows"])
         cells += sum(1 for row in section["rows"] if row.get("note"))
     assert cells <= _MAX_CELLS
+
+
+def _check_lines(lines: list, toggles: list[str]) -> None:
+    """A second line's switch is one the document declares; ten lines at most."""
+    assert len(lines) <= 10
+    for line in lines:
+        if isinstance(line, dict):
+            assert line.get("toggle") in (None, *toggles)
 
 
 def _documents(race: Race) -> dict[str, dict]:
@@ -91,6 +103,10 @@ def _tokens(texts: list[str]) -> list[str]:
     return sorted(out)
 
 
+def _line_text(line) -> str:
+    return line["text"] if isinstance(line, dict) else line
+
+
 def _document_texts(section: dict) -> list[str]:
     texts = []
     for row in section["rows"]:
@@ -99,7 +115,7 @@ def _document_texts(section: dict) -> list[str]:
                 texts.append(cell)
             else:
                 texts.append(cell["text"])
-                texts.extend(cell.get("sub", []))
+                texts.extend(_line_text(line) for line in cell.get("sub", []))
         if row.get("note"):
             texts.extend(row["note"].split("\n"))
     return texts
@@ -156,14 +172,24 @@ def test_splits_without_buttons_have_no_switch_and_stay_visible():
     assert document["toggles"] == []
 
 
-def test_lap_statistics_carry_both_pairs_with_show_lap_finish():
+def _stats(cell) -> list[dict]:
+    return [line for line in cell.get("sub", []) if isinstance(line, dict)]
+
+
+def test_lap_statistics_sit_under_the_lap_time_as_in_the_html():
     document = _documents(SCENARIOS["mass_lap_stats"]())["group"]
-    ids = [c["id"] for c in document["sections"][0]["columns"]]
-    assert "lap1_rank" in ids and "lap1_finish_rank" in ids
-    without = _documents(SCENARIOS["mass_lap_stats_no_finish"]())["group"]
-    assert "lap1_finish_rank" not in [
-        c["id"] for c in without["sections"][0]["columns"]
+    section = document["sections"][0]
+    assert not [c for c in section["columns"] if "rank" in c["id"]]
+    lap = next(c for c in section["columns"] if c["id"] == "lap1")
+    assert [line["toggle"] for line in lap["sub_label"] if isinstance(line, dict)] == [
+        "lap_stats",
+        "lap_stats",
     ]
+    first = section["rows"][0]["cells"]["lap1"]
+    assert len(_stats(first)) == 2
+    assert all(line["toggle"] == "lap_stats" for line in _stats(first))
+    without = _documents(SCENARIOS["mass_lap_stats_no_finish"]())["group"]
+    assert len(_stats(without["sections"][0]["rows"][0]["cells"]["lap1"])) == 1
 
 
 def test_tries_mark_counted_attempts_and_list_their_penalties():
@@ -359,3 +385,13 @@ def test_the_language_field_sends_only_a_language_code(typed, sent):
     document = _documents(race)["group"]
     assert document.get("lang") == sent
     jsonschema.validate(document, SCHEMA)
+
+
+def test_more_second_lines_than_the_site_takes_are_joined_keeping_switched_ones():
+    from app.protocol_document import _fit_lines
+
+    stats = [{"text": "0:00 (1)", "toggle": "lap_stats"}] * 2
+    lines = _fit_lines([f"penalty {i}" for i in range(12)] + stats)
+    assert len(lines) == 10
+    assert lines[-2:] == stats
+    assert all(f"penalty {i}" in " ".join(map(str, lines)) for i in range(12))
