@@ -41,16 +41,17 @@ _MAX_SUB_LINES = 10
 #: How much each column matters when the site leaves some out to fit a screen: 1 always
 #: stays (place, name and result, by their roles), the highest number goes first. The
 #: start delay is read before the results exist -- when each rider starts -- so it is
-#: kept longest.
+#: kept longest. The site leaves out the columns of one rank together, so a rank is a
+#: set: every lap and its splits share one, and nothing else shares a rank by chance.
 _PRIORITY = {
     "start": 2,
     "bib": 3,
-    "group": 3,
-    "lap": 4,
-    "team": 5,
-    "city": 6,
-    "year": 7,
-    "extra": 8,
+    "group": 4,
+    "lap": 5,
+    "team": 6,
+    "city": 7,
+    "year": 8,
+    "extra": 9,
 }
 #: The site's limit on a group id; longer group names are cut for the id only.
 _MAX_GROUP_ID = 100
