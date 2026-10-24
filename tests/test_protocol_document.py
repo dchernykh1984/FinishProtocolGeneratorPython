@@ -269,3 +269,25 @@ def test_a_lap_is_grouped_only_when_it_has_several_columns():
     split = _documents(SCENARIOS["mass_points_buttons"]())["group"]["sections"][0]
     lap1 = [c for c in split["columns"] if c["id"].startswith("lap1")]
     assert len(lap1) > 1 and {c["group"] for c in lap1} == {"Lap 1"}
+
+
+def _race_with_groups(*group_names: str) -> Race:
+    from protocol_scenarios import _cfg, _mark, _run
+
+    cfg = _cfg()
+    starts = [
+        f"{i}#Rider {i}#{name}#1#1#1990####" for i, name in enumerate(group_names, 1)
+    ]
+    groups = [(name, 100) for name in dict.fromkeys(group_names)]
+    finishes = [_mark(i, 200 + i * 10) for i in range(1, len(group_names) + 1)]
+    return _run(cfg, starts, groups, finishes)
+
+
+@pytest.mark.parametrize("kind", ["group", "absolute"])
+def test_a_rider_without_a_group_gives_a_valid_document(kind):
+    document = _documents(_race_with_groups("", "M30"))[kind]
+    jsonschema.validate(document, SCHEMA)
+    check_document_rules(document)
+    rows = [r for s in document["sections"] for r in s["rows"]]
+    no_group = next(r for r in rows if r["cells"]["name"] == "Rider 1")
+    assert "group" not in no_group
