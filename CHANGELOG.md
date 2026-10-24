@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.6.0...v0.7.0) (2026-10-24)
+
+
+### Features
+
+* **protocols:** build the protocol as a structured document for the site ([418ddae](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/418ddaeaffacd2f0332f3310fa7dcfba2843dbf6))
+* **protocols:** send the protocol to the site as data, HTML or both ([e1f23fe](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e1f23fe409c505662d70ba242c38968a07a03d91))
+
+
+### Bug Fixes
+
+* **protocols:** group a lap's columns only when it has more than one ([296b81c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/296b81c4212206d48e46380924b550948a8a008d))
+* **protocols:** keep a group whose name looks like a hashed id apart from the group it imitates ([e93a3f6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e93a3f62bd968d1edeafee974a878259bc652489))
+* **protocols:** keep long group names apart with stable ids ([ad41c48](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/ad41c485d4e5c05e0b59ea6c86a984bf5ffd62a2))
+* **protocols:** leave a rider without a group out of the group filter instead of breaking the document ([40edbfd](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/40edbfd2581dee63356c289b19e2829b0574625b))
+* **protocols:** publish the HTML when the site refuses a data-only upload ([2335788](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/23357888d92035e376f9d902ea3c1edc30944497))
+* **protocols:** send the protocol language only when it is a language code ([59a2719](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/59a2719ff6507ca3e43a62e573f50d5d15337ed7))
+* **protocols:** show the loaded protocol format in the window ([8b89944](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8b8994499536af7efc6cf4bf12b1423cb6cffbc5))
+
+
+### Performance Improvements
+
+* **protocols:** compute lap ranks for the document only when they are shown ([04d55de](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/04d55deea9c1006de9117a12669525e5eaccbd32))
+
 ## [0.6.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.5.0...v0.6.0) (2026-10-21)
 
 
