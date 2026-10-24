@@ -120,8 +120,9 @@ def upload_protocol(  # noqa: C901
     document. A site that could not accept the document keeps the HTML and says why;
     that reason goes to *warnings_out*, since the protocol is still published.
 
-    Returns 0 on success, -1 on error. Appends a human-readable message to
-    *errors_out* on failure when provided.
+    Returns 0 on success, -1 on error, ``REFUSED_DATA`` when only the document was
+    sent and the site refused it (the reason goes to *warnings_out*). Appends a
+    human-readable message to *errors_out* on failure when provided.
     """
     if not site_url or (send_html and not local_path):
         if errors_out is not None:
@@ -199,6 +200,14 @@ def upload_protocol(  # noqa: C901
         return 0
 
     except urllib.error.HTTPError as exc:
+        if exc.code == 400 and document is not None and local is None:
+            # The site refused the data, and nothing else was sent: the caller can
+            # still publish the HTML. Not an error yet -- a warning with the reason.
+            if warnings_out is not None:
+                warnings_out.append(
+                    f"The site refused the protocol data: {_detail(exc)}"
+                )
+            return REFUSED_DATA
         if errors_out is not None:
             errors_out.append(
                 f"HTTP upload to {upload_url} failed: {exc.code} {exc.reason}"
@@ -208,6 +217,18 @@ def upload_protocol(  # noqa: C901
         if errors_out is not None:
             errors_out.append(f"HTTP upload to {upload_url} failed: {exc}")
         return -1
+
+
+#: upload_protocol's answer when the site refused a data-only upload (HTTP 400).
+REFUSED_DATA = -2
+
+
+def _detail(exc: urllib.error.HTTPError) -> str:
+    """The site's own reason for a refusal, when it gave one."""
+    try:
+        return str(json.loads(exc.read().decode("utf-8")).get("detail") or exc.reason)
+    except ValueError, AttributeError, TypeError, OSError:
+        return str(exc.reason)
 
 
 def _note_document_error(answer: bytes, warnings_out: list[str] | None) -> None:

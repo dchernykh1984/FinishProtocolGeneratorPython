@@ -62,6 +62,7 @@ from app.file_io import (
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
 from app.html_writer import write_absolute_protocol, write_group_protocol
+from app.http_io import REFUSED_DATA as HTTP_REFUSED_DATA
 from app.http_io import delete_protocol as http_delete_protocol
 from app.http_io import (
     fetch_finish_times,
@@ -458,8 +459,9 @@ class _GenerateWorker(QThread):
             # Data only, but the data could not be built: the HTML still goes out.
             send_html = fmt != PROTOCOL_FORMAT_DATA or send is None
             warnings: list[str] = []
-            if (
-                http_upload_protocol(
+
+            def upload(document_part, with_html):
+                return http_upload_protocol(
                     cfg.http_site_url,
                     cfg.http_upload_token,
                     protocol_type,
@@ -467,12 +469,17 @@ class _GenerateWorker(QThread):
                     is_live=cfg.http_is_live,
                     stage_label=cfg.http_stage_label,
                     errors_out=errors,
-                    document=send,
-                    send_html=send_html,
+                    document=document_part,
+                    send_html=with_html,
                     warnings_out=warnings,
                 )
-                == -1
-            ):
+
+            result = upload(send, send_html)
+            if result == HTTP_REFUSED_DATA:
+                # Data only, refused: publish the HTML rather than show nothing.
+                warnings.append("the HTML was published instead")
+                result = upload(None, True)
+            if result != 0:
                 return True
             for warning in warnings:
                 self.log_message.emit(f"  WARNING: {label} protocol: {warning}")
