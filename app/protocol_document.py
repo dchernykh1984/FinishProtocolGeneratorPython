@@ -38,6 +38,7 @@ SCHEMA_VERSION = 1
 GENERATOR = "FinishProtocolGenerator"
 #: The site's limit on a group id; longer group names are cut for the id only.
 _MAX_GROUP_ID = 100
+_HASHED_ID = re.compile(r"~[0-9a-f]{8}$")
 _TAG = re.compile(r"<[^>]*>")
 _BREAK = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
@@ -56,10 +57,14 @@ def _version() -> str:
 
 
 def _group_id(name: str) -> str:
-    """A group's id on the site: its name, or -- for a name longer than the site
-    allows -- the name cut short plus a hash of the whole, so two long names never
-    become one group and the id stays the same from one run to the next."""
-    if len(name) <= _MAX_GROUP_ID:
+    """A group's id on the site: its name, or the name cut short plus its hash.
+
+    The hashed form is used for a name longer than the site allows, and also for a short
+    name that merely looks like one (ending in "~" and 8 hex digits), so a real name can
+    never equal another name's hashed id; two long names with one beginning stay apart,
+    and an id stays the same from one run to the next.
+    """
+    if len(name) <= _MAX_GROUP_ID and not _HASHED_ID.search(name):
         return name
     digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]  # noqa: S324 -- an id
     return f"{name[: _MAX_GROUP_ID - len(digest) - 1]}~{digest}"
