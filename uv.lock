@@ -231,7 +231,7 @@ wheels = [
 
 [[package]]
 name = "finish-protocol-generator"
-version = "0.6.0"
+version = "0.7.0"
 source = { virtual = "." }
 default-groups = "all"
 dependencies = [
