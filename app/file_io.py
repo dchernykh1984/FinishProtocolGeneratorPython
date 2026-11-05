@@ -95,12 +95,20 @@ def load_template(path: str) -> HtmlStyles | None:
 
 
 def read_start_protocol(
-    path: str, skip_first_lap: bool = False
+    path: str, skip_first_lap: bool = False, place_field: bool = False
 ) -> list[StartProtocolElement]:
     return [
-        StartProtocolElement.from_line(ln, skip_first_lap=skip_first_lap)
+        StartProtocolElement.from_line(
+            ln, skip_first_lap=skip_first_lap, place_field=place_field
+        )
         for ln in _read_lines(path)
     ]
+
+
+def read_text_lines(path: str) -> list[str]:
+    """Non-empty lines of a text file; Eliminator Finals reads its ladders and heat
+    results as plain lines rather than timing records."""
+    return _read_lines(path)
 
 
 def read_group_times(path: str) -> list[GroupStartElement]:

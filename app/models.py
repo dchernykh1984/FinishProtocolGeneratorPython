@@ -74,6 +74,9 @@ class StartProtocolElement:
     extra_info: str
     start_delay: float
     number: int = 0
+    #: Field 9 read as a plain number. Eliminator Finals puts the qualification place
+    #: there instead of a time of day; every other mode ignores this.
+    start_place: int = 0
 
     @classmethod
     def from_line(
@@ -81,7 +84,14 @@ class StartProtocolElement:
         line: str,
         sep: str = "#",
         skip_first_lap: bool = False,
+        place_field: bool = False,
     ) -> StartProtocolElement:
+        """Parse one start protocol line.
+
+        ``place_field`` says field 9 holds a qualification place rather than a time of
+        day, which is what Eliminator Finals reads it as; the time parser rejects a
+        bare number outright, so it is not even tried then.
+        """
         f = lambda i: get_field(line, i, sep)  # noqa: E731
         n_laps = to_int(f(3)) or 1
         try:
@@ -98,8 +108,9 @@ class StartProtocolElement:
             team=f(6),
             city=f(7),
             extra_info=f(8),
-            start_delay=parse_time_string(f(9)) if f(9) else 0.0,
+            start_delay=(0.0 if place_field or not f(9) else parse_time_string(f(9))),
             number=number,
+            start_place=to_int(f(9)),
         )
 
 
