@@ -337,6 +337,25 @@ def read_heat_results(lines: list[str], sep: str = "#") -> list[list[str]]:
     return results
 
 
+def _one_ladder_per_group(
+    groups: list[EliminatorGroup], log: list[str]
+) -> list[EliminatorBracket]:
+    """One bracket per group id. A second ladder for the same group would stand
+    empty while the riders seat themselves in the other, so it is dropped."""
+    brackets: list[EliminatorBracket] = []
+    seen: set[str] = set()
+    for group in groups:
+        if group.group_id in seen:
+            log.append(
+                f"ERROR: group {group.group_id} describes more than one ladder; "
+                "only the first is used"
+            )
+            continue
+        seen.add(group.group_id)
+        brackets.append(EliminatorBracket(group))
+    return brackets
+
+
 def build_brackets(
     groups: list[EliminatorGroup],
     start_list: list[StartProtocolElement],
@@ -344,7 +363,7 @@ def build_brackets(
     log: list[str],
 ) -> list[EliminatorBracket]:
     """Build every ladder, seat the qualifiers and ride the results through it."""
-    brackets = [EliminatorBracket(group) for group in groups]
+    brackets = _one_ladder_per_group(groups, log)
     by_id = {bracket.group.group_id: bracket for bracket in brackets}
     for start in start_list:
         bracket = by_id.get(start.group_id)
@@ -359,6 +378,14 @@ def build_brackets(
     for bracket in brackets:
         bracket.advance_byes()
     for order in results:
+        if len(set(order)) != len(order):
+            # One bib twice would place the same rider in two seats and push another
+            # out of the heat entirely.
+            log.append(
+                "ERROR: heat result repeats a number and was ignored: "
+                + ", ".join(order)
+            )
+            continue
         if not any(bracket.apply_result(order) for bracket in brackets):
             log.append("WARNING: no heat is waiting for the result " + ", ".join(order))
         for bracket in brackets:

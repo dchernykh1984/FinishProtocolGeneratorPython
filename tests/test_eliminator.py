@@ -290,3 +290,28 @@ class TestDuplicatePlaces:
         # One of them still rides; the other is named in the log rather than lost.
         assert bracket.stages[0][0].numbers[0] == "102"
         assert any("101 loses its seat" in message for message in log)
+
+
+class TestBrokenInput:
+    def test_a_result_that_repeats_a_number_is_refused(self) -> None:
+        log: list[str] = []
+        bracket = build_brackets(
+            [EliminatorGroup("G", 4, 2)],
+            _starts(list(range(1, 9))),
+            [["101", "101", "105", "104"]],
+            log,
+        )[0]
+        assert not bracket.stages[0][0].has_results
+        assert any("repeats a number" in message for message in log)
+
+    def test_a_group_with_two_ladders_keeps_the_first(self) -> None:
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("G", 4, 2), EliminatorGroup("G", 2, 1)],
+            _starts([1, 4]),
+            [],
+            log,
+        )
+        assert len(brackets) == 1
+        assert brackets[0].group.heat_size == 4
+        assert any("more than one ladder" in message for message in log)
