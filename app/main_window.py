@@ -49,6 +49,13 @@ from app.config import (
     normalize_http_action,
     normalize_protocol_format,
 )
+from app.eliminator import (
+    build_brackets,
+    group_problems,
+    parse_eliminator_groups,
+    read_heat_results,
+)
+from app.eliminator_output import build_finals_document, write_finals_protocol
 from app.file_io import (
     KEY_VALUE_HEADER,
     config_file_problems,
@@ -58,6 +65,7 @@ from app.file_io import (
     read_finish_times,
     read_group_times,
     read_start_protocol,
+    read_text_lines,
     sanitize_config_line,
 )
 from app.ftp_io import DOWNLOAD_ACTIONS, download_file, upload_file
@@ -432,7 +440,11 @@ class _GenerateWorker(QThread):
                 failed = True
 
             # Live per-competitor stats for the Garmin field (full snapshot each run).
-            if cfg.send_group_statistics or cfg.send_absolute_statistics:
+            # A ladder has no times to report, and sending an empty snapshot would
+            # wipe whatever the qualification round published.
+            if (
+                cfg.send_group_statistics or cfg.send_absolute_statistics
+            ) and not cfg.is_eliminator_finals():
                 self.log_message.emit("Sending live statistics...")
                 stats = build_live_stats(protocol, cfg)
                 count = upload_live_stats(
@@ -530,6 +542,18 @@ class _GenerateWorker(QThread):
             self.log_message.emit(f"  WARNING: protocol data not built: {exc}")
             return {}
 
+    def _build_finals_documents(self, cfg, brackets, start_list):
+        """The ladder as site data, under the same conditions as a timed protocol."""
+        if normalize_protocol_format(cfg.http_protocol_format) == PROTOCOL_FORMAT_HTML:
+            return {}
+        if not cfg.http_site_url or cfg.http_groups_action != HTTP_ACTION_UPLOAD:
+            return {}
+        try:
+            return {"group": build_finals_document(brackets, start_list, cfg)}
+        except Exception as exc:
+            self.log_message.emit(f"  WARNING: protocol data not built: {exc}")
+            return {}
+
     def _emit_upload_result(
         self, upload_failed: bool, upload_errors: list[str]
     ) -> None:
@@ -539,12 +563,48 @@ class _GenerateWorker(QThread):
         else:
             self.log_message.emit("Done.")
 
+    def _run_eliminator_finals(self, cfg: RaceConfig) -> None:
+        """Ladders instead of times: every input file means something else here.
+
+        groups.txt describes the ladders, the start protocol carries qualification
+        places and the finish file holds one heat result per line, so none of the
+        timing pipeline runs.
+        """
+        log: list[str] = []
+        self.log_message.emit("Reading ladders...")
+        group_lines = read_text_lines(cfg.group_time_file)
+        log.extend(group_problems(group_lines))
+        groups = parse_eliminator_groups(group_lines)
+        self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
+
+        self.log_message.emit("Reading start protocol...")
+        start_list = read_start_protocol(cfg.start_protocol_file, place_field=True)
+        self.log_message.emit(f"  {len(start_list)} competitors loaded")
+
+        self.log_message.emit("Reading heat results...")
+        results = read_heat_results(read_text_lines(cfg.finish_time_file))
+        self.log_message.emit(f"  {len(results)} heat result(s) loaded")
+
+        brackets = build_brackets(groups, start_list, results, log)
+
+        self.log_message.emit("Writing finals protocol...")
+        write_finals_protocol(cfg.group_protocol_file, brackets, start_list, cfg)
+
+        for msg in log:
+            self.log_message.emit(msg)
+
+        documents = self._build_finals_documents(cfg, brackets, start_list)
+        upload_failed, upload_errors = self._do_uploads(cfg, [], documents)
+        self._emit_upload_result(upload_failed, upload_errors)
+        self.finished_ok.emit()
+
     def run(self) -> None:
         cfg = self._cfg
         if cfg.is_eliminator_finals():
-            self.error.emit(
-                "Eliminator Finals mode is not implemented in this version."
-            )
+            try:
+                self._run_eliminator_finals(cfg)
+            except Exception as exc:
+                self.error.emit(str(exc))
             return
         log: list[str] = []
         try:
