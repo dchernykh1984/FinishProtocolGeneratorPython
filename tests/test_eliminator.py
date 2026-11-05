@@ -239,10 +239,6 @@ class TestLadderShape:
         assert bracket.heat(0, 2) is bracket.stages[0][2]
         assert bracket.heat(2, 1) is bracket.small_final
 
-    def test_every_heat_is_listed_once(self) -> None:
-        bracket = _bracket(4, 3)
-        assert len(bracket.all_heats()) == 4 + 2 + 1 + 1
-
 
 class TestSmallFinalRiddenFirst:
     """At a real event the small final is ridden before the big one."""
@@ -277,3 +273,20 @@ class TestSmallFinalRiddenFirst:
         )[0]
         assert bracket.finishing_places(bracket.stages[1][0]) == [1, 2, 3, 4]
         assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
+
+
+class TestDuplicatePlaces:
+    def test_two_riders_on_one_place_are_reported(self) -> None:
+        log: list[str] = []
+        starts = [
+            StartProtocolElement.from_line(line, place_field=True)
+            for line in (
+                "101#A#G#1#1#1990#T#C##1#",
+                "102#B#G#1#1#1990#T#C##1#",
+            )
+        ]
+        bracket = build_brackets([EliminatorGroup("G", 4, 2)], starts, [], log)[0]
+        assert any("both hold qualification place 1" in message for message in log)
+        # One of them still rides; the other is named in the log rather than lost.
+        assert bracket.stages[0][0].numbers[0] == "102"
+        assert any("101 loses its seat" in message for message in log)

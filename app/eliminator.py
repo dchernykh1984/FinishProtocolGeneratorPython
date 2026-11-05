@@ -133,10 +133,6 @@ class EliminatorBracket:
             heats.append(self.small_final)
         return heats
 
-    def all_heats(self) -> list[Heat]:
-        stages = range(self.group.rounds)
-        return [heat for stage in stages for heat in self.heats_in_stage(stage)]
-
     def _parent(self, heat: Heat) -> Heat | None:
         if heat.is_small_final or heat.stage + 1 >= self.group.rounds:
             return None
@@ -150,16 +146,30 @@ class EliminatorBracket:
 
     # -- filling --------------------------------------------------------------
 
-    def place_competitor(self, bib: str, place: int) -> bool:
+    def place_competitor(
+        self, bib: str, place: int, log: list[str] | None = None
+    ) -> bool:
         """Seat a qualified rider by their qualification place. False when it has no
-        seat in this ladder -- a place beyond the bracket simply does not ride."""
+        seat in this ladder -- a place beyond the bracket simply does not ride.
+
+        Two riders given the same place is a slip in the seeding file, and one of
+        them loses their ride, so it is reported rather than silently applied.
+        """
         if not 1 <= place <= self.group.capacity:
             return False
         for heat in self.stages[0]:
             for seat, seeded in enumerate(heat.seeds):
-                if seeded == place:
-                    heat.numbers[seat] = bib
-                    return True
+                if seeded != place:
+                    continue
+                displaced = heat.numbers[seat]
+                if displaced and log is not None:
+                    log.append(
+                        f"ERROR: {bib} and {displaced} both hold qualification "
+                        f"place {place} in group {self.group.group_id}; "
+                        f"{displaced} loses its seat"
+                    )
+                heat.numbers[seat] = bib
+                return True
         return False
 
     def advance_byes(self) -> None:
@@ -341,7 +351,7 @@ def build_brackets(
         if bracket is None:
             continue
         place = start.start_place
-        if not bracket.place_competitor(start.competitor_id, place):
+        if not bracket.place_competitor(start.competitor_id, place, log):
             log.append(
                 f"WARNING: {start.competitor_id} has qualification place {place}, "
                 f"outside the ladder of group {start.group_id}"
