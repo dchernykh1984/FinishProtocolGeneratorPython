@@ -194,15 +194,13 @@ def _heat_section(
         if place_text == "DNF":
             row["status"] = "dnf"
         rows.append(row)
+    title = f"{cfg.group_label} {bracket.group.group_id} - {heat_title(bracket, heat)}"
     section: dict[str, Any] = {
         "type": "table",
-        "title": _plain(f"{cfg.group_label} {bracket.group.group_id}"),
+        "title": _plain(title),
         "columns": columns,
         "rows": rows,
     }
-    section["title"] = _plain(
-        f"{cfg.group_label} {bracket.group.group_id} - {heat_title(bracket, heat)}"
-    )
     if _group_id(bracket.group.group_id):
         section["group"] = _group_id(bracket.group.group_id)
     return section

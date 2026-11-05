@@ -243,7 +243,14 @@ class EliminatorBracket:
         """
         offset = 0
         if heat.is_small_final:
-            offset = sum(1 for taken in self.stages[-1][0].finished if taken)
+            big_final = self.stages[-1][0]
+            if big_final.has_results:
+                offset = sum(1 for taken in big_final.finished if taken)
+            else:
+                # The small final is usually ridden first. Counting the big final's
+                # finishers would be zero then, and its riders would be shown as
+                # first to fourth alongside the medals.
+                offset = big_final.taken or len(big_final.numbers)
         return [
             offset + seat + 1 if heat.has_results and classified else None
             for seat, classified in enumerate(heat.finished)

@@ -242,3 +242,38 @@ class TestLadderShape:
     def test_every_heat_is_listed_once(self) -> None:
         bracket = _bracket(4, 3)
         assert len(bracket.all_heats()) == 4 + 2 + 1 + 1
+
+
+class TestSmallFinalRiddenFirst:
+    """At a real event the small final is ridden before the big one."""
+
+    def test_its_places_do_not_collide_with_the_medals(self) -> None:
+        log: list[str] = []
+        bracket = build_brackets(
+            [EliminatorGroup("G", 4, 2)],
+            _starts(list(range(1, 9))),
+            [
+                ["101", "105", "104", "108"],
+                ["102", "106", "103", "107"],
+                ["104", "103", "108", "107"],
+            ],
+            log,
+        )[0]
+        assert not bracket.stages[1][0].has_results
+        assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
+
+    def test_the_big_final_still_numbers_from_one(self) -> None:
+        log: list[str] = []
+        bracket = build_brackets(
+            [EliminatorGroup("G", 4, 2)],
+            _starts(list(range(1, 9))),
+            [
+                ["101", "105", "104", "108"],
+                ["102", "106", "103", "107"],
+                ["104", "103", "108", "107"],
+                ["101", "102", "105", "106"],
+            ],
+            log,
+        )[0]
+        assert bracket.finishing_places(bracket.stages[1][0]) == [1, 2, 3, 4]
+        assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
