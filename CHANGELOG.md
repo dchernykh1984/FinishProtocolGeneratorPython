@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.8.1...v0.9.0) (2026-11-06)
+
+
+### Features
+
+* **eliminator:** build the knockout ladder from qualification places ([4c1e476](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4c1e47628ea4fbbfaafe8789d1183536d0ea6257))
+* **eliminator:** generate the finals ladder as HTML and as data for the site ([bd431a9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/bd431a99df3e66426c246e1d4185a10569f96808))
+
+
+### Bug Fixes
+
+* **eliminator:** number the small final after the big one even when ridden first ([2cbadbb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2cbadbbd1da72c2110a5d42d66b235da1cf03825))
+* **eliminator:** refuse a heat result that repeats a number or a doubled ladder ([c0e4fbe](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c0e4fbe1841f487a4787694e5afba6be335674cb))
+* **eliminator:** report two riders seeded onto one qualification place ([a1b908b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a1b908b935b859bece8472c4dea57cf7c18ff276))
+
 ## [0.8.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.8.0...v0.8.1) (2026-10-24)
 
 
