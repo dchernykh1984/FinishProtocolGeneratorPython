@@ -255,7 +255,7 @@ class TestProblemsAreReported:
         messages, errors = _run(cfg)
         assert any("was saved with no start time" in m for m in messages)
         assert len(errors) == 1
-        assert "No start time recorded for" in errors[0]
+        assert "no usable start time" in errors[0]
         assert not Path(cfg.group_protocol_file).exists()
 
     def test_the_chronometer_files_need_not_exist_on_the_first_run(
@@ -275,6 +275,29 @@ class TestProblemsAreReported:
             _SMALL,
             _FINAL,
         ]
+
+    def test_two_heats_on_one_start_time_stop_the_run(self, tmp_path: Path) -> None:
+        # The chronometer keeps the start time in its field after Save group, so
+        # saving the next heat without pressing Start gives it the same one.
+        cfg = _cfg(tmp_path, heats=[])
+        Path(cfg.group_time_file).write_text(
+            f"{_SEMI1}#0 10:00:00.000#\n{_SEMI2}#0 10:00:00.000#\n", encoding="utf-8"
+        )
+        messages, errors = _run(cfg)
+        assert any("starting at the same time" in m for m in messages)
+        assert len(errors) == 1
+        assert not Path(cfg.group_protocol_file).exists()
+
+    def test_a_restarted_heat_is_not_refused(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        text = Path(cfg.group_time_file).read_text(encoding="utf-8")
+        Path(cfg.group_time_file).write_text(
+            f"{_SEMI1}#{_NO_START}#\n" + text, encoding="utf-8"
+        )
+        _messages, errors = _run(cfg)
+        assert errors == []
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "00:00:01.0" in page
 
     def test_a_mark_that_belongs_to_no_heat_is_logged(self, tmp_path: Path) -> None:
         cfg = _cfg(tmp_path)

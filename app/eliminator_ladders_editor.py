@@ -48,6 +48,8 @@ class EliminatorLaddersEditor(QWidget):
         super().__init__()
         self._ladder_file = ""
         self._start_file = ""
+        #: Why the ladder file could not be read, when it is there but unreadable.
+        self._unreadable = ""
         #: Asks the race whether writing the ladder file would land on another of its
         #: files. While it answers with a setting's name, nothing is written: this
         #: table saves on every keystroke, so it would shred an input file.
@@ -94,12 +96,18 @@ class EliminatorLaddersEditor(QWidget):
         """Replace the table with what the ladder file says.
 
         A file that is not there yet is an empty table, not an error: the first finals
-        of an event start from one, and the referee fills it in here.
+        of an event start from one, and the referee fills it in here. A file that is
+        there but cannot be read is the opposite -- it holds ladders this table must
+        not save an empty version over.
         """
+        self._unreadable = ""
+        lines: list[str] = []
         try:
             lines = read_text_lines(self._ladder_file) if self._ladder_file else []
-        except OSError:
-            lines = []
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            self._unreadable = f"Cannot read {self._ladder_file}: {exc}"
         rows: list[tuple[str, str, str]] = []
         for line in lines:
             group = get_field(line, 0).strip()
@@ -117,6 +125,8 @@ class EliminatorLaddersEditor(QWidget):
 
     def _refusal(self) -> str:
         """Why this table will not save, or "" when it will."""
+        if self._unreadable:
+            return f"Not saved: {self._unreadable}"
         clash = self.conflict()
         if not clash:
             return ""

@@ -689,7 +689,7 @@ class _GenerateWorker(QThread):
             group_list = []
         self.log_message.emit(f"  {len(group_list)} heat start(s) loaded")
 
-        unusable = unusable_starts(groups, group_list)
+        unusable = unusable_starts(groups, group_list, log)
 
         self.log_message.emit("Reading finish marks...")
         try:
@@ -704,14 +704,12 @@ class _GenerateWorker(QThread):
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
 
         if unusable:
-            for name in unusable:
-                log.append(f"ERROR: {name} was saved with no start time")
             # A heat with no start of its own has nothing to bound its marks, so they
             # fall into the window of the heat before it and rewrite a result that was
-            # already right. Nothing is written until the start time is fixed.
+            # already right. The log above says which heat and why.
             self._refuse(
                 log,
-                "No start time recorded for: "
+                "These heats have no usable start time: "
                 + ", ".join(unusable)
                 + ". Start each of them again in the chronometer, pressing Start "
                 "before Save group, then generate again.",

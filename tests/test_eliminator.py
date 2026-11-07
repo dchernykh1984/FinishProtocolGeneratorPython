@@ -104,6 +104,14 @@ def _ladder(heat_size: int = 4, rounds: int = 2) -> list[EliminatorGroup]:
     return [EliminatorGroup("G", heat_size, rounds)]
 
 
+class TestScorableHeats:
+    def test_a_one_round_ladder_has_no_small_final_to_walk(self) -> None:
+        assert [heat.is_small_final for heat in _bracket(4, 1).all_heats()] == [False]
+
+    def test_a_deeper_ladder_keeps_it(self) -> None:
+        assert sum(h.is_small_final for h in _bracket(4, 2).all_heats()) == 1
+
+
 class TestSeeding:
     def test_eight_riders_pair_first_against_last(self) -> None:
         # The C++ bracket put places 1,4,5,8 in one heat and 2,3,6,7 in the other.
@@ -326,12 +334,51 @@ class TestHeatsScoredFromTimes:
         ]
         assert unusable_starts(_ladder(), starts) == [SEMI1]
 
-    def test_two_heats_sharing_a_start_time_are_reported(self) -> None:
+    def test_a_heat_restarted_properly_is_not_refused(self) -> None:
+        # The chronometer appends, so a heat saved without a start and then started
+        # again has both lines; the later one is the real one.
+        starts = [
+            GroupStartElement(group_id=SEMI1, seconds=0.0),
+            GroupStartElement(group_id=SEMI1, seconds=1000.0),
+        ]
+        assert unusable_starts(_ladder(), starts) == []
+
+    def test_a_dead_small_final_cannot_make_the_run_refuse(self) -> None:
+        # A one-round ladder has no small final to ride, so a stale line naming one
+        # must not be able to block scoring either.
+        starts = [GroupStartElement(group_id=SMALL, seconds=0.0)]
+        assert unusable_starts(_ladder(4, 1), starts) == []
+        brackets, _log = (
+            _Event()
+            .start(SMALL, seconds=0.0)
+            .build(_ladder(4, 1), _starts([1, 2, 3, 4]))
+        )
+        assert brackets[0].stages[0][0].taken == 4
+
+    def test_two_heats_on_one_start_are_refused_by_name(self) -> None:
+        starts = [
+            GroupStartElement(group_id=SEMI1, seconds=1000.0),
+            GroupStartElement(group_id=SEMI2, seconds=1000.0),
+        ]
+        assert sorted(unusable_starts(_ladder(), starts)) == sorted([SEMI1, SEMI2])
+
+    def test_two_heats_sharing_a_start_time_are_reported_by_name(self) -> None:
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         event.start(SEMI2, seconds=1000.0)
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
-        assert any("starting at the same time" in line for line in log)
+        same = [line for line in log if "starting at the same time" in line]
+        assert same and same[0].startswith("ERROR:")
+        assert SEMI1 in same[0] and SEMI2 in same[0]
+
+    def test_a_heat_waiting_for_its_marks_says_so_once(self) -> None:
+        event = _Event()
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(SEMI1)
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        waiting = [line for line in log if "waiting for its finish marks" in line]
+        assert len(waiting) == 1
+        assert SEMI1 in waiting[0]
 
 
 class TestMarkWindows:
