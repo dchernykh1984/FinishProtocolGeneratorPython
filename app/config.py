@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _same_file_key(path: str) -> str:
+    """A comparable form of a configured path, so two settings naming one file match
+    however each was typed."""
+    text = path.strip()
+    return str(Path(text).expanduser()) if text else ""
+
 
 RACE_TYPE_MASS_SPLITTED = "Mass/Splitted"
 #: No longer a race type: qualifying is an ordinary race, and the seeding export it
@@ -244,6 +253,30 @@ class RaceConfig:
         a .txt suffix -- so a setup that predates the path field is unaffected.
         """
         return self.seeding_protocol_file or group_protocol_file + ".txt"
+
+    def seeding_protocol_conflict(self, group_protocol_file: str) -> str:
+        """The setting whose file the seeding protocol would overwrite, or "".
+
+        The field asks for a start protocol, so pointing it at the start protocol of
+        the race being run is an easy slip -- and it would replace the start list
+        with a finishing order in the middle of an event.
+        """
+        target = _same_file_key(self.seeding_protocol_path(group_protocol_file))
+        if not target:
+            return ""
+        guarded = (
+            ("start protocol", self.start_protocol_file),
+            ("group times", self.group_time_file),
+            ("finish times", self.finish_time_file),
+            ("start check list", self.start_check_list_file),
+            ("group protocol", group_protocol_file),
+            ("absolute protocol", self.absolute_protocol_file),
+            ("HTML styles template", self.template_file),
+        )
+        for label, other in guarded:
+            if other and _same_file_key(other) == target:
+                return label
+        return ""
 
     def skip_first_lap_effective(self) -> bool:
         return self.is_number_of_tries() or self.race_type == RACE_TYPE_CUSTOM_START
