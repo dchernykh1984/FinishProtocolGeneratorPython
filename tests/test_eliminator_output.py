@@ -459,7 +459,7 @@ class TestGeneratedFiles:
 
 
 @pytest.mark.parametrize("rounds", [1, 2, 3, 4])
-def test_a_ladder_of_any_depth_writes_without_error(rounds: int) -> None:
+def test_a_ladder_of_any_depth_is_written_and_the_site_accepts_it(rounds: int) -> None:
     brackets = _brackets([], rounds=rounds)
     page = _html(brackets, _cfg())
     assert "Final" in page
