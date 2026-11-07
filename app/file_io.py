@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from app.config import ALL_RACE_TYPES, HtmlStyles
+from app.config import ALL_RACE_TYPES, LEGACY_RACE_TYPE_QUALIFICATION, HtmlStyles
 from app.ftp_io import DOWNLOAD_ACTIONS
 from app.models import (
     FinishCompetitorElement,
@@ -710,6 +710,18 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["protocol_language"] = v
+        tok = nxt()
+
+    if tok == "WriteSeedingProtocol":
+        v = nxt()
+        if v is not None:
+            result["write_seeding_protocol"] = v
+        tok = nxt()
+
+    if tok == "SeedingProtocolFile":
+        v = nxt()
+        if v is not None:
+            result["seeding_protocol_file"] = v
 
     return result
 
@@ -736,7 +748,14 @@ def is_key_value_config(path: str) -> bool:
 # them on. They are the anchors: a shifted file lands something else in them, which is
 # the only way to notice that the file no longer means what it says.
 _ANCHORS: tuple[tuple[str, str, int, tuple[str, ...]], ...] = (
-    ("race_type", "race type", 13, tuple(ALL_RACE_TYPES)),
+    # The retired qualification type still counts as a known value: a config written
+    # before it became a setting is old, not damaged, and is migrated on load.
+    (
+        "race_type",
+        "race type",
+        13,
+        (*ALL_RACE_TYPES, LEGACY_RACE_TYPE_QUALIFICATION),
+    ),
     ("start_list_action", "start list action", 0, DOWNLOAD_ACTIONS),
     ("group_times_action", "group times action", 0, DOWNLOAD_ACTIONS),
     ("result_times_action", "result times action", 0, DOWNLOAD_ACTIONS),

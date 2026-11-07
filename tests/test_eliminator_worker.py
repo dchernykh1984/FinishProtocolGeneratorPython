@@ -206,8 +206,6 @@ class TestQualificationFeedsTheFinals:
     """
 
     def _qualify(self, tmp_path: Path) -> Path:
-        from app.config import RACE_TYPE_ELIMINATOR_QUALIFICATION
-
         start = "\n".join(
             f"{100 + i}#Rider {i}#Men#1#1#1990#Team#City##0 00:00:00.000#"
             for i in range(1, 9)
@@ -222,7 +220,7 @@ class TestQualificationFeedsTheFinals:
         )
         (tmp_path / "q_results.txt").write_text(finishes, encoding="utf-8")
         cfg = RaceConfig()
-        cfg.race_type = RACE_TYPE_ELIMINATOR_QUALIFICATION
+        cfg.write_seeding_protocol = True
         cfg.start_protocol_file = str(tmp_path / "q_start.txt")
         cfg.group_time_file = str(tmp_path / "q_groups.txt")
         cfg.finish_time_file = str(tmp_path / "q_results.txt")

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from app import paths
-from app.config import RACE_TYPE_ELIMINATOR_QUALIFICATION, RaceConfig
+from app.config import RaceConfig
 from app.file_io import load_template, read_finish_times
 from app.ftp_io import merge_files
 from app.html_writer import write_absolute_protocol, write_group_protocol
@@ -41,7 +41,7 @@ def test_relative_inputs_and_template_are_read_next_to_app(race_dir):
 
 
 def test_relative_protocols_are_written_next_to_app(race_dir):
-    cfg = RaceConfig(race_type=RACE_TYPE_ELIMINATOR_QUALIFICATION)
+    cfg = RaceConfig(write_seeding_protocol=True)
     write_group_protocol("gr.html", [], [], cfg)
     write_absolute_protocol("abs.html", [], [], cfg)
     assert (race_dir / "gr.html").exists()

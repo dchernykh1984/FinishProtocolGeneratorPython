@@ -444,7 +444,7 @@ def write_group_protocol(  # noqa: C901
         out.write(buf.getvalue() + "\n")
 
     if cfg.generate_text_protocol_effective():
-        txt_path = path + ".txt"
+        txt_path = cfg.seeding_protocol_path(path)
         _write_text_group_protocol(txt_path, sorted_protocol, group_list, cfg)
 
 

@@ -36,9 +36,11 @@ from app.config import (
     HTTP_ACTION_DELETE,
     HTTP_ACTION_UPLOAD,
     HTTP_ACTIONS,
+    LEGACY_RACE_TYPE_QUALIFICATION,
     PROTOCOL_FORMAT_DATA,
     PROTOCOL_FORMAT_HTML,
     PROTOCOL_FORMATS,
+    RACE_TYPE_MASS_SPLITTED,
     START_LIST_SOURCE_SITE,
     START_LIST_SOURCES,
     TIMING_SOURCE_SITE,
@@ -883,6 +885,57 @@ class MainWindow(QMainWindow):
             "field after it. Check the file before relying on these settings.",
         )
 
+    def _make_seeding_row(self) -> QWidget:
+        """The seeding export: checkbox, where it goes, and a file picker.
+
+        An ordinary race can be ridden as a qualifier, and this is what hands its
+        finishing order to an Eliminator Finals ladder.
+        """
+
+        self._seeding_row = QWidget()
+        row_seed = QHBoxLayout(self._seeding_row)
+        row_seed.setContentsMargins(0, 0, 0, 0)
+        self._chk_seeding = QCheckBox("Seeding protocol for the finals:")
+        self._chk_seeding.setObjectName("write_seeding_protocol")
+        self._chk_seeding.setChecked(self._cfg.write_seeding_protocol)
+        self._chk_seeding.toggled.connect(self._on_seeding_toggled)
+        row_seed.addWidget(self._chk_seeding)
+        self._edit_seeding = self._bind_line_edit("seeding_protocol_file")
+        self._edit_seeding.setPlaceholderText("beside the group protocol")
+        self._edit_seeding.setEnabled(self._cfg.write_seeding_protocol)
+        row_seed.addWidget(self._edit_seeding)
+
+        def _pick_seeding(_checked: bool) -> None:
+            path, _ = QFileDialog.getSaveFileName(self, "Select seeding protocol file")
+            if path:
+                self._edit_seeding.setText(path)
+
+        self._btn_seeding = QPushButton("...")
+        self._btn_seeding.setFixedWidth(60)
+        self._btn_seeding.setEnabled(self._cfg.write_seeding_protocol)
+        self._btn_seeding.clicked.connect(_pick_seeding)
+        row_seed.addWidget(self._btn_seeding)
+        self._seeding_row.setVisible(not self._cfg.is_eliminator_finals())
+        return self._seeding_row
+
+    def _on_seeding_toggled(self, checked: bool) -> None:
+        self._cfg.write_seeding_protocol = checked
+        self._edit_seeding.setEnabled(checked)
+        self._btn_seeding.setEnabled(checked)
+
+    def _migrate_qualification_race_type(self) -> None:
+        """Turn the retired Eliminator Qualification race type into the setting.
+
+        It only ever added the seeding export on top of an ordinary mass start, so a
+        config that still names it keeps scoring the same way and gets the export
+        ticked. Without this the race type would not match any entry of the combo,
+        which falls back to the first one and drops the export without saying so.
+        """
+        if self._cfg.race_type != LEGACY_RACE_TYPE_QUALIFICATION:
+            return
+        self._cfg.race_type = RACE_TYPE_MASS_SPLITTED
+        self._cfg.write_seeding_protocol = True
+
     def _fold_cfg_line_breaks(self) -> None:
         """Fold line breaks out of every text value a load just took on.
 
@@ -930,6 +983,8 @@ class MainWindow(QMainWindow):
             _file_row("Absolute protocol (output):", "absolute_protocol_file", True)
         )
         ly.addLayout(_file_row("HTML styles template:", "template_file"))
+
+        ly.addWidget(self._make_seeding_row())
 
         # remote control points
         row_rp = QHBoxLayout()
@@ -1034,6 +1089,12 @@ class MainWindow(QMainWindow):
         self._combo_race_type.currentTextChanged.connect(
             lambda _value: self._attempt_rules_editor.setVisible(
                 self._cfg.is_number_of_tries()
+            )
+        )
+        # A finals round has no places of its own, so there is nothing to seed from.
+        self._combo_race_type.currentTextChanged.connect(
+            lambda _value: self._seeding_row.setVisible(
+                not self._cfg.is_eliminator_finals()
             )
         )
         ly.addWidget(self._attempt_rules_editor)
@@ -1875,6 +1936,11 @@ class MainWindow(QMainWindow):
         lines += ["AttemptRules", cfg.attempt_rules_json]
         lines += ["HttpProtocolFormat", cfg.http_protocol_format]
         lines += ["ProtocolLanguage", cfg.protocol_language]
+        lines += [
+            "WriteSeedingProtocol",
+            "1" if cfg.write_seeding_protocol else "0",
+        ]
+        lines += ["SeedingProtocolFile", cfg.seeding_protocol_file]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2036,6 +2102,12 @@ class MainWindow(QMainWindow):
                 _str("HttpProtocolFormat", cfg.http_protocol_format)
             )
             cfg.protocol_language = _str("ProtocolLanguage", cfg.protocol_language)
+            cfg.write_seeding_protocol = _bool(
+                "WriteSeedingProtocol", cfg.write_seeding_protocol
+            )
+            cfg.seeding_protocol_file = _str(
+                "SeedingProtocolFile", cfg.seeding_protocol_file
+            )
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2344,8 +2416,11 @@ class MainWindow(QMainWindow):
 
         if first_line != KEY_VALUE_HEADER:
             cfg.attempt_rules_json = d.get("attempt_rules_json", "[]")
+            cfg.write_seeding_protocol = d.get("write_seeding_protocol", "0") == "1"
+            cfg.seeding_protocol_file = d.get("seeding_protocol_file", "")
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
+        self._migrate_qualification_race_type()
         self._fold_cfg_line_breaks()
         if not cfg.is_number_of_tries():
             self._validate_attempt_rules()
@@ -2399,6 +2474,9 @@ class MainWindow(QMainWindow):
         self._sync_named_widgets(cfg)
         self._attempt_rules_editor.set_rules_json(cfg.attempt_rules_json)
         self._attempt_rules_editor.setVisible(cfg.is_number_of_tries())
+        self._seeding_row.setVisible(not cfg.is_eliminator_finals())
+        self._edit_seeding.setEnabled(cfg.write_seeding_protocol)
+        self._btn_seeding.setEnabled(cfg.write_seeding_protocol)
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)
             self._combo_race_type.setCurrentText(cfg.race_type)
