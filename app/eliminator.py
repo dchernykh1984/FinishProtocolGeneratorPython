@@ -45,8 +45,10 @@ HEAT_SIZES = (2, 4)
 #: Each heat is fed by two heats of the previous stage. The C++ code carried this as a
 #: configurable "elimination coefficient" but only ever passed 2.0.
 _FEEDERS = 2
-#: Two marks closer together than this are the same hundredth to the chronometer.
-_TIE = 0.0005
+#: Default gap below which two times count as equal: half of a tenth, the protocol's
+#: own default precision. A difference the protocol cannot print is one a referee
+#: cannot defend, so the run is told the real precision instead where it knows it.
+_TIE = 0.05
 #: What the chronometers write for a line crossing. They also write "nextStage", and
 #: a penalty record carries its own action, and neither is a rider finishing a heat.
 _CROSSINGS = ("finish", "nextLap")
@@ -123,6 +125,10 @@ class EliminatorBracket:
         #: Qualification place per bib, so a heat that was not ridden can be ordered
         #: by it at any stage, not only where the seats still hold the seeding.
         self.places: dict[str, int] = {}
+        #: Below this a gap between two times is no gap at all. Set from the digits
+        #: the protocol actually prints, because a difference it cannot show is one
+        #: nobody can defend when the result is protested.
+        self.tie_tolerance = _TIE
         size = group.heat_size
         # stages[0] is the first round ridden; the last stage holds the final.
         self.stages: list[list[Heat]] = []
@@ -271,16 +277,23 @@ class EliminatorBracket:
 
     def ride_timed(
         self, heat: Heat, marks: list[FinishCompetitorElement], log: list[str]
-    ) -> list[FinishCompetitorElement]:
-        """Score a heat from the marks that fall inside its own start window, and
-        say which marks it used, so a mark no heat claimed can be reported."""
+    ) -> list[FinishCompetitorElement] | None:
+        """Score a heat from the marks that fall inside its own start window, and say
+        which marks it used, so a mark no heat claimed can be reported.
+
+        ``None`` when the heat has started and nothing has come in yet: its riders
+        are still on the course. Sealing it then would print all four as DNF, let the
+        round above it go through on a bye, and hand out medals in the middle of a
+        race -- which is what a protocol refreshed every half minute would publish.
+        """
         times, dsq, used = _heat_marks(heat, marks)
+        if heat.taken and not times and not dsq:
+            log.append(
+                f"{heat_name(self, heat)} has started; waiting for its finish marks"
+            )
+            return None
         order = sorted(times, key=lambda bib: times[bib])
         log.extend(self._tie_problems(heat, order, times))
-        if not order and not dsq and heat.taken:
-            log.append(
-                f"ERROR: {heat_name(self, heat)} was started but has no finish marks"
-            )
         self._record(heat, order, len(order), times, dsq, ridden=True)
         return used
 
@@ -295,7 +308,7 @@ class EliminatorBracket:
         means anything -- the rest only has to be noticed.
         """
         problems: list[str] = []
-        for tied in _tied_runs(order, times):
+        for tied in _tied_runs(order, times, self.tie_tolerance):
             first, last = tied[0], tied[-1]
             if self.is_big_final(heat):
                 decisive = first < _PODIUM
@@ -421,21 +434,43 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
-        crossings = [mark.seconds for mark in seen if mark.action in _CROSSINGS]
+        crossing = _last_crossing(seen)
         if any(mark.is_dsq for mark in seen):
             dsq.add(bib)
-        elif crossings:
-            times[bib] = min(crossings) - heat.start_seconds
+        elif crossing is not None:
+            times[bib] = crossing - heat.start_seconds
     return times, dsq, used
 
 
-def _tied_runs(order: list[str], times: dict[str, float]) -> list[list[int]]:
+def _last_crossing(marks: list[FinishCompetitorElement]) -> float | None:
+    """When this rider finished the heat, out of their marks inside its window.
+
+    A heat may be more than one lap, and then the crossings before the last are laps,
+    not the finish -- scoring the first would publish whoever led lap one. A real
+    finish mark wins over a lap mark, because that is the chronometer being told which
+    crossing was the finish.
+    """
+    finishes = [mark.seconds for mark in marks if mark.action == "finish"]
+    if finishes:
+        return max(finishes)
+    laps = [mark.seconds for mark in marks if mark.action in _CROSSINGS]
+    return max(laps) if laps else None
+
+
+def tie_tolerance(n_signs_after_point: int) -> float:
+    """Half of the smallest difference the protocol prints, so two times that come
+    out identical on the page are treated as identical in the ladder."""
+    return 0.5 * 10.0 ** -max(n_signs_after_point, 0)
+
+
+def _tied_runs(
+    order: list[str], times: dict[str, float], tolerance: float
+) -> list[list[int]]:
     """Positions in the finishing order that share a time, as runs of two or more."""
     runs: list[list[int]] = []
     current: list[int] = []
-    for index in range(len(order)):
-        same = index > 0 and abs(times[order[index]] - times[order[index - 1]]) < _TIE
-        if same:
+    for index in range(1, len(order)):
+        if abs(times[order[index]] - times[order[index - 1]]) < tolerance:
             current = current or [index - 1]
             current.append(index)
         elif current:
@@ -599,18 +634,22 @@ def unusable_starts(
     whole run rather than writing a protocol in which an earlier heat was rewritten.
     """
     named = set(heat_names([EliminatorBracket(group) for group in groups]))
-    return [
-        gs.group_id for gs in group_list if gs.group_id in named and gs.seconds <= 0
-    ]
+    starts = _heat_starts(group_list)
+    return [name for name, seconds in starts.items() if name in named and seconds <= 0]
 
 
 def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
     """When each heat started, last line winning.
 
     The chronometer appends a line per start and never rewrites, so a heat started
-    again after a false start has two lines and the later one is the real one.
+    again after a false start has two lines and the later one is the real one -- and
+    a heat first saved without a start and then properly started is fine.
     """
-    return {gs.group_id: gs.seconds for gs in group_list if gs.group_id}
+    return {
+        group_key(gs.group_id): gs.seconds
+        for gs in group_list
+        if group_key(gs.group_id)
+    }
 
 
 def _open_windows(
@@ -664,10 +703,17 @@ def build_brackets(
     group_list: list[GroupStartElement],
     marks: list[FinishCompetitorElement],
     log: list[str],
+    tolerance: float = _TIE,
 ) -> list[EliminatorBracket]:
-    """Build every ladder, seat the qualifiers and ride the heats through it."""
+    """Build every ladder, seat the qualifiers and ride the heats through it.
+
+    ``tolerance`` is the gap below which two times count as equal; pass
+    :func:`tie_tolerance` of the protocol's own precision.
+    """
     brackets = _one_ladder_per_group(groups, log)
-    by_id = {bracket.group.group_id: bracket for bracket in brackets}
+    for built in brackets:
+        built.tie_tolerance = tolerance
+    by_id = {built.group.group_id: built for built in brackets}
     for start in start_list:
         bracket = by_id.get(group_key(start.group_id))
         if bracket is None:
@@ -731,13 +777,18 @@ def _score(
                 if heat.has_results or not bracket.ready(heat):
                     continue
                 if heat.was_started:
-                    used.update(id(m) for m in bracket.ride_timed(heat, marks, log))
+                    claimed = bracket.ride_timed(heat, marks, log)
+                    if claimed is None:
+                        continue
+                    used.update(id(mark) for mark in claimed)
                 elif bracket.is_bye(heat):
                     bracket.ride_unraced(heat)
                     if heat.taken:
-                        # Worth saying out loud for the final: those are medals
-                        # handed out on qualification order, with no race behind it.
-                        level = "WARNING: " if bracket.is_big_final(heat) else ""
+                        # Worth saying out loud for either final: those are places on
+                        # the podium handed out on qualification order, with no race
+                        # behind them.
+                        last = heat.stage == bracket.group.rounds - 1
+                        level = "WARNING: " if last else ""
                         log.append(
                             f"{level}{heat_name(bracket, heat)} was not ridden; its "
                             "riders go through in qualification order"

@@ -108,7 +108,12 @@ class EliminatorLaddersEditor(QWidget):
                     (group, get_field(line, 1).strip(), get_field(line, 2).strip())
                 )
         self._set_rows(rows)
-        self.status.setText(self._refusal())
+        # A value the table cannot show is a value the next keystroke would save
+        # over, so say which group lost one instead of letting it vanish.
+        adjusted = [
+            row[0] for row, shown in zip(rows, self.rows(), strict=True) if row != shown
+        ]
+        self.status.setText(self._refusal() or _adjusted(adjusted))
 
     def _refusal(self) -> str:
         """Why this table will not save, or "" when it will."""
@@ -208,9 +213,24 @@ class EliminatorLaddersEditor(QWidget):
         self.changed.emit()
 
 
+def _adjusted(groups: list[str]) -> str:
+    """Which groups the ladder file holds a value this table cannot show for."""
+    if not groups:
+        return ""
+    return (
+        f"Riders per heat must be {' or '.join(str(s) for s in HEAT_SIZES)} and "
+        f"rounds at most {_MAX_ROUNDS}; check: {', '.join(groups)}."
+    )
+
+
 def _as_rounds(value: str) -> int:
+    """What the spin box shows for a round count out of the ladder file.
+
+    A number too deep for the box is clamped rather than blanked: blanking it would
+    be saved back on the next keystroke, and the referee's figure would be gone.
+    """
     try:
         rounds = int(value)
     except TypeError, ValueError:
         return 0
-    return rounds if 0 <= rounds <= _MAX_ROUNDS else 0
+    return min(max(rounds, 0), _MAX_ROUNDS)
