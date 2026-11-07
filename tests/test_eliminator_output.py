@@ -10,6 +10,7 @@ from typing import Any
 
 import jsonschema
 import pytest
+from protocol_scenarios import SCENARIOS
 from test_protocol_document import SCHEMA, check_document_rules
 
 from app.config import RACE_TYPE_ELIMINATOR_FINALS, RaceConfig
@@ -26,6 +27,7 @@ from app.models import (
     GroupStartElement,
     StartProtocolElement,
 )
+from app.protocol_document import build_group_document
 
 _SEMI1 = "Men - 1/2 final 1"
 _SEMI2 = "Men - 1/2 final 2"
@@ -318,13 +320,19 @@ class TestDocument:
         final = self._document(show_finish_time=False)["sections"][0]
         assert "result" not in [column["id"] for column in final["columns"]]
 
-    def test_the_columns_are_the_timed_protocols(self) -> None:
-        # The site keeps the number in view beside the name only for the roles it
-        # knows, and the columns follow the HTML's order.
+    def test_the_columns_are_declared_as_a_timed_protocols(self) -> None:
+        # The site keeps the number and the name in view by their roles and hides the
+        # minor columns by priority, so a column the finals share with a timed
+        # protocol is declared alike; the order stays the finals HTML's.
+        race = SCENARIOS["mass_all_columns"]()
+        timed = build_group_document(race.protocol, race.groups, race.cfg)
+        declared = {
+            column["id"]: (column.get("role"), column.get("priority"))
+            for column in timed["sections"][0]["columns"]
+        }
         final = self._document(show_additional_info=True)["sections"][0]
-        roles = {column["id"]: column.get("role") for column in final["columns"]}
-        assert (roles["bib"], roles["team"]) == ("bib", "team")
-        assert list(roles) == [
+        ids = [column["id"] for column in final["columns"]]
+        assert ids == [
             "place",
             "bib",
             "name",
@@ -334,6 +342,9 @@ class TestDocument:
             "extra",
             "result",
         ]
+        for column in final["columns"]:
+            role_and_priority = (column.get("role"), column.get("priority"))
+            assert role_and_priority == declared[column["id"]], column["id"]
 
     def test_a_rider_who_did_not_finish_is_marked(self) -> None:
         document = build_finals_document(
