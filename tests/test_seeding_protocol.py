@@ -367,3 +367,31 @@ class TestTheRunKeepsTheStartList:
         messages = self._run(cfg)
         assert Path(cfg.seeding_protocol_file).exists()
         assert not any("would overwrite" in m for m in messages)
+
+
+class TestTheExportNeverTakesTheRunDown:
+    """It is an extra, written from inside the group protocol.
+
+    A failure there used to raise straight out of the run, so the absolute protocol
+    was never written and the operator saw a bare OSError.
+    """
+
+    def test_a_folder_that_does_not_exist_yet_is_made(self, tmp_path: Path) -> None:
+        # Pointing at the finals folder before it exists is the ordinary case.
+        race = TestTheRunKeepsTheStartList()
+        cfg = race._race(tmp_path)
+        cfg.seeding_protocol_file = str(tmp_path / "finals" / "data" / "start.txt")
+        messages = race._run(cfg)
+        assert Path(cfg.seeding_protocol_file).exists()
+        assert not any("ERROR" in m for m in messages)
+
+    def test_the_absolute_protocol_is_written_anyway(self, tmp_path: Path) -> None:
+        race = TestTheRunKeepsTheStartList()
+        cfg = race._race(tmp_path)
+        blocker = tmp_path / "blocked"
+        blocker.write_text("not a directory", encoding="utf-8")
+        cfg.seeding_protocol_file = str(blocker / "start.txt")
+        messages = race._run(cfg)
+        assert Path(cfg.absolute_protocol_file).exists()
+        assert any("cannot be written" in m for m in messages)
+        assert not Path(cfg.seeding_protocol_file).exists()

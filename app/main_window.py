@@ -532,13 +532,23 @@ class _GenerateWorker(QThread):
         if not cfg.generate_text_protocol_effective():
             return cfg
         clash = cfg.seeding_protocol_conflict(cfg.group_protocol_file)
-        if not clash:
-            return cfg
-        log.append(
-            "ERROR: the seeding protocol would overwrite the "
-            f"{clash}; it was not written"
-        )
-        return replace(cfg, write_seeding_protocol=False)
+        if clash:
+            log.append(
+                "ERROR: the seeding protocol would overwrite the "
+                f"{clash}; it was not written"
+            )
+            return replace(cfg, write_seeding_protocol=False)
+        # The export is an extra. Writing it happens inside the group protocol, so a
+        # folder that is not there yet would abort the run and cost the absolute
+        # protocol as well -- make the folder, and give up on the export alone if
+        # even that is refused.
+        target = app_path(cfg.seeding_protocol_path(cfg.group_protocol_file))
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            log.append(f"ERROR: the seeding protocol cannot be written: {exc}")
+            return replace(cfg, write_seeding_protocol=False)
+        return cfg
 
     def _build_documents(self, cfg, sorted_proto, group_list, n_points):
         """The structured protocols for the site, when it is to be sent any.
