@@ -19,6 +19,7 @@ SCHEMA = json.loads(
 )
 HEADER_STYLE = "header-row-marker"
 _MAX_CELLS = 100_000
+_MAX_DEPTH = 3
 
 
 def check_document_rules(document: dict) -> None:
@@ -29,21 +30,28 @@ def check_document_rules(document: dict) -> None:
     assert len(toggles) == len(set(toggles)), "toggle ids are unique"
     assert "" not in groups
     cells = 0
-    for section in document["sections"]:
-        ids = [c["id"] for c in section["columns"]]
+    # Sections nest -- a ladder holds stages, a stage its heats -- three deep at most.
+    stack = [(section, 1) for section in document["sections"]]
+    while stack:
+        section, depth = stack.pop()
+        assert depth <= _MAX_DEPTH, "sections nest three deep at most"
+        stack.extend((child, depth + 1) for child in section.get("sections", []))
+        columns = section.get("columns", [])
+        rows = section.get("rows", [])
+        ids = [c["id"] for c in columns]
         assert len(ids) == len(set(ids)), "column ids are unique"
-        for column in section["columns"]:
+        for column in columns:
             assert column.get("toggle") in (None, *toggles)
             _check_lines(column.get("sub_label", []), toggles)
         assert section.get("group") in (None, *groups)
-        for row in section["rows"]:
+        for row in rows:
             assert set(row["cells"]) <= set(ids)
             assert row.get("group") in (None, *groups)
             for cell in row["cells"].values():
                 if isinstance(cell, dict):
                     _check_lines(cell.get("sub", []), toggles)
-        cells += len(ids) * len(section["rows"])
-        cells += sum(1 for row in section["rows"] if row.get("note"))
+        cells += len(ids) * len(rows)
+        cells += sum(1 for row in rows if row.get("note"))
     assert cells <= _MAX_CELLS
 
 

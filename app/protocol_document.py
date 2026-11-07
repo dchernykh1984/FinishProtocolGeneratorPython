@@ -374,7 +374,9 @@ def _document(
     if (
         cfg.use_buttons
         and cfg.show_lap_times
-        and any(c.get("toggle") == "splits" for s in sections for c in s["columns"])
+        and any(
+            c.get("toggle") == "splits" for s in sections for c in s.get("columns", [])
+        )
     ):
         toggles.append(
             {"id": "splits", "label": _plain(cfg.use_buttons_label), "default": True}
@@ -385,7 +387,7 @@ def _document(
         and any(
             isinstance(line, dict) and line.get("toggle") == "lap_stats"
             for s in sections
-            for c in s["columns"]
+            for c in s.get("columns", [])
             for line in c.get("sub_label", [])
         )
     ):

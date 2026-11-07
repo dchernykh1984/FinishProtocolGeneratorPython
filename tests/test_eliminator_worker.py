@@ -399,7 +399,8 @@ class TestSiteDocument:
         document = captured.get("document")
         assert isinstance(document, dict)
         assert document["schema"] == 1
-        assert document["sections"][0]["title"].endswith("Final")
+        assert document["sections"][0]["type"] == "ladder"
+        assert document["sections"][0]["sections"][-1]["title"] == "Final"
 
 
 @pytest.mark.parametrize("rounds", ["1", "2", "3"])
