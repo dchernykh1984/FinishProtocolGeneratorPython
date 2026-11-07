@@ -2379,12 +2379,12 @@ class MainWindow(QMainWindow):
                 "EliminatorLadderFile", cfg.eliminator_ladder_file
             )
             cfg.not_ridden_label = _str("NotRiddenLabel", cfg.not_ridden_label)
-            cfg.eliminator_small_final = _bool(
-                "EliminatorSmallFinal", cfg.eliminator_small_final
-            )
-            cfg.eliminator_seeding = normalize_seeding(
-                _str("EliminatorSeeding", cfg.eliminator_seeding)
-            )
+            # Both come from the race regulations, so a file that does not carry
+            # them means the defaults, not whatever the last meeting left on screen.
+            # A label carrying over is cosmetic; a seeding scheme carrying over
+            # quietly reseeds somebody's championship.
+            cfg.eliminator_small_final = _bool("EliminatorSmallFinal", True)
+            cfg.eliminator_seeding = normalize_seeding(_str("EliminatorSeeding"))
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2701,9 +2701,7 @@ class MainWindow(QMainWindow):
             )
             cfg.not_ridden_label = d.get("not_ridden_label", cfg.not_ridden_label)
             cfg.eliminator_small_final = d.get("eliminator_small_final", "1") == "1"
-            cfg.eliminator_seeding = normalize_seeding(
-                d.get("eliminator_seeding", cfg.eliminator_seeding)
-            )
+            cfg.eliminator_seeding = normalize_seeding(d.get("eliminator_seeding", ""))
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
