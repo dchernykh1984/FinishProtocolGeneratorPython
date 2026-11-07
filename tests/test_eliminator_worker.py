@@ -244,19 +244,23 @@ class TestProblemsAreReported:
         assert len(errors) == 1
         assert "No ladder for: Men" in errors[0]
 
-    def test_a_heat_saved_before_start_was_pressed_stops_the_run(
+    def test_a_heat_saved_before_start_was_pressed_only_goes_to_the_log(
         self, tmp_path: Path
     ) -> None:
-        # Its marks have no window of their own, so they would fall into the heat
-        # before it and rewrite a result that was already right.
+        # No dialog: the protocol is refreshed while the racing goes on, so one heat
+        # saved without pressing Start must not stop the rest of the meeting, and
+        # must not put a window in front of the referee either.
         cfg = _cfg(tmp_path)
         with Path(cfg.group_time_file).open("a", encoding="utf-8") as f:
             f.write(f"{_FINAL}#{_NO_START}#\n")
         messages, errors = _run(cfg)
-        assert any("was saved with no start time" in m for m in messages)
-        assert len(errors) == 1
-        assert "no usable start time" in errors[0]
-        assert not Path(cfg.group_protocol_file).exists()
+        assert errors == []
+        assert any(
+            m.startswith("ERROR:") and "was saved with no start time" in m
+            for m in messages
+        )
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "1/2 final 1" in page
 
     def test_the_chronometer_files_need_not_exist_on_the_first_run(
         self, tmp_path: Path
@@ -276,7 +280,9 @@ class TestProblemsAreReported:
             _FINAL,
         ]
 
-    def test_two_heats_on_one_start_time_stop_the_run(self, tmp_path: Path) -> None:
+    def test_two_heats_on_one_start_time_only_go_to_the_log(
+        self, tmp_path: Path
+    ) -> None:
         # The chronometer keeps the start time in its field after Save group, so
         # saving the next heat without pressing Start gives it the same one.
         cfg = _cfg(tmp_path, heats=[])
@@ -284,9 +290,12 @@ class TestProblemsAreReported:
             f"{_SEMI1}#0 10:00:00.000#\n{_SEMI2}#0 10:00:00.000#\n", encoding="utf-8"
         )
         messages, errors = _run(cfg)
-        assert any("starting at the same time" in m for m in messages)
-        assert len(errors) == 1
-        assert not Path(cfg.group_protocol_file).exists()
+        assert errors == []
+        assert any(
+            m.startswith("ERROR:") and "starting at the same time" in m
+            for m in messages
+        )
+        assert Path(cfg.group_protocol_file).exists()
 
     def test_a_restarted_heat_is_not_refused(self, tmp_path: Path) -> None:
         cfg = _cfg(tmp_path)
