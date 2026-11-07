@@ -679,9 +679,7 @@ class TestOnlyCrossingsCount:
         assert not brackets[0].stages[0][0].complete
         assert brackets[0].finishing_places(brackets[0].stages[0][0]) == [None] * 4
 
-    def test_the_last_lap_is_the_finish_not_the_first(self) -> None:
-        # A heat of more than one lap: scoring the earliest crossing would publish
-        # whoever led lap one.
+    def _two_lap_event(self) -> _Event:
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         for bib, laps in (("101", (10.0, 60.0)), ("104", (20.0, 50.0))):
@@ -689,10 +687,52 @@ class TestOnlyCrossingsCount:
                 event.marks.append(
                     FinishCompetitorElement(bib, 1000.0 + gap, "nextLap")
                 )
-        bracket = event.build(_ladder(), _starts([1, 4]))[0][0]
+        return event
+
+    def test_the_last_lap_is_the_finish_not_the_first(self) -> None:
+        # Scoring the earliest crossing would publish whoever led lap one.
+        bracket = self._two_lap_event().build(
+            [EliminatorGroup("G", 4, 2, laps=2)], _starts([1, 4])
+        )[0][0]
         semi = bracket.stages[0][0]
         assert semi.numbers[:2] == ["104", "101"]
         assert semi.times[0] == pytest.approx(50.0)
+
+    def test_a_rider_on_his_first_lap_is_not_placed_or_sent_on(self) -> None:
+        # The live protocol rests on a placed rider being past the others. He is not
+        # past anybody while they are all still riding the same lap he is.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1010.0, "nextLap"))
+        brackets, _log = event.build(
+            [EliminatorGroup("G", 4, 2, laps=3)], _starts(list(range(1, 9)))
+        )
+        semi = brackets[0].stages[0][0]
+        assert brackets[0].finishing_places(semi) == [None] * 4
+        assert brackets[0].stages[1][0].taken == 0
+
+    def test_one_lap_is_the_default_so_a_crossing_is_a_result(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1010.0, "nextLap"))
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert brackets[0].finishing_places(brackets[0].stages[0][0])[0] == 1
+        assert brackets[0].stages[1][0].numbers[:1] == ["101"]
+
+    def test_a_finish_mark_needs_no_lap_counting(self) -> None:
+        # The chronometer was told which crossing was the finish, so it is.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1010.0, "finish"))
+        brackets, _log = event.build(
+            [EliminatorGroup("G", 4, 2, laps=3)], _starts(list(range(1, 9)))
+        )
+        assert brackets[0].finishing_places(brackets[0].stages[0][0])[0] == 1
+
+    def test_the_lap_count_reaches_the_ladder_from_the_settings(self) -> None:
+        assert parse_eliminator_groups(["G#4#2#"], laps=3)[0].laps == 3
+        assert parse_eliminator_groups(["G#4#2#"])[0].laps == 1
+        assert parse_eliminator_groups(["G#4#2#"], laps=0)[0].laps == 1
 
     def test_a_finish_mark_beats_a_later_lap_mark(self) -> None:
         event = _Event()

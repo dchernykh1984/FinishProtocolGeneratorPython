@@ -146,6 +146,9 @@ class RaceConfig:
     #: One decision for the meeting: it comes out of the race regulations, not out of
     #: how many riders turned up in a given group.
     eliminator_seeding: str = SEEDING_SPLIT_ADJACENT
+    #: How many laps a finals heat is. One almost everywhere; more means a rider is
+    #: only placed, and only sent up a round, once he has ridden them all.
+    eliminator_laps: int = 1
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"

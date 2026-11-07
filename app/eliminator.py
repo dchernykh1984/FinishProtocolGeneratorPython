@@ -84,6 +84,10 @@ class EliminatorGroup:
     rounds: int
     #: Which way the qualification places are spread over the first round.
     seeding: str = SEEDING_SPLIT_ADJACENT
+    #: How many laps a heat of this ladder is. One almost everywhere, and the code
+    #: needs to be told: a rider is only past the others once he has ridden them all,
+    #: and until then a crossing of his is a lap, not a result.
+    laps: int = 1
     #: Whether the meeting rides a small final for places behind the podium. Many do
     #: not, and then the riders the last round dropped simply have no further heat.
     small_final: bool = True
@@ -104,7 +108,8 @@ class Heat:
     seeds: tuple[int, ...] = ()
     #: Bibs by finishing order once the result is in, "" for a seat nobody filled.
     numbers: list[str] = field(default_factory=list)
-    #: Whether the rider in each seat was classified; False reads as DNF.
+    #: Whether the rider in each seat has crossed the line. False reads as DNF once
+    #: the heat is complete, and as a rider still on the course before that.
     finished: list[bool] = field(default_factory=list)
     #: Time ridden per seat, -1 where there is none.
     times: list[float] = field(default_factory=list)
@@ -354,7 +359,7 @@ class EliminatorBracket:
         later heat has started. Until then the riders without a crossing are shown
         with nothing against them rather than as DNF.
         """
-        times, dsq, used = _heat_marks(heat, marks)
+        times, dsq, used = _heat_marks(heat, marks, self.group.laps)
         accounted = len(set(times) | dsq)
         complete = accounted >= heat.taken or heat.window_end != _OPEN
         order = sorted(times, key=lambda bib: times[bib])
@@ -508,7 +513,7 @@ def _fill_free_seats(heat: Heat, bibs: list[str]) -> None:
 
 
 def _heat_marks(
-    heat: Heat, marks: list[FinishCompetitorElement]
+    heat: Heat, marks: list[FinishCompetitorElement], laps: int = 1
 ) -> tuple[dict[str, float], set[str], list[FinishCompetitorElement]]:
     """The time each rider of this heat rode, who was disqualified in it, and which
     marks the heat accounted for.
@@ -530,7 +535,7 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
-        crossing = _last_crossing(seen)
+        crossing = finish_crossing(seen, laps)
         if any(mark.is_dsq for mark in seen):
             dsq.add(bib)
         elif crossing is not None:
@@ -538,19 +543,22 @@ def _heat_marks(
     return times, dsq, used
 
 
-def _last_crossing(marks: list[FinishCompetitorElement]) -> float | None:
+def finish_crossing(
+    marks: list[FinishCompetitorElement], laps: int = 1
+) -> float | None:
     """When this rider finished the heat, out of their marks inside its window.
 
-    A heat may be more than one lap, and then the crossings before the last are laps,
-    not the finish -- scoring the first would publish whoever led lap one. A real
-    finish mark wins over a lap mark, because that is the chronometer being told which
-    crossing was the finish.
+    A real finish mark wins: that is the chronometer being told which crossing was
+    the finish, so there is nothing to count. Otherwise the chronometer is stamping
+    laps, and the rider has finished once he has ridden the lap count of the heat --
+    before that his crossings are laps, and placing him on one would publish whoever
+    led lap one as the winner and send him up a round.
     """
     finishes = [mark.seconds for mark in marks if mark.action == "finish"]
     if finishes:
         return max(finishes)
-    laps = [mark.seconds for mark in marks if mark.action in _CROSSINGS]
-    return max(laps) if laps else None
+    crossed = sorted(mark.seconds for mark in marks if mark.action in _CROSSINGS)
+    return crossed[laps - 1] if len(crossed) >= max(laps, 1) else None
 
 
 def tie_tolerance(n_signs_after_point: int) -> float:
@@ -614,6 +622,7 @@ def parse_eliminator_groups(
     sep: str = "#",
     small_final: bool = True,
     seeding: str = SEEDING_SPLIT_ADJACENT,
+    laps: int = 1,
 ) -> list[EliminatorGroup]:
     """Read the ladders out of the ladder file, skipping lines that describe none.
 
@@ -633,7 +642,12 @@ def parse_eliminator_groups(
             continue
         groups.append(
             EliminatorGroup(
-                group_id, heat_size, rounds, normalize_seeding(seeding), small_final
+                group_id,
+                heat_size,
+                rounds,
+                normalize_seeding(seeding),
+                max(laps, 1),
+                small_final,
             )
         )
     return groups
@@ -940,5 +954,5 @@ def _still_riding(brackets: list[EliminatorBracket]) -> list[str]:
         f"{heat.taken - heat.accounted} of its rider(s) have no crossing yet"
         for bracket in brackets
         for heat in bracket.all_heats()
-        if heat.was_started and not heat.complete
+        if heat.was_started and heat.has_results and not heat.complete
     ]

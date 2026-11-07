@@ -752,6 +752,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["eliminator_seeding"] = v
+        tok = nxt()
+
+    if tok == "EliminatorLaps":
+        v = nxt()
+        if v is not None:
+            result["eliminator_laps"] = v
 
     return result
 
