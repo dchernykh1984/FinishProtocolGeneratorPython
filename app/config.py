@@ -137,6 +137,10 @@ class RaceConfig:
     #: Its own file because groups.txt belongs to the chronometer, which appends a
     #: line to it on every heat it starts.
     eliminator_ladder_file: str = "ladders.txt"
+    #: Whether the meeting rides a small final for the places behind the podium. One
+    #: decision for the whole meeting, unlike riders per heat and rounds, which are
+    #: per group because group sizes differ.
+    eliminator_small_final: bool = True
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"

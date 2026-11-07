@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication, QLineEdit, QSpinBox
+from PySide6.QtWidgets import QApplication, QCheckBox, QLineEdit, QSpinBox
 
 from app import http_io
 from app.config import (
@@ -207,6 +207,45 @@ def test_format_and_language_survive_save_and_load(value):
             win._load_race_info_from_path(path)
         assert win._cfg.http_protocol_format == value
         assert win._cfg.protocol_language == "kk"
+    finally:
+        win.deleteLater()
+
+
+def test_the_eliminator_settings_survive_save_and_load():
+    win = MainWindow()
+    try:
+        win._cfg.eliminator_small_final = False
+        win._cfg.eliminator_ladder_file = "finals/ladders.txt"
+        win._cfg.not_ridden_label = "unraced"
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "fpg_info.txt")
+            win._save_race_info_to_path(path)
+            win._cfg.eliminator_small_final = True
+            win._cfg.eliminator_ladder_file = "ladders.txt"
+            win._cfg.not_ridden_label = ""
+            win._load_race_info_from_path(path)
+        assert win._cfg.eliminator_small_final is False
+        assert win._cfg.eliminator_ladder_file == "finals/ladders.txt"
+        assert win._cfg.not_ridden_label == "unraced"
+        assert not win.findChild(QCheckBox, "eliminator_small_final").isChecked()
+    finally:
+        win.deleteLater()
+
+
+def test_a_config_without_the_eliminator_tags_keeps_the_defaults():
+    # Written by a build that predates them: the tag chain simply ends earlier.
+    win = MainWindow()
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            win._save_race_info_to_path(str(path))
+            text = path.read_text(encoding="utf-8")
+            older, _, _ = text.partition("EliminatorLadderFile\n")
+            path.write_text(older, encoding="utf-8")
+            win._cfg.eliminator_small_final = False
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.eliminator_small_final is True
+        assert win._cfg.eliminator_ladder_file == "ladders.txt"
     finally:
         win.deleteLater()
 

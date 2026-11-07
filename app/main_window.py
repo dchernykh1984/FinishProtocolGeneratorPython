@@ -658,7 +658,9 @@ class _GenerateWorker(QThread):
             log.append(f"ERROR: cannot read {cfg.eliminator_ladder_file}: {exc}")
             ladders = []
         log.extend(group_problems(ladders))
-        groups = parse_eliminator_groups(ladders)
+        groups = parse_eliminator_groups(
+            ladders, small_final=cfg.eliminator_small_final
+        )
         self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
 
         self.log_message.emit("Reading start protocol...")
@@ -1062,6 +1064,17 @@ class MainWindow(QMainWindow):
         self._ladders_row = QWidget()
         row = QHBoxLayout(self._ladders_row)
         row.setContentsMargins(0, 0, 0, 0)
+        self._chk_small_final = QCheckBox("Small final")
+        self._chk_small_final.setObjectName("eliminator_small_final")
+        self._chk_small_final.setToolTip(
+            "Ride a small final for the places behind the podium. Off: the riders "
+            "the last round dropped have no further heat."
+        )
+        self._chk_small_final.setChecked(self._cfg.eliminator_small_final)
+        self._chk_small_final.toggled.connect(
+            lambda on: setattr(self._cfg, "eliminator_small_final", on)
+        )
+        row.addWidget(self._chk_small_final)
         row.addWidget(QLabel("Eliminator ladders file:"))
         self._edit_ladders = self._bind_line_edit("eliminator_ladder_file")
         self._edit_ladders.setPlaceholderText("ladders.txt")
@@ -2154,6 +2167,10 @@ class MainWindow(QMainWindow):
         # the reader walks the tags in this order, so new ones go on the end.
         lines += ["EliminatorLadderFile", cfg.eliminator_ladder_file]
         lines += ["NotRiddenLabel", cfg.not_ridden_label]
+        lines += [
+            "EliminatorSmallFinal",
+            "1" if cfg.eliminator_small_final else "0",
+        ]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2328,6 +2345,9 @@ class MainWindow(QMainWindow):
                 "EliminatorLadderFile", cfg.eliminator_ladder_file
             )
             cfg.not_ridden_label = _str("NotRiddenLabel", cfg.not_ridden_label)
+            cfg.eliminator_small_final = _bool(
+                "EliminatorSmallFinal", cfg.eliminator_small_final
+            )
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2643,6 +2663,7 @@ class MainWindow(QMainWindow):
                 "eliminator_ladder_file", cfg.eliminator_ladder_file
             )
             cfg.not_ridden_label = d.get("not_ridden_label", cfg.not_ridden_label)
+            cfg.eliminator_small_final = d.get("eliminator_small_final", "1") == "1"
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
@@ -2704,6 +2725,7 @@ class MainWindow(QMainWindow):
         self._seeding_row.setVisible(not cfg.is_eliminator_finals())
         self._edit_seeding.setEnabled(cfg.write_seeding_protocol)
         self._btn_seeding.setEnabled(cfg.write_seeding_protocol)
+        self._chk_small_final.setChecked(cfg.eliminator_small_final)
         self._sync_ladders_row()
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)
