@@ -411,3 +411,61 @@ class TestTheExportNeverTakesTheRunDown:
         assert Path(cfg.absolute_protocol_file).exists()
         assert any("cannot be written" in m for m in messages)
         assert not Path(cfg.seeding_protocol_file).exists()
+
+
+class TestAPathTheSystemCannotName:
+    """A name pathlib itself refuses used to raise where the file is written.
+
+    That is after the group protocol and before the absolute one, so the run ended
+    with a cryptic error and half its output.
+    """
+
+    def test_the_comparison_does_not_raise(self) -> None:
+        cfg = RaceConfig(
+            write_seeding_protocol=True, seeding_protocol_file="seed\x00.txt"
+        )
+        assert cfg.seeding_protocol_conflict("data/gr.html") == ""
+
+    def test_the_run_reports_it_and_carries_on(self, tmp_path: Path) -> None:
+        race = TestTheRunKeepsTheStartList()
+        cfg = race._race(tmp_path)
+        cfg.seeding_protocol_file = "seed\x00.txt"
+        messages = race._run(cfg)
+        assert Path(cfg.group_protocol_file).exists()
+        assert Path(cfg.absolute_protocol_file).exists()
+        assert any("seeding protocol cannot be written" in m for m in messages)
+
+    def test_a_folder_the_name_cannot_live_in_is_reported(self, tmp_path: Path) -> None:
+        race = TestTheRunKeepsTheStartList()
+        cfg = race._race(tmp_path)
+        blocker = tmp_path / "blocked"
+        blocker.write_text("not a directory", encoding="utf-8")
+        cfg.seeding_protocol_file = str(blocker / "start.txt")
+        messages = race._run(cfg)
+        assert Path(cfg.absolute_protocol_file).exists()
+        assert any("cannot be written" in m for m in messages)
+
+
+class TestTheGuardComparesWhatIsWritten:
+    """The comparison must resolve a path the same way the writer does.
+
+    Expanding ``~`` on one side only would compare one file and write another, and
+    the guard exists precisely to stop a race file being written over.
+    """
+
+    def test_a_tilde_is_left_alone_on_both_sides(self, tmp_path: Path) -> None:
+        from app.paths import app_path
+
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = "~/start.txt"
+        cfg.seeding_protocol_file = "~/start.txt"
+        # Literal on both sides, so the same spelling is still the same file.
+        assert cfg.seeding_protocol_conflict("data/gr.html") == "start protocol"
+        assert str(app_path("~/start.txt")).endswith("~/start.txt")
+
+    def test_an_expanded_tilde_is_not_the_same_file(self) -> None:
+        # The writer would never reach the home folder, so neither does the guard.
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = "~/start.txt"
+        cfg.seeding_protocol_file = str(Path.home() / "start.txt")
+        assert cfg.seeding_protocol_conflict("data/gr.html") == ""

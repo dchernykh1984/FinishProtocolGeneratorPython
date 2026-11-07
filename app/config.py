@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from app.paths import app_path
 
@@ -12,15 +11,24 @@ def _same_file_key(path: str) -> str:
     """A comparable form of a configured path, so two settings naming one file match
     however each was typed.
 
-    Resolved the way the writers resolve it: a relative path hangs off the program's
-    own folder. Without that, the shipped ``data/start.txt`` and the absolute path a
-    file picker hands back would look like two different files, which is exactly the
-    pair a referee is most likely to produce.
+    Resolved exactly the way the writers resolve it: through ``app_path``, so a
+    relative path hangs off the program's own folder. Without that, the shipped
+    ``data/start.txt`` and the absolute path a file picker hands back would look like
+    two different files, which is the pair a referee is most likely to produce.
+
+    No ``expanduser`` here on purpose: the writers do not expand ``~`` either, so
+    expanding it would compare one file and write another.
     """
     text = path.strip()
     if not text:
         return ""
-    return str(app_path(str(Path(text).expanduser())).resolve())
+    try:
+        return str(app_path(text).resolve())
+    except OSError, ValueError, RuntimeError:
+        # A path the system cannot even name -- a stray null byte, an unknown ~user.
+        # No clash can be proved against it; writing to it fails later, and that is
+        # reported where the writing is attempted.
+        return ""
 
 
 RACE_TYPE_MASS_SPLITTED = "Mass/Splitted"
