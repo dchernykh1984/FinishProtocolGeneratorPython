@@ -531,7 +531,11 @@ class _GenerateWorker(QThread):
         """
         if not cfg.generate_text_protocol_effective():
             return cfg
-        clash = cfg.seeding_protocol_conflict(cfg.group_protocol_file)
+        try:
+            clash = cfg.seeding_protocol_conflict(cfg.group_protocol_file)
+        except (OSError, ValueError, RuntimeError) as exc:
+            log.append(f"ERROR: the seeding protocol path cannot be used: {exc}")
+            return replace(cfg, write_seeding_protocol=False)
         if clash:
             log.append(
                 "ERROR: the seeding protocol would overwrite the "
@@ -542,10 +546,13 @@ class _GenerateWorker(QThread):
         # folder that is not there yet would abort the run and cost the absolute
         # protocol as well -- make the folder, and give up on the export alone if
         # even that is refused.
-        target = app_path(cfg.seeding_protocol_path(cfg.group_protocol_file))
         try:
+            target = app_path(cfg.seeding_protocol_path(cfg.group_protocol_file))
             target.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
+            # Touch it as well: making the folder says nothing about the name, and a
+            # name the system refuses would otherwise raise where it is written.
+            target.touch()
+        except (OSError, ValueError, RuntimeError) as exc:
             log.append(f"ERROR: the seeding protocol cannot be written: {exc}")
             return replace(cfg, write_seeding_protocol=False)
         return cfg
