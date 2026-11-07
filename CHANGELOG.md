@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.14.1...v0.15.0) (2026-11-07)
+
+
+### Features
+
+* **eliminator:** a heat's time gives way before the number, place and name always stay ([3ed8a04](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/3ed8a048de6e7d16756580783f6de53a78af0822))
+* **eliminator:** send the finals to the site as a ladder, its stages in the order ridden ([2860d6a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2860d6a76ec1312c622f27c1ceca8fcc26a6c47a))
+
 ## [0.14.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.14.0...v0.14.1) (2026-11-07)
 
 
