@@ -418,15 +418,12 @@ class TestHeatsScoredFromTimes:
         # Nobody was classified behind them, so the small final stays empty.
         assert bracket.small_final.taken == 0
 
-    def test_a_started_heat_with_no_marks_yet_is_still_in_progress(self) -> None:
-        # Its riders are on the course. Sealing it would print all four as DNF, let
-        # the round above go through on a bye and publish medals mid-race -- which a
-        # protocol refreshed every half minute would do on its own.
+    def test_a_started_heat_with_no_marks_yet_places_nobody(self) -> None:
         brackets, log = _Event().start(SEMI1).build(_ladder(), _starts([1, 4, 5, 8]))
         semi = brackets[0].stages[0][0]
-        assert not semi.has_results
+        assert not semi.complete
         assert brackets[0].finishing_places(semi) == [None] * 4
-        assert any("waiting for its finish marks" in line for line in log)
+        assert any("is being ridden" in line for line in log)
 
     def test_the_round_above_an_unfinished_heat_stays_empty(self) -> None:
         event = _Event()
@@ -458,15 +455,55 @@ class TestHeatsScoredFromTimes:
         bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
         assert bracket.stages[0][0].times[0] == pytest.approx(1.0)
 
-    def test_a_heat_part_way_through_is_not_sealed(self) -> None:
-        # One of four across and no later heat started: the other three are on the
-        # course. Sealing it prints them DNF and lets the round above take a bye.
+    def test_a_rider_is_placed_and_sent_on_the_moment_he_crosses(self) -> None:
+        # One of four across, the other three still on the course. His place cannot
+        # change -- nobody still riding can finish ahead of him -- so it is his now,
+        # and so is his seat in the round above.
         event = _Event().ride(SEMI1, ["101"])
         brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         semi = brackets[0].stages[0][0]
-        assert not semi.has_results
-        assert any("waiting for its finish marks" in line for line in log)
-        assert brackets[0].stages[1][0].taken == 0
+        assert semi.has_results and not semi.complete
+        assert brackets[0].finishing_places(semi) == [1, None, None, None]
+        assert brackets[0].stages[1][0].numbers[:1] == ["101"]
+        assert any("is being ridden" in line for line in log)
+
+    def test_those_still_riding_are_not_beaten_yet(self) -> None:
+        event = _Event().ride(SEMI1, ["101", "105"])
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        semi = bracket.stages[0][0]
+        # Two crossed, two on the course: placed, blank, not DNF.
+        assert not semi.complete
+        assert bracket.finishing_places(semi) == [1, 2, None, None]
+        assert semi.times[2] == -1.0
+
+    def test_the_round_above_is_not_scored_while_the_one_below_is_ridden(self) -> None:
+        # Its seats fill as riders cross, but nothing in it is decided until the
+        # heats below are over -- otherwise a refresh hands out places mid-race.
+        event = _Event().ride(SEMI1, ["101", "105"])
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        final = bracket.stages[1][0]
+        assert final.numbers[:2] == ["101", "105"]
+        assert not final.has_results
+        assert bracket.finishing_places(final) == [None] * 4
+
+    def test_the_next_heat_starting_settles_the_one_before_it(self) -> None:
+        # Two of four crossed, then the next heat went: the other two did not finish.
+        event = _Event().ride(SEMI1, ["101", "105"]).start(SEMI2)
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        semi = bracket.stages[0][0]
+        assert semi.complete
+        assert bracket.finishing_places(semi) == [1, 2, None, None]
+
+    def test_the_last_rider_crossing_ends_the_heat(self) -> None:
+        event = _Event().ride(SEMI1, ["101", "105", "104", "108"])
+        bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
+        assert bracket.stages[0][0].complete
+
+    def test_a_disqualification_also_accounts_for_a_rider(self) -> None:
+        # The way a crashed rider is settled without waiting for the next heat.
+        event = _Event().ride(SEMI1, ["101", "105", "104"], dsq=("108",))
+        bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
+        assert bracket.stages[0][0].complete
 
     def test_the_next_heat_starting_closes_the_one_before_it(self) -> None:
         event = _Event().ride(SEMI1, ["101"]).start(SEMI2)
@@ -573,14 +610,15 @@ class TestHeatsScoredFromTimes:
         assert same and same[0].startswith("ERROR:")
         assert SEMI1 in same[0] and SEMI2 in same[0]
 
-    def test_a_heat_waiting_for_its_marks_says_so_once(self) -> None:
+    def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
         event.ride(SEMI2, ["102", "106", "103", "107"])
         event.start(SEMI1)
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
-        waiting = [line for line in log if "waiting for its finish marks" in line]
-        assert len(waiting) == 1
-        assert SEMI1 in waiting[0]
+        riding = [line for line in log if "is being ridden" in line]
+        assert len(riding) == 1
+        assert SEMI1 in riding[0]
+        assert "4 of its rider(s) have no crossing yet" in riding[0]
 
 
 class TestMarkWindows:
@@ -632,13 +670,14 @@ class TestOnlyCrossingsCount:
         assert semi.numbers[:2] == ["104", "101"]
         assert semi.times[semi.numbers.index("101")] == pytest.approx(30.0)
 
-    def test_a_heat_with_only_other_marks_is_still_in_progress(self) -> None:
+    def test_a_heat_with_only_other_marks_has_placed_nobody(self) -> None:
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         event.marks.append(FinishCompetitorElement("101", 1005.0, "nextStage"))
         brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
-        assert any("waiting for its finish marks" in line for line in log)
-        assert not brackets[0].stages[0][0].has_results
+        assert any("is being ridden" in line for line in log)
+        assert not brackets[0].stages[0][0].complete
+        assert brackets[0].finishing_places(brackets[0].stages[0][0]) == [None] * 4
 
     def test_the_last_lap_is_the_finish_not_the_first(self) -> None:
         # A heat of more than one lap: scoring the earliest crossing would publish

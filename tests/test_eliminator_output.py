@@ -154,6 +154,45 @@ class TestHtml:
         assert page.count("width=100%") == 1 + 4
 
 
+class TestAHeatStillBeingRidden:
+    """What the protocol says while riders are on the course."""
+
+    def _page(self, cfg: RaceConfig | None = None) -> str:
+        # Two of four across, nothing started after: the other two are still riding.
+        return _html(_brackets([(_SEMI1, ["101", "105"])]), cfg or _cfg())
+
+    def test_those_who_crossed_have_their_place_and_time(self) -> None:
+        page = self._page()
+        assert "00:00:01.0" in page and "00:00:02.0" in page
+
+    def test_those_still_riding_are_not_marked_dnf(self) -> None:
+        # The rider is on the course, not beaten. DNF here is a wrong result, not a
+        # cosmetic one: it is what a protocol refreshed mid-heat would publish.
+        assert "DNF" not in self._page()
+
+    def test_they_are_marked_dnf_once_the_heat_is_over(self) -> None:
+        page = _html(_brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _cfg())
+        assert "DNF" in page
+
+    def test_the_site_is_not_told_they_did_not_finish(self) -> None:
+        document = build_finals_document(
+            _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
+        )
+        statuses = [
+            row.get("status")
+            for section in document["sections"]
+            for row in section["rows"]
+        ]
+        assert "dnf" not in statuses
+
+    def test_whoever_crossed_in_a_going_on_place_is_already_above(self) -> None:
+        document = build_finals_document(
+            _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
+        )
+        titles = [section["title"] for section in document["sections"]]
+        assert any(title.endswith("- Final") for title in titles)
+
+
 class TestTimesOnThePage:
     def test_the_result_column_carries_the_time_ridden(self) -> None:
         page = _html(_brackets(), _cfg(finish_time_label="Result"))
