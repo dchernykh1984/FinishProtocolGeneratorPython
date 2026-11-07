@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
+from app.config import FIRST_SECTION
 from app.paths import app_path
 
 
@@ -112,8 +113,9 @@ def upload_protocol(  # noqa: C901
     document: dict | None = None,
     send_html: bool = True,
     warnings_out: list[str] | None = None,
+    section: int = FIRST_SECTION,
 ) -> int:
-    """Upload a protocol to the cycling-site web API via HTTP POST.
+    """Upload a protocol to the cycling-site web API via HTTP POST, into *section*.
 
     Sends the HTML file at *local_path* (unless *send_html* is off) and, when given, the
     structured *document* -- together they are one run, and the site shows the
@@ -156,6 +158,7 @@ def upload_protocol(  # noqa: C901
             _field("protocol_type", protocol_type),
             _field("is_live", "true" if is_live else "false"),
             _field("stage_label", stage_label),
+            _field("section", str(section)),
         ]
         if local is not None:
             parts.append(
@@ -250,8 +253,9 @@ def delete_protocol(
     upload_token: str,
     protocol_type: str,
     errors_out: list[str] | None = None,
+    section: int = FIRST_SECTION,
 ) -> int:
-    """Delete a protocol from the cycling site so its live-broadcast link disappears.
+    """Delete a protocol of *section* from the site so its link disappears.
 
     Used when a protocol is no longer published (its checkbox is off, the other on).
     The endpoint is idempotent, so deleting one that was never uploaded still succeeds.
@@ -264,7 +268,11 @@ def delete_protocol(
 
     delete_url = site_url.rstrip("/") + "/api/v1/protocols/delete/"
     body = urllib.parse.urlencode(
-        {"competition_token": upload_token, "protocol_type": protocol_type}
+        {
+            "competition_token": upload_token,
+            "protocol_type": protocol_type,
+            "section": str(section),
+        }
     ).encode()
     req = urllib.request.Request(  # noqa: S310
         delete_url,

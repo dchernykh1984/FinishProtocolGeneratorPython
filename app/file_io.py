@@ -722,6 +722,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["seeding_protocol_file"] = v
+        tok = nxt()
+
+    if tok == "HttpSection":
+        v = nxt()
+        if v is not None:
+            result["http_section"] = v
 
     return result
 

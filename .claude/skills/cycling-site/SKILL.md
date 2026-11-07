@@ -36,6 +36,12 @@ Delete. Any stored value that is not exactly `Upload` or `Delete` is treated as
 `Nothing` (safe default). There is no separate edit call: re-uploading with the same
 competition token overwrites the stored protocol; `delete` removes it.
 
+Both calls carry `section` (`http_section`, cycling-site #452): the number of the event's
+protocol section on the site, 1 being the event's own. The site keeps one protocol of
+each type per section and refuses a section the event does not have. In `fpg_info.txt`
+the `HttpSection` tag is the last line, so an older version still reads every tag
+before it; a file without it, or with a value below 1, loads as section 1.
+
 ## Protocols as data (issue #310)
 
 An upload carries the HTML, the structured document (`app/protocol_document.py`), or

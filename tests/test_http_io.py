@@ -377,6 +377,18 @@ class TestDeleteProtocol:
         assert captured["url"] == "https://s/api/v1/protocols/delete/"
         assert "protocol_type=group" in captured["body"]
         assert "competition_token=tok" in captured["body"]
+        assert "section=1" in captured["body"]
+
+    def test_names_the_section_it_deletes_from(self) -> None:
+        captured: dict = {}
+
+        def fake(req, timeout=30):
+            captured["body"] = req.data.decode()
+            return _mock_ok_response()
+
+        with patch("urllib.request.urlopen", side_effect=fake):
+            assert delete_protocol("https://s", "tok", "absolute", section=6) == 0
+        assert "section=6" in captured["body"]
 
     def test_returns_minus1_on_http_error(self) -> None:
         exc = urllib.error.HTTPError("u", 500, "err", http.client.HTTPMessage(), None)

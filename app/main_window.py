@@ -34,9 +34,11 @@ from app.calculator import (
 )
 from app.config import (
     ALL_RACE_TYPES,
+    FIRST_SECTION,
     HTTP_ACTION_DELETE,
     HTTP_ACTION_UPLOAD,
     HTTP_ACTIONS,
+    LAST_SECTION,
     LEGACY_RACE_TYPE_QUALIFICATION,
     PROTOCOL_FORMAT_DATA,
     PROTOCOL_FORMAT_HTML,
@@ -483,6 +485,7 @@ class _GenerateWorker(QThread):
                     local_path,
                     is_live=cfg.http_is_live,
                     stage_label=cfg.http_stage_label,
+                    section=cfg.http_section,
                     errors_out=errors,
                     document=document_part,
                     send_html=with_html,
@@ -511,6 +514,7 @@ class _GenerateWorker(QThread):
                     cfg.http_upload_token,
                     protocol_type,
                     errors_out=errors,
+                    section=cfg.http_section,
                 )
                 == -1
             ):
@@ -1537,6 +1541,20 @@ class MainWindow(QMainWindow):
 
         ly.addLayout(_http_row("Stage label (optional):", "http_stage_label"))
 
+        section_row = QHBoxLayout()
+        section_row.addWidget(QLabel("Protocol section on the site:"), 1)
+        section = QSpinBox()
+        section.setObjectName("http_section")
+        section.setRange(FIRST_SECTION, LAST_SECTION)
+        section.setValue(self._cfg.http_section)
+        section.setToolTip(
+            "The protocol section on the event's page on the site: 1 is the event's"
+            " own; the organizer adds the others there and shows their numbers"
+        )
+        section.valueChanged.connect(lambda v: setattr(self._cfg, "http_section", v))
+        section_row.addWidget(section, 3)
+        ly.addLayout(section_row)
+
         row_format = QHBoxLayout()
         row_format.addWidget(QLabel("Send protocols to the site as:"), 1)
         self._combo_protocol_format = QComboBox()
@@ -1981,6 +1999,8 @@ class MainWindow(QMainWindow):
             "1" if cfg.write_seeding_protocol else "0",
         ]
         lines += ["SeedingProtocolFile", cfg.seeding_protocol_file]
+        # Last: an older version stops reading at the first tag it does not know.
+        lines += ["HttpSection", str(cfg.http_section)]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2018,6 +2038,9 @@ class MainWindow(QMainWindow):
         cfg = self._cfg
         cfg.pack_gap_seconds = 10
         cfg.attempt_rules_json = "[]"
+        # A file saved before sections publishes into the event's own section, never
+        # into the one the previous race was set to.
+        cfg.http_section = FIRST_SECTION
 
         if first_line == KEY_VALUE_HEADER:
             # New key=value format written by this application
@@ -2438,6 +2461,7 @@ class MainWindow(QMainWindow):
             )
             cfg.http_is_live = _db("http_is_live", cfg.http_is_live)
             cfg.http_stage_label = _ds("http_stage_label", cfg.http_stage_label)
+            cfg.http_section = _di("http_section", FIRST_SECTION)
             cfg.http_protocol_format = normalize_protocol_format(
                 _ds("http_protocol_format", cfg.http_protocol_format)
             )
@@ -2460,6 +2484,8 @@ class MainWindow(QMainWindow):
             cfg.seeding_protocol_file = d.get("seeding_protocol_file", "")
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
+        if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
+            cfg.http_section = FIRST_SECTION
         self._migrate_qualification_race_type()
         self._fold_cfg_line_breaks()
         if not cfg.is_number_of_tries():
