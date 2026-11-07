@@ -58,6 +58,22 @@ _OPEN = float("inf")
 #: Places that get a medal in the big final, so a tie between them is not a detail.
 _PODIUM = 3
 
+#: How the qualification places are spread over the first round's heats.
+#:
+#: The UCI way splits riders who qualified next to each other into different heats,
+#: so the two fastest can only meet in the final. It is the one in the UCI Cycling
+#: Regulations, Part 4 Mountain Bike, Annex 5 (XCE schedule): for sixteen riders the
+#: regulations print exactly 1-8-9-16, 4-5-12-13, 2-7-10-15, 3-6-11-14.
+SEEDING_SPLIT_ADJACENT = "Split adjacent seeds (UCI)"
+#: The other way keeps riders who qualified next to each other together: eight riders
+#: become 1-2-7-8 and 3-4-5-6. Some race regulations are written this way. It balances
+#: the heats by the sum of their places just as well, but the two fastest then meet a
+#: round earlier for every round the ladder gains -- in the semi-final with eight
+#: riders, the quarter-final with sixteen, the 1/8 with thirty-two. Beyond two heats
+#: no regulation spells it out; it is the same idea carried on.
+SEEDING_KEEP_ADJACENT = "Keep adjacent seeds together"
+SEEDING_SCHEMES = (SEEDING_SPLIT_ADJACENT, SEEDING_KEEP_ADJACENT)
+
 
 @dataclass(frozen=True)
 class EliminatorGroup:
@@ -66,6 +82,8 @@ class EliminatorGroup:
     group_id: str
     heat_size: int
     rounds: int
+    #: Which way the qualification places are spread over the first round.
+    seeding: str = SEEDING_SPLIT_ADJACENT
     #: Whether the meeting rides a small final for places behind the podium. Many do
     #: not, and then the riders the last round dropped simply have no further heat.
     small_final: bool = True
@@ -165,8 +183,8 @@ class EliminatorBracket:
         """Hand every seat in the ladder the qualification place that belongs in it.
 
         The final holds places 1..n; descending one stage, each heat keeps its own
-        places and gains their mirror images about ``2^depth * n + 1``, which is the
-        usual bracket pairing (first against last).
+        places and gains their mirror images about ``2^depth * n + 1``. Which of its
+        places each side keeps is what the seeding scheme decides.
         """
         size = self.group.heat_size
         self.stages[-1][0].seeds = tuple(range(1, size + 1))
@@ -176,7 +194,9 @@ class EliminatorBracket:
             for parent in self.stages[stage]:
                 for side in range(_FEEDERS):
                     child = self.stages[stage - 1][parent.number * _FEEDERS + side]
-                    child.seeds = _child_seeds(parent.seeds, side, size, mirror)
+                    child.seeds = _child_seeds(
+                        parent.seeds, side, size, mirror, self.group.seeding
+                    )
 
     # -- lookup ---------------------------------------------------------------
 
@@ -423,14 +443,35 @@ class EliminatorBracket:
 
 
 def _child_seeds(
-    parent_seeds: tuple[int, ...], side: int, size: int, mirror: int
+    parent_seeds: tuple[int, ...],
+    side: int,
+    size: int,
+    mirror: int,
+    seeding: str = SEEDING_SPLIT_ADJACENT,
 ) -> tuple[int, ...]:
-    """The places feeding one side of a parent heat."""
+    """The places feeding one side of a parent heat.
+
+    A heat of two holds one place of its parent and that place's mirror whichever
+    scheme is asked for: there is no pair of adjacent places inside it to keep
+    together or to split, so the schemes cannot differ there.
+    """
     if size == 2:
         kept = parent_seeds[side]
         return (kept, mirror - kept)
-    first, second = parent_seeds[side], parent_seeds[3 - side]
+    if seeding == SEEDING_KEEP_ADJACENT:
+        first, second = parent_seeds[2 * side], parent_seeds[2 * side + 1]
+    else:
+        first, second = parent_seeds[side], parent_seeds[3 - side]
     return (first, second, mirror - second, mirror - first)
+
+
+def normalize_seeding(value: str) -> str:
+    """A scheme name the ladders understand; anything else falls back to the UCI one.
+
+    A config written by another build, or edited by hand, must not quietly change how
+    a championship is seeded, so only an exact name is honoured.
+    """
+    return value if value in SEEDING_SCHEMES else SEEDING_SPLIT_ADJACENT
 
 
 def _fill_free_seats(heat: Heat, bibs: list[str]) -> None:
@@ -544,12 +585,17 @@ def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
 
 
 def parse_eliminator_groups(
-    lines: list[str], sep: str = "#", small_final: bool = True
+    lines: list[str],
+    sep: str = "#",
+    small_final: bool = True,
+    seeding: str = SEEDING_SPLIT_ADJACENT,
 ) -> list[EliminatorGroup]:
     """Read the ladders out of the ladder file, skipping lines that describe none.
 
-    Whether a small final is ridden is one decision for the meeting, so it comes from
-    the settings rather than from the file: it is not part of a group's shape.
+    Whether a small final is ridden and how the places are spread over the heats are
+    decisions for the meeting as a whole -- they come out of its regulations -- so
+    they come from the settings rather than from the file, which carries only the
+    shape of each group's ladder.
     """
     groups: list[EliminatorGroup] = []
     for line in lines:
@@ -560,7 +606,11 @@ def parse_eliminator_groups(
         rounds = _as_int(get_field(line, 2, sep))
         if heat_size not in HEAT_SIZES or rounds < 1:
             continue
-        groups.append(EliminatorGroup(group_id, heat_size, rounds, small_final))
+        groups.append(
+            EliminatorGroup(
+                group_id, heat_size, rounds, normalize_seeding(seeding), small_final
+            )
+        )
     return groups
 
 

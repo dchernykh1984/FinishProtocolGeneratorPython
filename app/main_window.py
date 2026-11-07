@@ -55,9 +55,11 @@ from app.config import (
     normalize_protocol_format,
 )
 from app.eliminator import (
+    SEEDING_SCHEMES,
     build_brackets,
     group_problems,
     missing_ladders,
+    normalize_seeding,
     parse_eliminator_groups,
     tie_tolerance,
     unusable_starts,
@@ -659,7 +661,9 @@ class _GenerateWorker(QThread):
             ladders = []
         log.extend(group_problems(ladders))
         groups = parse_eliminator_groups(
-            ladders, small_final=cfg.eliminator_small_final
+            ladders,
+            small_final=cfg.eliminator_small_final,
+            seeding=cfg.eliminator_seeding,
         )
         self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
 
@@ -1060,10 +1064,16 @@ class MainWindow(QMainWindow):
         return self._seeding_row
 
     def _make_ladders_row(self) -> QWidget:
-        """Where the ladder file lives, with a picker. Only the finals read it."""
+        """The two meeting-wide finals settings, then the ladder file with a picker.
+
+        On two rows: three controls side by side left the checkbox stuck against the
+        next label with nothing to say which it belonged to.
+        """
         self._ladders_row = QWidget()
-        row = QHBoxLayout(self._ladders_row)
-        row.setContentsMargins(0, 0, 0, 0)
+        outer = QVBoxLayout(self._ladders_row)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        top = QHBoxLayout()
         self._chk_small_final = QCheckBox("Small final")
         self._chk_small_final.setObjectName("eliminator_small_final")
         self._chk_small_final.setToolTip(
@@ -1074,7 +1084,29 @@ class MainWindow(QMainWindow):
         self._chk_small_final.toggled.connect(
             lambda on: setattr(self._cfg, "eliminator_small_final", on)
         )
-        row.addWidget(self._chk_small_final)
+        top.addWidget(self._chk_small_final)
+        top.addSpacing(20)
+        top.addWidget(QLabel("Seeding:"))
+        self._combo_seeding = QComboBox()
+        self._combo_seeding.setObjectName("eliminator_seeding")
+        self._combo_seeding.addItems(SEEDING_SCHEMES)
+        self._combo_seeding.setCurrentText(
+            normalize_seeding(self._cfg.eliminator_seeding)
+        )
+        self._combo_seeding.setToolTip(
+            "How the qualification places are spread over the first round. "
+            "Eight riders become 1-4-5-8 and 2-3-6-7 the UCI way, or 1-2-7-8 and "
+            "3-4-5-6 keeping adjacent places together. Take it from the race "
+            "regulations: it changes who meets whom, not how many go through."
+        )
+        self._combo_seeding.currentTextChanged.connect(
+            lambda value: setattr(self._cfg, "eliminator_seeding", value)
+        )
+        top.addWidget(self._combo_seeding)
+        top.addStretch()
+        outer.addLayout(top)
+
+        row = QHBoxLayout()
         row.addWidget(QLabel("Eliminator ladders file:"))
         self._edit_ladders = self._bind_line_edit("eliminator_ladder_file")
         self._edit_ladders.setPlaceholderText("ladders.txt")
@@ -1090,6 +1122,7 @@ class MainWindow(QMainWindow):
         button.setFixedWidth(60)
         button.clicked.connect(_pick_ladders)
         row.addWidget(button)
+        outer.addLayout(row)
         self._ladders_row.setVisible(self._cfg.is_eliminator_finals())
         return self._ladders_row
 
@@ -2171,6 +2204,7 @@ class MainWindow(QMainWindow):
             "EliminatorSmallFinal",
             "1" if cfg.eliminator_small_final else "0",
         ]
+        lines += ["EliminatorSeeding", cfg.eliminator_seeding]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2347,6 +2381,9 @@ class MainWindow(QMainWindow):
             cfg.not_ridden_label = _str("NotRiddenLabel", cfg.not_ridden_label)
             cfg.eliminator_small_final = _bool(
                 "EliminatorSmallFinal", cfg.eliminator_small_final
+            )
+            cfg.eliminator_seeding = normalize_seeding(
+                _str("EliminatorSeeding", cfg.eliminator_seeding)
             )
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
@@ -2664,6 +2701,9 @@ class MainWindow(QMainWindow):
             )
             cfg.not_ridden_label = d.get("not_ridden_label", cfg.not_ridden_label)
             cfg.eliminator_small_final = d.get("eliminator_small_final", "1") == "1"
+            cfg.eliminator_seeding = normalize_seeding(
+                d.get("eliminator_seeding", cfg.eliminator_seeding)
+            )
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
@@ -2726,6 +2766,7 @@ class MainWindow(QMainWindow):
         self._edit_seeding.setEnabled(cfg.write_seeding_protocol)
         self._btn_seeding.setEnabled(cfg.write_seeding_protocol)
         self._chk_small_final.setChecked(cfg.eliminator_small_final)
+        self._combo_seeding.setCurrentText(normalize_seeding(cfg.eliminator_seeding))
         self._sync_ladders_row()
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)

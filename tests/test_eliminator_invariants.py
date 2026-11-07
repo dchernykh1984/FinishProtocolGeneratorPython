@@ -33,6 +33,7 @@ import pytest
 
 from app.eliminator import (
     HEAT_SIZES,
+    SEEDING_SCHEMES,
     EliminatorBracket,
     EliminatorGroup,
     Heat,
@@ -72,6 +73,7 @@ class _Meeting:
             "G",
             rng.choice(HEAT_SIZES),
             rng.randint(1, 3),
+            rng.choice(SEEDING_SCHEMES),
             small_final=rng.random() < 0.7,
         )
         #: Thin fields on purpose: when a heat sends up only one rider, the round
@@ -456,6 +458,7 @@ def test_the_generator_actually_produces_awkward_meetings() -> None:
             "late mark",
             "stamped twice",
             "unraced",
+            "the other seeding scheme",
         ),
         0,
     )
@@ -471,6 +474,7 @@ def test_the_generator_actually_produces_awkward_meetings() -> None:
         seen["lap mark"] += "nextLap" in actions
         seen["not a crossing"] += "nextStage" in actions
         seen["stray bib"] += any(m.competitor_id == "999" for m in meeting.marks)
+        seen["the other seeding scheme"] += meeting.group.seeding == SEEDING_SCHEMES[1]
         stamps = [
             (m.competitor_id, round(m.seconds / 1000))
             for m in meeting.marks
