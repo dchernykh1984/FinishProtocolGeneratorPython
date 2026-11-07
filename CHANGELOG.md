@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.12.0...v0.13.0) (2026-11-07)
+
+
+### Features
+
+* **eliminator:** choose how qualification places are spread over the heats ([7974331](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7974331d607d39cc0225caddd57925255cf58927))
+
+
+### Bug Fixes
+
+* **eliminator:** a config without the seeding tag means the UCI scheme, not the last one ([f4edde9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f4edde973361490831f04d14f8e6a9602626af9e))
+
 ## [0.12.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.11.0...v0.12.0) (2026-11-07)
 
 
