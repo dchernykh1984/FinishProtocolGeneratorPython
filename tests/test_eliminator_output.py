@@ -16,14 +16,25 @@ from app.eliminator_output import (
     build_finals_document,
     heat_title,
     write_finals_protocol,
+    write_heat_list,
+    write_ladder_file,
 )
-from app.models import StartProtocolElement
+from app.models import (
+    FinishCompetitorElement,
+    GroupStartElement,
+    StartProtocolElement,
+)
 
-_FULL_RESULTS = [
-    ["101", "105", "104", "108"],
-    ["102", "106", "103", "107"],
-    ["101", "102", "105", "106"],
-    ["104", "103", "108", "107"],
+_SEMI1 = "Men - 1/2 final 1"
+_SEMI2 = "Men - 1/2 final 2"
+_FINAL = "Men - Final"
+_SMALL = "Men - Small final"
+
+_FULL: list[tuple[str, list[str]]] = [
+    (_SEMI1, ["101", "105", "104", "108"]),
+    (_SEMI2, ["102", "106", "103", "107"]),
+    (_FINAL, ["101", "102", "105", "106"]),
+    (_SMALL, ["104", "103", "108", "107"]),
 ]
 
 
@@ -37,6 +48,21 @@ def _starts(count: int = 8) -> list[StartProtocolElement]:
     ]
 
 
+def _timed(
+    heats: list[tuple[str, list[str]]],
+) -> tuple[list[GroupStartElement], list[FinishCompetitorElement]]:
+    """The chronometer's two files for heats ridden a minute apart, in order."""
+    starts: list[GroupStartElement] = []
+    marks: list[FinishCompetitorElement] = []
+    clock = 1000.0
+    for name, order in heats:
+        starts.append(GroupStartElement(group_id=name, seconds=clock))
+        for index, bib in enumerate(order, start=1):
+            marks.append(FinishCompetitorElement(bib, clock + index, "finish"))
+        clock += 60.0
+    return starts, marks
+
+
 def _cfg(**kwargs: Any) -> RaceConfig:
     cfg = RaceConfig()
     cfg.race_type = RACE_TYPE_ELIMINATOR_FINALS
@@ -45,12 +71,16 @@ def _cfg(**kwargs: Any) -> RaceConfig:
     return cfg
 
 
-def _brackets(results: list[list[str]] | None = None, rounds: int = 2):
+def _brackets(heats: list[tuple[str, list[str]]] | None = None, rounds: int = 2):
+    if heats is None:
+        heats = _FULL if rounds == 2 else []
+    starts, marks = _timed(heats)
     log: list[str] = []
     return build_brackets(
         [EliminatorGroup("Men", 4, rounds)],
         _starts(4 * 2 ** (rounds - 1)),
-        results if results is not None else _FULL_RESULTS,
+        starts,
+        marks,
         log,
     )
 
@@ -84,7 +114,7 @@ class TestHtml:
         assert _html(_brackets(), cfg).count("Group Men") == 1
 
     def test_a_rider_who_did_not_finish_reads_dnf(self) -> None:
-        page = _html(_brackets([["101", "105"]]), _cfg())
+        page = _html(_brackets([(_SEMI1, ["101", "105"])]), _cfg())
         assert "DNF" in page
 
     def test_a_ladder_nobody_has_ridden_has_no_places(self) -> None:
@@ -105,7 +135,7 @@ class TestHtml:
             )
         ]
         log: list[str] = []
-        brackets = build_brackets([EliminatorGroup("Men", 4, 2)], nasty, [], log)
+        brackets = build_brackets([EliminatorGroup("Men", 4, 2)], nasty, [], [], log)
         with tempfile.TemporaryDirectory() as td:
             path = str(Path(td) / "ladder.html")
             write_finals_protocol(path, brackets, nasty, cfg := _cfg())
@@ -117,6 +147,59 @@ class TestHtml:
     def test_hidden_columns_stay_out(self) -> None:
         page = _html(_brackets(), _cfg(show_team=False, show_city=False))
         assert "Team 1" not in page and "City 1" not in page
+
+    def test_stretching_widens_the_ladder_and_its_heats(self) -> None:
+        page = _html(_brackets(), _cfg(stretch=True))
+        # The ladder table and every heat table inside it.
+        assert page.count("width=100%") == 1 + 4
+
+
+class TestTimesOnThePage:
+    def test_the_result_column_carries_the_time_ridden(self) -> None:
+        page = _html(_brackets(), _cfg(finish_time_label="Result"))
+        assert "Result" in page
+        # Four riders a second apart, measured from their own heat's start, in the
+        # same clock format the rest of the protocols use.
+        assert "00:00:01.0" in page and "00:00:04.0" in page
+
+    def test_the_gap_is_measured_inside_the_heat(self) -> None:
+        page = _html(_brackets(), _cfg(show_time_difference=True))
+        assert "(+00:00:01.0)" in page
+        # The heat winner has nothing to be behind.
+        assert "(+00:00:00.0)" not in page
+
+    def test_the_gap_can_be_turned_off(self) -> None:
+        page = _html(_brackets(), _cfg(show_time_difference=False))
+        assert "(+" not in page
+
+    def test_the_result_column_can_be_turned_off(self) -> None:
+        page = _html(_brackets(), _cfg(show_finish_time=False, finish_time_label="Res"))
+        assert "Res" not in page
+
+    def test_an_unraced_heat_says_so_and_shows_no_time(self) -> None:
+        # Two riders in a group of eight seats: nobody can be eliminated.
+        starts, marks = _timed([])
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(2), starts, marks, log
+        )
+        page = _html(brackets, _cfg(not_ridden_label="not ridden"))
+        assert "1/2 final 1 (not ridden)" in page
+        assert "Final (not ridden)" in page
+
+    def test_a_ridden_heat_is_not_labelled(self) -> None:
+        page = _html(_brackets(), _cfg(not_ridden_label="not ridden"))
+        assert "not ridden" not in page
+
+    def test_a_disqualified_rider_reads_dsq(self) -> None:
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(FinishCompetitorElement("101", 1030.0, "DSQ: cut in"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        page = _html(brackets, _cfg())
+        assert "DSQ" in page
 
 
 class TestDocument:
@@ -140,7 +223,9 @@ class TestDocument:
 
     def test_a_heat_nobody_rode_is_left_out(self) -> None:
         log: list[str] = []
-        brackets = build_brackets([EliminatorGroup("Men", 4, 2)], _starts(), [], log)
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), [], [], log
+        )
         document = build_finals_document(brackets, _starts(), _cfg())
         # Only the two seeded first-round heats carry riders.
         assert len(document["sections"]) == 2
@@ -150,14 +235,51 @@ class TestDocument:
         assert [row["cells"][0] for row in final["rows"]] == ["1", "2", "3", "4"]
         assert final["rows"][0]["cells"][1] == "101"
 
+    def test_the_result_column_is_declared_and_filled(self) -> None:
+        final = self._document()["sections"][0]
+        assert [column["id"] for column in final["columns"]][-1] == "result"
+        assert final["rows"][0]["cells"][-1] == "00:00:01.0"
+
+    def test_the_result_column_is_absent_when_hidden(self) -> None:
+        final = self._document(show_finish_time=False)["sections"][0]
+        assert "result" not in [column["id"] for column in final["columns"]]
+
     def test_a_rider_who_did_not_finish_is_marked(self) -> None:
-        document = build_finals_document(_brackets([["101", "105"]]), _starts(), _cfg())
+        document = build_finals_document(
+            _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
+        )
         statuses = [
             row.get("status")
             for section in document["sections"]
             for row in section["rows"]
         ]
         assert "dnf" in statuses
+
+    def test_a_disqualified_rider_is_marked(self) -> None:
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(FinishCompetitorElement("101", 1030.0, "DSQ"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        document = build_finals_document(brackets, _starts(), _cfg())
+        statuses = [
+            row.get("status")
+            for section in document["sections"]
+            for row in section["rows"]
+        ]
+        assert "dsq" in statuses
+
+    def test_an_unraced_heat_says_so_in_its_title(self) -> None:
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(2), [], [], log
+        )
+        document = build_finals_document(
+            brackets, _starts(2), _cfg(not_ridden_label="not ridden")
+        )
+        titles = [section["title"] for section in document["sections"]]
+        assert any("(not ridden)" in title for title in titles)
 
     def test_the_group_is_registered_for_the_site_filter(self) -> None:
         document = self._document()
@@ -174,6 +296,28 @@ class TestDocument:
             _brackets(), _starts(), _cfg(group_label="<b>G</b>")
         )
         assert not re.search(r"<[^>]+>", json.dumps(document, ensure_ascii=False))
+
+
+class TestGeneratedFiles:
+    def test_the_heat_list_is_one_name_per_line(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "heats.txt")
+            write_heat_list(path, _brackets())
+            assert Path(path).read_text(encoding="utf-8").splitlines() == [
+                _SEMI1,
+                _SEMI2,
+                _FINAL,
+                _SMALL,
+            ]
+
+    def test_the_ladder_file_round_trips(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "ladders.txt")
+            write_ladder_file(path, [("Men", "4", "2"), ("Women", "", "")])
+            assert Path(path).read_text(encoding="utf-8").splitlines() == [
+                "Men#4#2#",
+                "Women###",
+            ]
 
 
 @pytest.mark.parametrize("rounds", [1, 2, 3])

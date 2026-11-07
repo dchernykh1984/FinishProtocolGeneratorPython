@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from app.paths import app_path
 
@@ -132,6 +133,10 @@ class RaceConfig:
     write_seeding_protocol: bool = False
     #: Where that file goes. Empty keeps the old place, beside the group protocol.
     seeding_protocol_file: str = ""
+    #: The Eliminator Finals ladders: one line per group, riders per heat and rounds.
+    #: Its own file because groups.txt belongs to the chronometer, which appends a
+    #: line to it on every heat it starts.
+    eliminator_ladder_file: str = "ladders.txt"
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"
@@ -249,6 +254,8 @@ class RaceConfig:
     group_label: str = "Group"
     time_shift_label: str = "Start time"
     additional_info_label: str = "Additional info"
+    #: Said against an Eliminator Finals heat whose riders went through unraced.
+    not_ridden_label: str = "not ridden"
 
     styles: HtmlStyles = field(default_factory=HtmlStyles)
 
@@ -281,17 +288,17 @@ class RaceConfig:
         """
         return self.seeding_protocol_file or group_protocol_file + ".txt"
 
-    def seeding_protocol_conflict(self, group_protocol_file: str) -> str:
-        """The setting whose file the seeding protocol would overwrite, or "".
+    def heat_list_path(self, group_protocol_file: str) -> str:
+        """Where the heat names for the chronometer's group list go.
 
-        The field asks for a start protocol, so pointing it at the start protocol of
-        the race being run is an easy slip -- and it would replace the start list
-        with a finishing order in the middle of an event.
+        Beside the group protocol, which is where the referee already looks for what
+        this run produced; it is read by a person, not by the next run.
         """
-        target = _same_file_key(self.seeding_protocol_path(group_protocol_file))
-        if not target:
-            return ""
-        guarded = (
+        return str(Path(group_protocol_file).parent / "heats.txt")
+
+    def _guarded_files(self, group_protocol_file: str) -> tuple[tuple[str, str], ...]:
+        """Every file of this race a generated one must not land on."""
+        return (
             ("start protocol", self.start_protocol_file),
             ("group times", self.group_time_file),
             ("finish times", self.finish_time_file),
@@ -299,11 +306,39 @@ class RaceConfig:
             ("group protocol", group_protocol_file),
             ("absolute protocol", self.absolute_protocol_file),
             ("HTML styles template", self.template_file),
+            ("Eliminator ladders", self.eliminator_ladder_file),
         )
-        for label, other in guarded:
+
+    def _conflict(self, written: str, group_protocol_file: str) -> str:
+        """Which guarded setting ``written`` would land on, or ""."""
+        target = _same_file_key(written)
+        if not target:
+            return ""
+        for label, other in self._guarded_files(group_protocol_file):
             if other and _same_file_key(other) == target:
                 return label
         return ""
+
+    def seeding_protocol_conflict(self, group_protocol_file: str) -> str:
+        """The setting whose file the seeding protocol would overwrite, or "".
+
+        The field asks for a start protocol, so pointing it at the start protocol of
+        the race being run is an easy slip -- and it would replace the start list
+        with a finishing order in the middle of an event.
+        """
+        return self._conflict(
+            self.seeding_protocol_path(group_protocol_file), group_protocol_file
+        )
+
+    def heat_list_conflict(self, group_protocol_file: str) -> str:
+        """The setting whose file the heat list would overwrite, or "".
+
+        It is written on every Eliminator Finals run, so landing it on the start list
+        or on the ladders would wipe an input file in the middle of an event.
+        """
+        return self._conflict(
+            self.heat_list_path(group_protocol_file), group_protocol_file
+        )
 
     def skip_first_lap_effective(self) -> bool:
         return self.is_number_of_tries() or self.race_type == RACE_TYPE_CUSTOM_START

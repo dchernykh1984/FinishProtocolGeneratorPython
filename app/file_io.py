@@ -106,8 +106,8 @@ def read_start_protocol(
 
 
 def read_text_lines(path: str) -> list[str]:
-    """Non-empty lines of a text file; Eliminator Finals reads its ladders and heat
-    results as plain lines rather than timing records."""
+    """Non-empty lines of a text file; Eliminator Finals reads its ladder file as
+    plain lines rather than timing records."""
     return _read_lines(path)
 
 
@@ -728,6 +728,18 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["http_section"] = v
+        tok = nxt()
+
+    if tok == "EliminatorLadderFile":
+        v = nxt()
+        if v is not None:
+            result["eliminator_ladder_file"] = v
+        tok = nxt()
+
+    if tok == "NotRiddenLabel":
+        v = nxt()
+        if v is not None:
+            result["not_ridden_label"] = v
 
     return result
 

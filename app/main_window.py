@@ -57,10 +57,15 @@ from app.config import (
 from app.eliminator import (
     build_brackets,
     group_problems,
+    missing_ladders,
     parse_eliminator_groups,
-    read_heat_results,
 )
-from app.eliminator_output import build_finals_document, write_finals_protocol
+from app.eliminator_ladders_editor import EliminatorLaddersEditor
+from app.eliminator_output import (
+    build_finals_document,
+    write_finals_protocol,
+    write_heat_list,
+)
 from app.file_io import (
     KEY_VALUE_HEADER,
     config_file_problems,
@@ -597,6 +602,26 @@ class _GenerateWorker(QThread):
             self.log_message.emit(f"  WARNING: protocol data not built: {exc}")
             return {}
 
+    def _write_heat_list(self, cfg: RaceConfig, brackets, log: list[str]) -> None:
+        """Save the heat names for the chronometer's group list.
+
+        Written on every run so a ladder reshaped between rounds cannot leave the
+        chronometer offering heats that no longer exist.
+        """
+        clash = cfg.heat_list_conflict(cfg.group_protocol_file)
+        if clash:
+            log.append(
+                f"ERROR: the heat list would overwrite the {clash}; it was not written"
+            )
+            return
+        path = cfg.heat_list_path(cfg.group_protocol_file)
+        try:
+            write_heat_list(path, brackets)
+        except OSError as exc:
+            log.append(f"ERROR: heat list not written to {path}: {exc}")
+            return
+        self.log_message.emit(f"  heat names for the chronometer: {path}")
+
     def _emit_upload_result(
         self, upload_failed: bool, upload_errors: list[str]
     ) -> None:
@@ -607,31 +632,50 @@ class _GenerateWorker(QThread):
             self.log_message.emit("Done.")
 
     def _run_eliminator_finals(self, cfg: RaceConfig) -> None:
-        """Ladders instead of times: every input file means something else here.
-
-        groups.txt describes the ladders, the start protocol carries qualification
-        places and the finish file holds one heat result per line, so none of the
-        timing pipeline runs.
+        """Ladders and times. The ladder file shapes each bracket, the start protocol
+        carries qualification places, and the chronometer's own two files say when
+        every heat started and who crossed when -- a heat is scored from the marks
+        inside its own start window.
         """
         log: list[str] = []
         self.log_message.emit("Reading ladders...")
-        group_lines = read_text_lines(cfg.group_time_file)
-        log.extend(group_problems(group_lines))
-        groups = parse_eliminator_groups(group_lines)
+        ladders = read_text_lines(cfg.eliminator_ladder_file)
+        log.extend(group_problems(ladders))
+        groups = parse_eliminator_groups(ladders)
         self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
 
         self.log_message.emit("Reading start protocol...")
         start_list = read_start_protocol(cfg.start_protocol_file, place_field=True)
         self.log_message.emit(f"  {len(start_list)} competitors loaded")
 
-        self.log_message.emit("Reading heat results...")
-        results = read_heat_results(read_text_lines(cfg.finish_time_file))
-        self.log_message.emit(f"  {len(results)} heat result(s) loaded")
+        unknown = missing_ladders(groups, start_list)
+        if unknown:
+            for name in unknown:
+                log.append(f"ERROR: group {name} has qualifiers but no ladder")
+            for msg in log:
+                self.log_message.emit(msg)
+            # Stopping beats writing: a group without a ladder comes out as a heading
+            # with nothing under it, which reads like a group that did not race.
+            raise ValueError(
+                "No ladder for: "
+                + ", ".join(unknown)
+                + ". Set riders per heat and rounds for each of them in the "
+                "Eliminator ladders table, then generate again."
+            )
 
-        brackets = build_brackets(groups, start_list, results, log)
+        self.log_message.emit("Reading heat starts...")
+        group_list = read_group_times(cfg.group_time_file)
+        self.log_message.emit(f"  {len(group_list)} heat start(s) loaded")
+
+        self.log_message.emit("Reading finish marks...")
+        marks = read_finish_times(cfg.finish_time_file)
+        self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
+
+        brackets = build_brackets(groups, start_list, group_list, marks, log)
 
         self.log_message.emit("Writing finals protocol...")
         write_finals_protocol(cfg.group_protocol_file, brackets, start_list, cfg)
+        self._write_heat_list(cfg, brackets, log)
 
         for msg in log:
             self.log_message.emit(msg)
@@ -962,6 +1006,43 @@ class MainWindow(QMainWindow):
         self._seeding_row.setVisible(not self._cfg.is_eliminator_finals())
         return self._seeding_row
 
+    def _make_ladders_row(self) -> QWidget:
+        """Where the ladder file lives, with a picker. Only the finals read it."""
+        self._ladders_row = QWidget()
+        row = QHBoxLayout(self._ladders_row)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(QLabel("Eliminator ladders file:"))
+        self._edit_ladders = self._bind_line_edit("eliminator_ladder_file")
+        self._edit_ladders.setPlaceholderText("ladders.txt")
+        self._edit_ladders.textChanged.connect(lambda _text: self._reload_ladders())
+        row.addWidget(self._edit_ladders)
+
+        def _pick_ladders(_checked: bool) -> None:
+            path, _ = QFileDialog.getSaveFileName(self, "Select Eliminator ladder file")
+            if path:
+                self._edit_ladders.setText(path)
+
+        button = QPushButton("...")
+        button.setFixedWidth(60)
+        button.clicked.connect(_pick_ladders)
+        row.addWidget(button)
+        self._ladders_row.setVisible(self._cfg.is_eliminator_finals())
+        return self._ladders_row
+
+    def _sync_ladders_row(self) -> None:
+        """Show the ladders only where they mean something, and reload them there."""
+        finals = self._cfg.is_eliminator_finals()
+        self._ladders_row.setVisible(finals)
+        self._ladders_editor.setVisible(finals)
+        if finals:
+            self._reload_ladders()
+
+    def _reload_ladders(self) -> None:
+        """Point the editor at the configured files and show what they hold."""
+        self._ladders_editor.set_files(
+            self._cfg.eliminator_ladder_file, self._cfg.start_protocol_file
+        )
+
     def _on_seeding_toggled(self, checked: bool) -> None:
         self._cfg.write_seeding_protocol = checked
         self._edit_seeding.setEnabled(checked)
@@ -1143,6 +1224,16 @@ class MainWindow(QMainWindow):
         )
         ly.addWidget(self._attempt_rules_editor)
 
+        ly.addWidget(self._make_ladders_row())
+        self._ladders_editor = EliminatorLaddersEditor()
+        self._ladders_editor.setVisible(self._cfg.is_eliminator_finals())
+        self._combo_race_type.currentTextChanged.connect(
+            lambda _value: self._sync_ladders_row()
+        )
+        ly.addWidget(self._ladders_editor)
+        if self._cfg.is_eliminator_finals():
+            self._reload_ladders()
+
         # generate button
         self._btn_generate = QPushButton("Generate Protocol")
         self._btn_generate.setFixedHeight(40)
@@ -1268,6 +1359,11 @@ class MainWindow(QMainWindow):
                 "Show time difference", "show_time_difference", "time_difference_label"
             )
         )
+
+        row_nr = QHBoxLayout()
+        row_nr.addWidget(QLabel("Heat not ridden label (Eliminator Finals):"), 1)
+        row_nr.addWidget(self._bind_line_edit("not_ridden_label"), 2)
+        ly.addLayout(row_nr)
 
         ly.addLayout(_check_label_row("Show lap times", "show_lap_times", "lap_name"))
         row_lai = QHBoxLayout()
@@ -1999,8 +2095,11 @@ class MainWindow(QMainWindow):
             "1" if cfg.write_seeding_protocol else "0",
         ]
         lines += ["SeedingProtocolFile", cfg.seeding_protocol_file]
-        # Last: an older version stops reading at the first tag it does not know.
         lines += ["HttpSection", str(cfg.http_section)]
+        # Last: an older version stops reading at the first tag it does not know, and
+        # the reader walks the tags in this order, so new ones go on the end.
+        lines += ["EliminatorLadderFile", cfg.eliminator_ladder_file]
+        lines += ["NotRiddenLabel", cfg.not_ridden_label]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2171,6 +2270,10 @@ class MainWindow(QMainWindow):
             cfg.seeding_protocol_file = _str(
                 "SeedingProtocolFile", cfg.seeding_protocol_file
             )
+            cfg.eliminator_ladder_file = _str(
+                "EliminatorLadderFile", cfg.eliminator_ladder_file
+            )
+            cfg.not_ridden_label = _str("NotRiddenLabel", cfg.not_ridden_label)
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2482,6 +2585,10 @@ class MainWindow(QMainWindow):
             cfg.attempt_rules_json = d.get("attempt_rules_json", "[]")
             cfg.write_seeding_protocol = d.get("write_seeding_protocol", "0") == "1"
             cfg.seeding_protocol_file = d.get("seeding_protocol_file", "")
+            cfg.eliminator_ladder_file = d.get(
+                "eliminator_ladder_file", cfg.eliminator_ladder_file
+            )
+            cfg.not_ridden_label = d.get("not_ridden_label", cfg.not_ridden_label)
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
@@ -2543,6 +2650,7 @@ class MainWindow(QMainWindow):
         self._seeding_row.setVisible(not cfg.is_eliminator_finals())
         self._edit_seeding.setEnabled(cfg.write_seeding_protocol)
         self._btn_seeding.setEnabled(cfg.write_seeding_protocol)
+        self._sync_ladders_row()
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)
             self._combo_race_type.setCurrentText(cfg.race_type)
