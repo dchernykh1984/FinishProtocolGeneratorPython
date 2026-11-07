@@ -263,6 +263,7 @@ class TestDocument:
             {"show_time_difference": False},
             {"show_additional_info": True},
         ],
+        ids=["default", "no-place", "no-time", "no-gap", "extra"],
     )
     def test_the_site_accepts_it(self, shown: dict[str, bool]) -> None:
         # A document the site refuses is replaced by the HTML on the page, so the
