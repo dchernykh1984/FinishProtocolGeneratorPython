@@ -318,6 +318,23 @@ class TestDocument:
         final = self._document(show_finish_time=False)["sections"][0]
         assert "result" not in [column["id"] for column in final["columns"]]
 
+    def test_the_columns_are_the_timed_protocols(self) -> None:
+        # The site keeps the number in view beside the name only for the roles it
+        # knows, and the columns follow the HTML's order.
+        final = self._document(show_additional_info=True)["sections"][0]
+        roles = {column["id"]: column.get("role") for column in final["columns"]}
+        assert (roles["bib"], roles["team"]) == ("bib", "team")
+        assert list(roles) == [
+            "place",
+            "bib",
+            "name",
+            "year",
+            "team",
+            "city",
+            "extra",
+            "result",
+        ]
+
     def test_a_rider_who_did_not_finish_is_marked(self) -> None:
         document = build_finals_document(
             _brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _starts(), _cfg()

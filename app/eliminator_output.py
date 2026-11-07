@@ -25,7 +25,15 @@ from app.eliminator import (
 from app.html_writer import _write_footer, _write_header
 from app.models import GroupStartElement, StartProtocolElement
 from app.paths import app_path
-from app.protocol_document import _cell, _column, _document, _group_id, _plain
+from app.protocol_document import (
+    _PRIORITY,
+    _cell,
+    _column,
+    _document,
+    _group_id,
+    _person_columns,
+    _plain,
+)
 from app.protocol_rows import format_time
 
 
@@ -266,12 +274,13 @@ def _heat_section(
     riders: dict[str, StartProtocolElement],
     cfg: RaceConfig,
 ) -> dict[str, Any]:
-    columns: list[dict[str, Any]] = []
-    if cfg.show_place:
-        columns.append(_column("place", cfg.place_label, role="place", priority=1))
-    for key, label, _attr in _person_fields(cfg):
-        role = "name" if key == "name" else None
-        columns.append(_column(key, label, role=role, priority=1 if role else 3))
+    # The timed protocol's own columns, so the site lays a heat out as it does every
+    # other table: the number stays in view beside the name, the minor columns give
+    # way first on a narrow screen.
+    columns = _person_columns(cfg, absolute=False)
+    if cfg.show_additional_info:
+        extra = _column("extra", cfg.additional_info_label, priority=_PRIORITY["extra"])
+        columns.append(extra)
     if cfg.show_finish_time:
         sub = [_plain(cfg.time_difference_label)] if cfg.show_time_difference else []
         columns.append(
