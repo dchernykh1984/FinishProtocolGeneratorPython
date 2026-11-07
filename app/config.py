@@ -309,12 +309,18 @@ class RaceConfig:
             ("Eliminator ladders", self.eliminator_ladder_file),
         )
 
-    def _conflict(self, written: str, group_protocol_file: str) -> str:
-        """Which guarded setting ``written`` would land on, or ""."""
+    def _conflict(self, written: str, group_protocol_file: str, skip: str = "") -> str:
+        """Which guarded setting ``written`` would land on, or "".
+
+        ``skip`` leaves out the setting being checked, for a file that is guarded in
+        its own right and would otherwise match itself.
+        """
         target = _same_file_key(written)
         if not target:
             return ""
         for label, other in self._guarded_files(group_protocol_file):
+            if label == skip:
+                continue
             if other and _same_file_key(other) == target:
                 return label
         return ""
@@ -328,6 +334,19 @@ class RaceConfig:
         """
         return self._conflict(
             self.seeding_protocol_path(group_protocol_file), group_protocol_file
+        )
+
+    def ladder_file_conflict(self, group_protocol_file: str) -> str:
+        """The setting whose file the ladders table would overwrite, or "".
+
+        The table saves on every edit, so a ladder file pointed at the start list
+        would replace the qualifiers with a few group names, keystroke by keystroke,
+        in the middle of an event.
+        """
+        return self._conflict(
+            self.eliminator_ladder_file,
+            group_protocol_file,
+            skip="Eliminator ladders",
         )
 
     def heat_list_conflict(self, group_protocol_file: str) -> str:

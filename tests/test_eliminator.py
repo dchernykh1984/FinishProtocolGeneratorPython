@@ -357,6 +357,19 @@ class TestUnraced:
         bracket = _Event().build(_ladder(), _starts([1, 4]))[0][0]
         assert bracket.stages[0][0].times == [-1.0] * 4
 
+    def test_the_better_qualifier_comes_first_above_stage_zero_too(self) -> None:
+        # Seats above the first round hold whoever the heats below sent up, in the
+        # order those were scored, so seat order is not merit order there either.
+        # Semi 1 classifies only place 8; semi 2 only place 7.
+        event = _Event()
+        event.ride(SEMI1, ["108"])
+        event.ride(SEMI2, ["107"])
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        final = bracket.stages[1][0]
+        assert not final.ridden
+        assert final.numbers[:2] == ["107", "108"]
+        assert bracket.finishing_places(final)[:2] == [1, 2]
+
     def test_a_full_heat_waits_to_be_ridden(self) -> None:
         bracket = _Event().build(_ladder(), _starts([1, 4, 5]))[0][0]
         assert not bracket.stages[0][0].has_results

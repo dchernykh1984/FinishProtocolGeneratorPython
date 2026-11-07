@@ -106,6 +106,9 @@ class EliminatorBracket:
 
     def __init__(self, group: EliminatorGroup) -> None:
         self.group = group
+        #: Qualification place per bib, so a heat that was not ridden can be ordered
+        #: by it at any stage, not only where the seats still hold the seeding.
+        self.places: dict[str, int] = {}
         size = group.heat_size
         # stages[0] is the first round ridden; the last stage holds the final.
         self.stages: list[list[Heat]] = []
@@ -212,6 +215,7 @@ class EliminatorBracket:
                         f"{displaced} loses its seat"
                     )
                 heat.numbers[seat] = bib
+                self.places[bib] = place
                 return True
         return False
 
@@ -230,16 +234,16 @@ class EliminatorBracket:
     def ride_unraced(self, heat: Heat) -> None:
         """Send a heat's riders through in qualification order, without times.
 
-        Their seats hold the better qualifier first once sorted by seed: a seeded
-        heat pairs first against last, so seat order is not merit order.
+        Seat order will not do. At stage 0 the seats pair first against last, and
+        above it they hold whoever the heats below sent up, in the order those were
+        scored -- so in both cases the better qualifier can be sitting second. The
+        qualification place is the only standing a heat nobody rode can go on.
         """
-        order = [
-            bib
-            for _seed, bib in sorted(
-                zip(heat.seeds, heat.numbers, strict=False), key=lambda pair: pair[0]
-            )
-            if bib
-        ]
+        unplaced = len(self.places) + 1
+        order = sorted(
+            (bib for bib in heat.numbers if bib),
+            key=lambda bib: self.places.get(bib, unplaced),
+        )
         self._record(heat, order, len(order), {}, set(), ridden=False)
 
     def ride_timed(

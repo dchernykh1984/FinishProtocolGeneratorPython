@@ -60,22 +60,24 @@ def _person_fields(cfg: RaceConfig) -> list[tuple[str, str, str]]:
     return [(key, label, attr) for shown, key, label, attr in wanted if shown]
 
 
-def _result_text(heat: Heat, seat: int, cfg: RaceConfig) -> str:
-    """The time this seat rode, with the gap to the heat winner behind it.
+def _result_parts(heat: Heat, seat: int, cfg: RaceConfig) -> tuple[str, str]:
+    """The time this seat rode and the gap to the heat winner, as two cells would
+    hold them: the HTML writes them in one, the site puts the gap on a sub-line
+    under it, which is how the timed protocol's result column already works.
 
     A heat is its own race, so the gap is measured inside it: against the field of a
     whole group the number would mean nothing.
     """
     if heat.times[seat] < 0:
-        return ""
+        return "", ""
     text = format_time(heat.times[seat], cfg.n_signs_after_point)
     if not cfg.show_time_difference:
-        return text
+        return text, ""
     best = min((time for time in heat.times if time >= 0), default=-1.0)
     gap = heat.times[seat] - best
     if gap <= 0:
-        return text
-    return f"{text} (+{format_time(gap, cfg.n_signs_after_point)})"
+        return text, ""
+    return text, f"(+{format_time(gap, cfg.n_signs_after_point)})"
 
 
 def _seat_values(
@@ -84,8 +86,8 @@ def _seat_values(
     seat: int,
     riders: dict[str, StartProtocolElement],
     cfg: RaceConfig,
-) -> tuple[str, list[str], str]:
-    """The place cell, the rider cells and the result cell of one seat."""
+) -> tuple[str, list[str], tuple[str, str]]:
+    """The place cell, the rider cells and the result (time, gap) of one seat."""
     bib = heat.numbers[seat]
     place = bracket.finishing_places(heat)[seat]
     if heat.disqualified[seat]:
@@ -107,7 +109,7 @@ def _seat_values(
         else:
             # A seat whose bib is not in the start protocol still shows the bib.
             values.append(bib if attr == "competitor_id" else "")
-    return place_text, values, _result_text(heat, seat, cfg)
+    return place_text, values, _result_parts(heat, seat, cfg)
 
 
 # -- HTML ---------------------------------------------------------------------
@@ -144,7 +146,8 @@ def _write_heat(
         for value in values:
             f.write(f"<td ALIGN=center>{html.escape(value)}</td>\n")
         if cfg.show_finish_time:
-            f.write(f"<td ALIGN=center>{html.escape(result)}</td>\n")
+            text = " ".join(part for part in result if part)
+            f.write(f"<td ALIGN=center>{html.escape(text)}</td>\n")
         f.write("</tr>\n")
     f.write("</table>\n")
 
@@ -251,7 +254,8 @@ def _heat_section(
             _cell(value) for value in values
         ]
         if cfg.show_finish_time:
-            cells.append(_cell(result))
+            time_text, gap_text = result
+            cells.append(_cell(time_text, [gap_text]))
         row: dict[str, Any] = {"cells": cells}
         if place_text == "DNF":
             row["status"] = "dnf"

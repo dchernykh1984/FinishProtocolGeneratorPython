@@ -240,6 +240,22 @@ class TestDocument:
         assert [column["id"] for column in final["columns"]][-1] == "result"
         assert final["rows"][0]["cells"][-1] == "00:00:01.0"
 
+    def test_the_gap_sits_under_the_time_as_the_column_promises(self) -> None:
+        # The column declares a sub-label for the difference, so the difference has
+        # to arrive as a sub-line; inlined into the text it would leave that heading
+        # with nothing under it.
+        final = self._document(show_time_difference=True)["sections"][0]
+        result_column = final["columns"][-1]
+        assert result_column["sub_label"]
+        winner, second = final["rows"][0]["cells"][-1], final["rows"][1]["cells"][-1]
+        assert winner == "00:00:01.0"
+        assert second == {"text": "00:00:02.0", "sub": ["(+00:00:01.0)"]}
+
+    def test_without_the_difference_the_column_promises_nothing(self) -> None:
+        final = self._document(show_time_difference=False)["sections"][0]
+        assert "sub_label" not in final["columns"][-1]
+        assert final["rows"][1]["cells"][-1] == "00:00:02.0"
+
     def test_the_result_column_is_absent_when_hidden(self) -> None:
         final = self._document(show_finish_time=False)["sections"][0]
         assert "result" not in [column["id"] for column in final["columns"]]

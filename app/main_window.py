@@ -639,7 +639,13 @@ class _GenerateWorker(QThread):
         """
         log: list[str] = []
         self.log_message.emit("Reading ladders...")
-        ladders = read_text_lines(cfg.eliminator_ladder_file)
+        try:
+            ladders = read_text_lines(cfg.eliminator_ladder_file)
+        except OSError as exc:
+            # The first finals of an event start from no file at all, and "no ladder
+            # for Men" says what to do about it; an errno does not.
+            log.append(f"ERROR: cannot read {cfg.eliminator_ladder_file}: {exc}")
+            ladders = []
         log.extend(group_problems(ladders))
         groups = parse_eliminator_groups(ladders)
         self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
@@ -669,6 +675,10 @@ class _GenerateWorker(QThread):
 
         self.log_message.emit("Reading finish marks...")
         marks = read_finish_times(cfg.finish_time_file)
+        if cfg.disable_dsq:
+            # Disable DSQ means a disqualification mark does not disqualify, and it
+            # is not a crossing either, so for a ladder it means nothing at all.
+            marks = [mark for mark in marks if not mark.is_dsq]
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
 
         brackets = build_brackets(groups, start_list, group_list, marks, log)
@@ -1226,6 +1236,9 @@ class MainWindow(QMainWindow):
 
         ly.addWidget(self._make_ladders_row())
         self._ladders_editor = EliminatorLaddersEditor()
+        self._ladders_editor.conflict = lambda: self._cfg.ladder_file_conflict(
+            self._cfg.group_protocol_file
+        )
         self._ladders_editor.setVisible(self._cfg.is_eliminator_finals())
         self._combo_race_type.currentTextChanged.connect(
             lambda _value: self._sync_ladders_row()

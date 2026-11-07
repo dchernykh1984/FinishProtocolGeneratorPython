@@ -13,6 +13,7 @@ shape would hand out medals for a format nobody chose.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import Signal
@@ -47,6 +48,10 @@ class EliminatorLaddersEditor(QWidget):
         super().__init__()
         self._ladder_file = ""
         self._start_file = ""
+        #: Asks the race whether writing the ladder file would land on another of its
+        #: files. While it answers with a setting's name, nothing is written: this
+        #: table saves on every keystroke, so it would shred an input file.
+        self.conflict: Callable[[], str] = lambda: ""
         layout = QVBoxLayout(self)
         layout.addWidget(
             QLabel(
@@ -103,7 +108,17 @@ class EliminatorLaddersEditor(QWidget):
                     (group, get_field(line, 1).strip(), get_field(line, 2).strip())
                 )
         self._set_rows(rows)
-        self.status.clear()
+        self.status.setText(self._refusal())
+
+    def _refusal(self) -> str:
+        """Why this table will not save, or "" when it will."""
+        clash = self.conflict()
+        if not clash:
+            return ""
+        return (
+            f"Not saved: the ladder file is also the {clash} of this race. "
+            "Point it at a file of its own."
+        )
 
     def add_missing_groups(self) -> None:
         """Append every group of the start protocol that has no row yet.
@@ -180,6 +195,10 @@ class EliminatorLaddersEditor(QWidget):
     def _save(self) -> None:
         """Write the table to the ladder file, which is where every reader looks."""
         if not self._ladder_file:
+            return
+        refusal = self._refusal()
+        if refusal:
+            self.status.setText(refusal)
             return
         try:
             write_ladder_file(self._ladder_file, self.rows())
