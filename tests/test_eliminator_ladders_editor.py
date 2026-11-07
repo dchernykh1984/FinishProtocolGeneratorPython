@@ -76,9 +76,19 @@ class TestLoading:
         editor = _editor(tmp_path, "Men#8#2#\n")
         assert editor.rows() == [("Men", "", "2")]
 
-    def test_a_round_count_out_of_range_loads_blank(self, tmp_path: Path) -> None:
+    def test_a_round_count_too_deep_is_clamped_not_blanked(
+        self, tmp_path: Path
+    ) -> None:
+        # Blanking it would be saved back on the next keystroke and the referee's
+        # figure would be gone, so the nearest legal depth is shown instead.
         editor = _editor(tmp_path, "Men#4#99#\n")
-        assert editor.rows() == [("Men", "4", "")]
+        assert editor.rows() == [("Men", "4", "5")]
+        assert "rounds at most 5" in editor.status.text()
+
+    def test_an_adjusted_row_names_its_group(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\nWomen#8#2#\n")
+        assert "Women" in editor.status.text()
+        assert "Men," not in editor.status.text()
 
     def test_a_round_count_that_is_not_a_number_loads_blank(
         self, tmp_path: Path

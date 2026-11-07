@@ -25,6 +25,7 @@ from app.eliminator import (
     missing_ladders,
     parse_eliminator_groups,
     start_list_groups,
+    tie_tolerance,
     unusable_starts,
 )
 from app.models import (
@@ -258,9 +259,24 @@ class TestHeatsScoredFromTimes:
         # Nobody was classified behind them, so the small final stays empty.
         assert bracket.small_final.taken == 0
 
-    def test_a_started_heat_with_no_marks_at_all_is_an_error(self) -> None:
-        _brackets, log = _Event().start(SEMI1).build(_ladder(), _starts([1, 4, 5, 8]))
-        assert any("was started but has no finish marks" in line for line in log)
+    def test_a_started_heat_with_no_marks_yet_is_still_in_progress(self) -> None:
+        # Its riders are on the course. Sealing it would print all four as DNF, let
+        # the round above go through on a bye and publish medals mid-race -- which a
+        # protocol refreshed every half minute would do on its own.
+        brackets, log = _Event().start(SEMI1).build(_ladder(), _starts([1, 4, 5, 8]))
+        semi = brackets[0].stages[0][0]
+        assert not semi.has_results
+        assert brackets[0].finishing_places(semi) == [None] * 4
+        assert any("waiting for its finish marks" in line for line in log)
+
+    def test_the_round_above_an_unfinished_heat_stays_empty(self) -> None:
+        event = _Event()
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(SEMI1)
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        final = brackets[0].stages[1][0]
+        assert not final.has_results
+        assert final.taken == 2
 
     def test_a_heat_nobody_started_stays_empty(self) -> None:
         bracket = _Event().build(_ladder(), _starts(list(range(1, 9))))[0][0]
@@ -367,13 +383,37 @@ class TestOnlyCrossingsCount:
         assert semi.numbers[:2] == ["104", "101"]
         assert semi.times[semi.numbers.index("101")] == pytest.approx(30.0)
 
-    def test_a_heat_with_only_other_marks_has_no_result(self) -> None:
+    def test_a_heat_with_only_other_marks_is_still_in_progress(self) -> None:
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         event.marks.append(FinishCompetitorElement("101", 1005.0, "nextStage"))
         brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
-        assert any("has no finish marks" in line for line in log)
-        assert brackets[0].stages[0][0].times == [-1.0] * 4
+        assert any("waiting for its finish marks" in line for line in log)
+        assert not brackets[0].stages[0][0].has_results
+
+    def test_the_last_lap_is_the_finish_not_the_first(self) -> None:
+        # A heat of more than one lap: scoring the earliest crossing would publish
+        # whoever led lap one.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        for bib, laps in (("101", (10.0, 60.0)), ("104", (20.0, 50.0))):
+            for gap in laps:
+                event.marks.append(
+                    FinishCompetitorElement(bib, 1000.0 + gap, "nextLap")
+                )
+        bracket = event.build(_ladder(), _starts([1, 4]))[0][0]
+        semi = bracket.stages[0][0]
+        assert semi.numbers[:2] == ["104", "101"]
+        assert semi.times[0] == pytest.approx(50.0)
+
+    def test_a_finish_mark_beats_a_later_lap_mark(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1030.0, "finish"))
+        event.marks.append(FinishCompetitorElement("101", 1040.0, "nextLap"))
+        event.marks.append(FinishCompetitorElement("104", 1035.0, "finish"))
+        bracket = event.build(_ladder(), _starts([1, 4]))[0][0]
+        assert bracket.stages[0][0].numbers[:2] == ["101", "104"]
 
 
 class TestGroupNamesWithStrayWhitespace:
@@ -542,6 +582,34 @@ class TestTies:
 
     def test_distinct_times_raise_nothing(self) -> None:
         log = self._tie(SEMI1, ["101", "105", "104", "108"], [1.0, 2.0, 3.0, 4.0])
+        assert not [line for line in log if "share a time" in line]
+
+    def test_a_gap_the_protocol_cannot_print_is_a_tie(self) -> None:
+        # The default protocol shows one decimal, so 2.00 and 2.003 come out the
+        # same on the page -- and a difference nobody can see is one nobody can
+        # defend when the result is protested.
+        log = self._tie(SEMI1, ["101", "105", "104", "108"], [1.0, 2.0, 2.003, 4.0])
+        tie = [line for line in log if "share a time" in line]
+        assert tie and tie[0].startswith("ERROR:")
+
+    def test_the_tolerance_follows_the_printed_precision(self) -> None:
+        assert tie_tolerance(1) == pytest.approx(0.05)
+        assert tie_tolerance(3) == pytest.approx(0.0005)
+        assert tie_tolerance(0) == pytest.approx(0.5)
+
+    def test_a_finer_protocol_tells_the_two_apart(self) -> None:
+        event = _Event().ride(
+            SEMI1, ["101", "105", "104", "108"], offsets=[1.0, 2.0, 2.003, 4.0]
+        )
+        log: list[str] = []
+        build_brackets(
+            _ladder(),
+            _starts(list(range(1, 9))),
+            event.starts,
+            event.marks,
+            log,
+            tie_tolerance(3),
+        )
         assert not [line for line in log if "share a time" in line]
 
     def test_three_riders_on_one_time_are_reported_once(self) -> None:

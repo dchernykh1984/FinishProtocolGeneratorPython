@@ -59,6 +59,7 @@ from app.eliminator import (
     group_problems,
     missing_ladders,
     parse_eliminator_groups,
+    tie_tolerance,
     unusable_starts,
 )
 from app.eliminator_ladders_editor import EliminatorLaddersEditor
@@ -712,11 +713,18 @@ class _GenerateWorker(QThread):
                 log,
                 "No start time recorded for: "
                 + ", ".join(unusable)
-                + ". Press Start before Save group in the chronometer, or remove "
-                "those lines from the heat start file, then generate again.",
+                + ". Start each of them again in the chronometer, pressing Start "
+                "before Save group, then generate again.",
             )
 
-        brackets = build_brackets(groups, start_list, group_list, marks, log)
+        brackets = build_brackets(
+            groups,
+            start_list,
+            group_list,
+            marks,
+            log,
+            tie_tolerance(cfg.n_signs_after_point),
+        )
 
         self.log_message.emit("Writing finals protocol...")
         write_finals_protocol(cfg.group_protocol_file, brackets, start_list, cfg)
