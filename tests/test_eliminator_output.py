@@ -96,6 +96,20 @@ def _html(brackets, cfg: RaceConfig) -> str:
         return Path(path).read_text(encoding="utf-8")
 
 
+def _heats(document: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every heat's table, ladder by ladder, stage by stage in the order ridden."""
+    return [
+        heat
+        for ladder in document["sections"]
+        for stage in ladder["sections"]
+        for heat in stage["sections"]
+    ]
+
+
+def _heat(document: dict[str, Any], title: str) -> dict[str, Any]:
+    return next(heat for heat in _heats(document) if heat["title"] == title)
+
+
 class TestHeatTitles:
     def test_the_rounds_are_named_as_fractions(self) -> None:
         bracket = _brackets(rounds=3)[0]
@@ -183,9 +197,7 @@ class TestAHeatStillBeingRidden:
             _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
         )
         statuses = [
-            row.get("status")
-            for section in document["sections"]
-            for row in section["rows"]
+            row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
         assert "dnf" not in statuses
 
@@ -193,8 +205,7 @@ class TestAHeatStillBeingRidden:
         document = build_finals_document(
             _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
         )
-        titles = [section["title"] for section in document["sections"]]
-        assert any(title.endswith("- Final") for title in titles)
+        assert _heat(document, "Final")["rows"]
 
 
 class TestTimesOnThePage:
@@ -272,32 +283,51 @@ class TestDocument:
         jsonschema.validate(document, SCHEMA)
         check_document_rules(document)
 
-    def test_one_plain_table_per_ridden_heat(self) -> None:
-        sections = self._document()["sections"]
-        assert {section["type"] for section in sections} == {"table"}
-        assert len(sections) == 4
+    def test_each_group_is_a_ladder_of_its_stages_in_the_order_ridden(self) -> None:
+        (ladder,) = self._document()["sections"]
+        assert ladder["type"] == "ladder"
+        assert ladder["title"] == "Group Men"
+        assert [stage["title"] for stage in ladder["sections"]] == [
+            "1/2 final",
+            "Final",
+        ]
+        assert [
+            [heat["title"] for heat in stage["sections"]]
+            for stage in ladder["sections"]
+        ] == [["1/2 final 1", "1/2 final 2"], ["Final", "Small final"]]
+        assert {heat["type"] for heat in _heats(self._document())} == {"table"}
 
-    def test_the_final_comes_first_for_a_phone(self) -> None:
-        titles = [section["title"] for section in self._document()["sections"]]
-        assert titles[0].endswith("Final")
-        assert titles[-1].endswith("1/2 final 2")
+    def test_a_stage_is_named_as_its_heats_are(self) -> None:
+        (ladder,) = build_finals_document(_brackets([], rounds=4), _starts(32), _cfg())[
+            "sections"
+        ]
+        assert [stage["title"] for stage in ladder["sections"]] == [
+            "1/8 final",
+            "1/4 final",
+            "1/2 final",
+            "Final",
+        ]
+        for stage in ladder["sections"]:
+            for heat in stage["sections"]:
+                if heat["title"] != "Small final":
+                    assert heat["title"].startswith(stage["title"]), heat["title"]
 
-    def test_a_heat_nobody_rode_is_left_out(self) -> None:
+    def test_a_heat_nobody_is_seated_in_keeps_its_place_empty(self) -> None:
         log: list[str] = []
         brackets = build_brackets(
             [EliminatorGroup("Men", 4, 2)], _starts(), [], [], log
         )
         document = build_finals_document(brackets, _starts(), _cfg())
-        # Only the two seeded first-round heats carry riders.
-        assert len(document["sections"]) == 2
+        # The two seeded first-round heats carry riders; the finals wait, empty.
+        assert [len(heat["rows"]) for heat in _heats(document)] == [4, 4, 0, 0]
 
     def test_rows_carry_the_places_and_the_riders(self) -> None:
-        final = self._document()["sections"][0]
+        final = _heat(self._document(), "Final")
         assert [row["cells"]["place"] for row in final["rows"]] == ["1", "2", "3", "4"]
         assert final["rows"][0]["cells"]["bib"] == "101"
 
     def test_the_result_column_is_declared_and_filled(self) -> None:
-        final = self._document()["sections"][0]
+        final = _heat(self._document(), "Final")
         assert [column["id"] for column in final["columns"]][-1] == "result"
         assert final["rows"][0]["cells"]["result"] == "00:00:01.0"
 
@@ -305,7 +335,7 @@ class TestDocument:
         # The column declares a sub-label for the difference, so the difference has
         # to arrive as a sub-line; inlined into the text it would leave that heading
         # with nothing under it.
-        final = self._document(show_time_difference=True)["sections"][0]
+        final = _heat(self._document(show_time_difference=True), "Final")
         result_column = final["columns"][-1]
         assert result_column["sub_label"]
         winner, second = (row["cells"]["result"] for row in final["rows"][:2])
@@ -313,12 +343,12 @@ class TestDocument:
         assert second == {"text": "00:00:02.0", "sub": ["(+00:00:01.0)"]}
 
     def test_without_the_difference_the_column_promises_nothing(self) -> None:
-        final = self._document(show_time_difference=False)["sections"][0]
+        final = _heat(self._document(show_time_difference=False), "Final")
         assert "sub_label" not in final["columns"][-1]
         assert final["rows"][1]["cells"]["result"] == "00:00:02.0"
 
     def test_the_result_column_is_absent_when_hidden(self) -> None:
-        final = self._document(show_finish_time=False)["sections"][0]
+        final = _heat(self._document(show_finish_time=False), "Final")
         assert "result" not in [column["id"] for column in final["columns"]]
 
     def test_the_columns_are_declared_as_a_timed_protocols(self) -> None:
@@ -331,7 +361,7 @@ class TestDocument:
             column["id"]: (column.get("role"), column.get("priority"))
             for column in timed["sections"][0]["columns"]
         }
-        final = self._document(show_additional_info=True)["sections"][0]
+        final = _heat(self._document(show_additional_info=True), "Final")
         ids = [column["id"] for column in final["columns"]]
         assert ids == [
             "place",
@@ -352,9 +382,7 @@ class TestDocument:
             _brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _starts(), _cfg()
         )
         statuses = [
-            row.get("status")
-            for section in document["sections"]
-            for row in section["rows"]
+            row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
         assert "dnf" in statuses
 
@@ -367,9 +395,7 @@ class TestDocument:
         )
         document = build_finals_document(brackets, _starts(), _cfg())
         statuses = [
-            row.get("status")
-            for section in document["sections"]
-            for row in section["rows"]
+            row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
         assert "dsq" in statuses
 
@@ -381,15 +407,23 @@ class TestDocument:
         document = build_finals_document(
             brackets, _starts(2), _cfg(not_ridden_label="not ridden")
         )
-        titles = [section["title"] for section in document["sections"]]
-        assert any("(not ridden)" in title for title in titles)
+        titles = [heat["title"] for heat in _heats(document)]
+        assert "1/2 final 1 (not ridden)" in titles
 
     def test_the_group_is_registered_for_the_site_filter(self) -> None:
         document = self._document()
         assert [group["label"] for group in document["groups"]] == ["Men"]
-        assert {section["group"] for section in document["sections"]} == {
+        assert {ladder["group"] for ladder in document["sections"]} == {
             document["groups"][0]["id"]
         }
+
+    def test_the_lap_switches_of_a_timed_protocol_give_the_finals_none(self) -> None:
+        # The switches are for laps a heat does not have; looking for them must not
+        # stumble on a ladder, which has no columns of its own.
+        document = self._document(
+            use_buttons=True, use_all_buttons=True, show_lap_times=True
+        )
+        assert document["toggles"] == []
 
     def test_it_serialises(self) -> None:
         assert json.loads(json.dumps(self._document()))["schema"] == 1
@@ -432,9 +466,8 @@ class TestWithoutASmallFinal:
 
     def test_the_site_is_not_sent_it(self) -> None:
         document = build_finals_document(self._brackets(), _starts(), _cfg())
-        titles = [section["title"] for section in document["sections"]]
-        assert not any("Small final" in title for title in titles)
-        assert len(titles) == 3
+        titles = [heat["title"] for heat in _heats(document)]
+        assert titles == ["1/2 final 1", "1/2 final 2", "Final"]
 
     def test_the_heat_list_leaves_it_out(self) -> None:
         with tempfile.TemporaryDirectory() as td:

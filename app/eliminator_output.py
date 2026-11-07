@@ -4,9 +4,10 @@ The HTML keeps the shape the C++ generator drew: one table per group holding the
 whole ladder, each heat a little table of its own, the rounds spreading left to
 right with row spans so a heat sits beside the two it was fed by.
 
-The site is sent the same ladder as ordinary tables -- one per heat, titled with its
-round -- because the document schema has no notion of a bracket and the site draws
-what it is given. Nothing on the site has to change to show these.
+The site is sent the same ladder as a section of type "ladder": the stages in the
+order they are ridden, each holding a table per heat -- an empty one too, so the
+ladder keeps its shape. The site sets the stages side by side on a wide screen and
+lists them, the final first, on a phone (issue #454 on the site).
 """
 
 from __future__ import annotations
@@ -291,15 +292,41 @@ def _heat_section(
         for seat in range(len(heat.numbers))
         if heat.numbers[seat]
     ]
-    title = (
-        f"{cfg.group_label} {bracket.group.group_id} - "
-        f"{_heat_heading(bracket, heat, cfg)}"
-    )
-    section: dict[str, Any] = {
+    return {
         "type": "table",
-        "title": _plain(title),
+        "title": _plain(_heat_heading(bracket, heat, cfg)),
         "columns": columns,
         "rows": rows,
+    }
+
+
+def _stage_title(bracket: EliminatorBracket, stage: int) -> str:
+    """ "1/4 final" or "Final": the round, named as heat_title numbers its heats."""
+    remaining = 2 ** (bracket.group.rounds - stage - 1)
+    return f"1/{remaining} final" if remaining != 1 else "Final"
+
+
+def _ladder_section(
+    bracket: EliminatorBracket,
+    riders: dict[str, StartProtocolElement],
+    cfg: RaceConfig,
+) -> dict[str, Any]:
+    """One group's ladder: its stages in the order they are ridden, each with every
+    heat it can hold -- one nobody is seated in yet too, so the site keeps the shape."""
+    stages = [
+        {
+            "title": _plain(_stage_title(bracket, stage)),
+            "sections": [
+                _heat_section(bracket, heat, riders, cfg)
+                for heat in bracket.heats_in_stage(stage)
+            ],
+        }
+        for stage in range(bracket.group.rounds)
+    ]
+    section: dict[str, Any] = {
+        "type": "ladder",
+        "title": _plain(f"{cfg.group_label} {bracket.group.group_id}"),
+        "sections": stages,
     }
     if _group_id(bracket.group.group_id):
         section["group"] = _group_id(bracket.group.group_id)
@@ -311,18 +338,11 @@ def build_finals_document(
     start_list: list[StartProtocolElement],
     cfg: RaceConfig,
 ) -> dict[str, Any]:
-    """The ladders as site data: one table per heat, latest round first.
-
-    Rounds run final-first so a phone shows the decisive heat without scrolling; the
-    HTML keeps the left-to-right ladder, which needs the width of a screen.
-    """
+    """The ladders as site data: one section of type "ladder" per group."""
     riders = _rider_index(start_list)
-    sections: list[dict[str, Any]] = []
-    groups: list[GroupStartElement] = []
-    for bracket in brackets:
-        groups.append(GroupStartElement(group_id=bracket.group.group_id, seconds=0.0))
-        for stage in reversed(range(bracket.group.rounds)):
-            for heat in bracket.heats_in_stage(stage):
-                if heat.taken:
-                    sections.append(_heat_section(bracket, heat, riders, cfg))
-    return _document(cfg, groups, [], sections)
+    groups = [
+        GroupStartElement(group_id=bracket.group.group_id, seconds=0.0)
+        for bracket in brackets
+    ]
+    ladders = [_ladder_section(bracket, riders, cfg) for bracket in brackets]
+    return _document(cfg, groups, [], ladders)
