@@ -140,6 +140,18 @@ class TestEditing:
         _name(editor, 0).setText("Men")
         assert editor.rows() == [("Men", "", "")]
 
+    def test_a_file_that_cannot_be_read_is_not_saved_over(self, tmp_path: Path) -> None:
+        # Unreadable is the opposite of absent: it holds ladders an empty table must
+        # not replace.
+        (tmp_path / "ladders.txt").mkdir()
+        editor = EliminatorLaddersEditor()
+        editor.set_files(str(tmp_path / "ladders.txt"), str(tmp_path / "start.txt"))
+        assert editor.rows() == []
+        assert "Not saved" in editor.status.text()
+        editor._add()
+        _name(editor, 0).setText("Men")
+        assert (tmp_path / "ladders.txt").is_dir()
+
     def test_a_file_that_cannot_be_written_is_reported(self, tmp_path: Path) -> None:
         editor = _editor(tmp_path, "Men#4#2#\n")
         editor._ladder_file = str(tmp_path / "nowhere" / "ladders.txt")

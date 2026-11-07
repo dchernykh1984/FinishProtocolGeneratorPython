@@ -189,11 +189,18 @@ class EliminatorBracket:
         return heats
 
     def all_heats(self) -> list[Heat]:
-        """Every heat of the ladder, first round first."""
+        """Every heat this ladder can actually hold riders in, first round first.
+
+        A one-round ladder's small final is left out: there is no round below to drop
+        anybody out of, so it can never be filled. Everything that walks the ladder
+        goes through here, so a heat that is offered to the referee and a heat that
+        is scored are the same set.
+        """
         return [
             heat
             for stage in range(self.group.rounds)
             for heat in self.heats_in_stage(stage)
+            if self.has_small_final or not heat.is_small_final
         ]
 
     def is_big_final(self, heat: Heat) -> bool:
@@ -288,9 +295,6 @@ class EliminatorBracket:
         """
         times, dsq, used = _heat_marks(heat, marks)
         if heat.taken and not times and not dsq:
-            log.append(
-                f"{heat_name(self, heat)} has started; waiting for its finish marks"
-            )
             return None
         order = sorted(times, key=lambda bib: times[bib])
         log.extend(self._tie_problems(heat, order, times))
@@ -507,11 +511,7 @@ def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
     names: list[str] = []
     for bracket in brackets:
         for stage in range(bracket.group.rounds):
-            heats = [
-                heat
-                for heat in bracket.heats_in_stage(stage)
-                if bracket.has_small_final or not heat.is_small_final
-            ]
+            heats = [heat for heat in bracket.all_heats() if heat.stage == stage]
             heats.sort(key=lambda heat: not heat.is_small_final)
             names.extend(heat_name(bracket, heat) for heat in heats)
     return names
@@ -625,17 +625,21 @@ def _one_ladder_per_group(
 
 
 def unusable_starts(
-    groups: list[EliminatorGroup], group_list: list[GroupStartElement]
+    groups: list[EliminatorGroup],
+    group_list: list[GroupStartElement],
+    log: list[str] | None = None,
 ) -> list[str]:
     """Heats with a recorded start that cannot be used, by name.
 
-    Only midnight of day zero, which is what the chronometer writes when Save group
-    comes before Start. Nothing can be scored around it, so the caller refuses the
-    whole run rather than writing a protocol in which an earlier heat was rewritten.
+    The same check the scoring itself makes, run on throwaway ladders so the caller
+    can refuse before anything is written: nothing can be scored around a start the
+    chronometer never took, and the protocol would come out blank or, worse, with an
+    earlier heat rewritten from the next one's marks.
     """
-    named = set(heat_names([EliminatorBracket(group) for group in groups]))
-    starts = _heat_starts(group_list)
-    return [name for name, seconds in starts.items() if name in named and seconds <= 0]
+    brackets = [EliminatorBracket(group) for group in groups]
+    return _open_windows(
+        brackets, _heat_starts(group_list), log if log is not None else []
+    )
 
 
 def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
@@ -664,7 +668,7 @@ def _open_windows(
     start time is what makes this work without looking ahead in the ladder, which
     could not be done anyway -- who rides the next heat is decided by this one.
     """
-    started: list[Heat] = []
+    started: list[tuple[EliminatorBracket, Heat]] = []
     bad: list[str] = []
     for bracket in brackets:
         for heat in bracket.all_heats():
@@ -679,21 +683,29 @@ def _open_windows(
                 # already right. Nothing is written until the start time is fixed.
                 log.append(
                     f"ERROR: {name} was saved with no start time; press Start before "
-                    "Save group, or remove its line from the heat start file"
+                    "Save group, then save that heat again"
                 )
                 bad.append(name)
                 continue
             heat.start_seconds = seconds
-            started.append(heat)
-    started.sort(key=lambda heat: heat.start_seconds)
-    for index, heat in enumerate(started):
-        following = started[index + 1 :]
-        heat.window_end = following[0].start_seconds if following else float("inf")
-        if heat.window_end == heat.start_seconds:
+            started.append((bracket, heat))
+    started.sort(key=lambda pair: pair[1].start_seconds)
+    by_start: dict[float, list[str]] = {}
+    for bracket, heat in started:
+        by_start.setdefault(heat.start_seconds, []).append(heat_name(bracket, heat))
+    for names in by_start.values():
+        if len(names) > 1:
+            # The chronometer keeps the start time in its field after Save group, so
+            # saving the next heat without pressing Start again gives it the same
+            # one. Neither heat then has a span of its own to hold its marks.
             log.append(
-                "WARNING: two heats are recorded as starting at the same time; "
-                "one of them has no window of its own for finish marks"
+                "ERROR: these heats are recorded as starting at the same time, so "
+                "neither has a window of its own for finish marks: " + ", ".join(names)
             )
+            bad.extend(names)
+    for index, (_bracket, heat) in enumerate(started):
+        following = started[index + 1 :]
+        heat.window_end = following[0][1].start_seconds if following else float("inf")
     return bad
 
 
@@ -799,4 +811,18 @@ def _score(
                     # than handing out its medals on qualification order.
                     continue
                 moved = True
+    log.extend(_still_riding(brackets))
     return used
+
+
+def _still_riding(brackets: list[EliminatorBracket]) -> list[str]:
+    """Heats that have started and have no marks in yet: their riders are on the
+    course. Said once, after the scoring has settled, because the scoring runs
+    several passes and would otherwise repeat itself on each of them.
+    """
+    return [
+        f"{heat_name(bracket, heat)} has started; waiting for its finish marks"
+        for bracket in brackets
+        for heat in bracket.all_heats()
+        if heat.was_started and not heat.has_results
+    ]
