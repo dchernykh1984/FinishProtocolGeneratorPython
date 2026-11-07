@@ -359,7 +359,13 @@ class EliminatorBracket:
         later heat has started. Until then the riders without a crossing are shown
         with nothing against them rather than as DNF.
         """
-        times, dsq, used = _heat_marks(heat, marks, self.group.laps)
+        times, dsq, used, over = _heat_marks(heat, marks, self.group.laps)
+        if over:
+            log.append(
+                f"WARNING: {', '.join(over)} crossed the line more often than the "
+                f"{self.group.laps} lap(s) of {heat_name(self, heat)}; check the "
+                "laps per heat setting"
+            )
         accounted = len(set(times) | dsq)
         complete = accounted >= heat.taken or heat.window_end != _OPEN
         order = sorted(times, key=lambda bib: times[bib])
@@ -514,9 +520,9 @@ def _fill_free_seats(heat: Heat, bibs: list[str]) -> None:
 
 def _heat_marks(
     heat: Heat, marks: list[FinishCompetitorElement], laps: int = 1
-) -> tuple[dict[str, float], set[str], list[FinishCompetitorElement]]:
-    """The time each rider of this heat rode, who was disqualified in it, and which
-    marks the heat accounted for.
+) -> tuple[dict[str, float], set[str], list[FinishCompetitorElement], list[str]]:
+    """The time each rider of this heat rode, who was disqualified in it, which marks
+    the heat accounted for, and who crossed the line more often than it has laps.
 
     A disqualification wins over a finish mark however they are ordered: the
     chronometer stamps it when the jury decides, which is usually after the rider
@@ -525,6 +531,7 @@ def _heat_marks(
     times: dict[str, float] = {}
     dsq: set[str] = set()
     used: list[FinishCompetitorElement] = []
+    over: list[str] = []
     for bib in heat.numbers:
         if not bib:
             continue
@@ -535,29 +542,37 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
+        extra = len(crossings(seen)) - laps
+        if extra > 0:
+            over.append(bib)
         crossing = finish_crossing(seen, laps)
         if any(mark.is_dsq for mark in seen):
             dsq.add(bib)
         elif crossing is not None:
             times[bib] = crossing - heat.start_seconds
-    return times, dsq, used
+    return times, dsq, used, over
+
+
+def crossings(marks: list[FinishCompetitorElement]) -> list[float]:
+    """When this rider crossed the line, in order, inside whatever window was given.
+
+    The action is not consulted. The chronometer's "Finish mode" is one switch for
+    the whole session, so on a multi-lap heat it stamps every lap as a finish; taking
+    its word would place a rider on lap one. Counting crossings is true either way.
+    """
+    return sorted(mark.seconds for mark in marks if mark.action in _CROSSINGS)
 
 
 def finish_crossing(
     marks: list[FinishCompetitorElement], laps: int = 1
 ) -> float | None:
-    """When this rider finished the heat, out of their marks inside its window.
+    """When this rider finished a heat of ``laps`` laps, or None if he has not.
 
-    A real finish mark wins: that is the chronometer being told which crossing was
-    the finish, so there is nothing to count. Otherwise the chronometer is stamping
-    laps, and the rider has finished once he has ridden the lap count of the heat --
-    before that his crossings are laps, and placing him on one would publish whoever
-    led lap one as the winner and send him up a round.
+    He has finished once he has crossed the line that many times. Before that his
+    crossings are laps, and placing him on one would publish whoever led lap one as
+    the winner of the heat and send him up a round over riders still ahead of him.
     """
-    finishes = [mark.seconds for mark in marks if mark.action == "finish"]
-    if finishes:
-        return max(finishes)
-    crossed = sorted(mark.seconds for mark in marks if mark.action in _CROSSINGS)
+    crossed = crossings(marks)
     return crossed[laps - 1] if len(crossed) >= max(laps, 1) else None
 
 
@@ -945,14 +960,28 @@ def _score(
 
 
 def _still_riding(brackets: list[EliminatorBracket]) -> list[str]:
-    """Heats that have started and have no marks in yet: their riders are on the
-    course. Said once, after the scoring has settled, because the scoring runs
-    several passes and would otherwise repeat itself on each of them.
+    """Every heat that has started and is not over yet, said once after the scoring
+    has settled -- the scoring runs several passes and would otherwise repeat itself.
+
+    A heat is in one of two states here. Either it was scored and some of its riders
+    have not finished their laps, or it could not be scored at all because a heat
+    feeding it is still being ridden, in which case nothing about its own riders is
+    known yet and counting them would be a lie.
     """
-    return [
-        f"{heat_name(bracket, heat)} is being ridden; "
-        f"{heat.taken - heat.accounted} of its rider(s) have no crossing yet"
-        for bracket in brackets
-        for heat in bracket.all_heats()
-        if heat.was_started and heat.has_results and not heat.complete
-    ]
+    lines = []
+    for bracket in brackets:
+        for heat in bracket.all_heats():
+            if not heat.was_started or heat.complete:
+                continue
+            name = heat_name(bracket, heat)
+            if heat.has_results:
+                lines.append(
+                    f"{name} is being ridden; {heat.taken - heat.accounted} of its "
+                    "rider(s) have not finished their laps"
+                )
+            else:
+                lines.append(
+                    f"{name} has started, but a heat feeding it is still being "
+                    "ridden, so who is in it is not settled"
+                )
+    return lines
