@@ -16,6 +16,7 @@ from app.eliminator import (
     EliminatorBracket,
     EliminatorGroup,
     build_brackets,
+    group_key,
     group_problems,
     heat_name,
     heat_names,
@@ -193,11 +194,12 @@ class TestHeatNames:
         assert heat_name(bracket, bracket.stages[1][0]) == FINAL
         assert heat_name(bracket, bracket.small_final) == SMALL
 
-    def test_the_list_covers_every_heat_of_the_ladder(self) -> None:
-        assert heat_names([_bracket(4, 2)]) == [SEMI1, SEMI2, FINAL, SMALL]
+    def test_the_list_covers_every_heat_in_the_order_it_is_ridden(self) -> None:
+        # The small final goes before the big one, as a meeting runs them.
+        assert heat_names([_bracket(4, 2)]) == [SEMI1, SEMI2, SMALL, FINAL]
 
     def test_a_one_round_ladder_is_just_the_two_finals(self) -> None:
-        assert heat_names([_bracket(4, 1)]) == [FINAL, SMALL]
+        assert heat_names([_bracket(4, 1)]) == [SMALL, FINAL]
 
     def test_the_title_leaves_the_group_out(self) -> None:
         bracket = _bracket(4, 3)
@@ -275,6 +277,27 @@ class TestHeatsScoredFromTimes:
         bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
         assert bracket.stages[0][0].times[0] == pytest.approx(1.0)
 
+    def test_a_heat_saved_without_a_start_is_not_treated_as_ridden(self) -> None:
+        # The chronometer's start-time field reads "0 00:00:00.000" until Start is
+        # pressed, and Save group writes whatever the field holds. A window opening
+        # at midnight of day zero would swallow the whole morning's marks.
+        event = _Event()
+        event.marks.append(FinishCompetitorElement("101", 500.0, "nextLap"))
+        event.marks.append(FinishCompetitorElement("104", 501.0, "nextLap"))
+        event.start(SEMI1, seconds=0.0)
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        semi = brackets[0].stages[0][0]
+        assert not semi.has_results
+        assert any("saved with no start time" in line for line in log)
+
+    def test_a_heat_saved_without_a_start_can_still_go_through_unraced(self) -> None:
+        event = _Event().start(SEMI1, seconds=0.0)
+        brackets, log = event.build(_ladder(), _starts([1, 4]))
+        semi = brackets[0].stages[0][0]
+        assert semi.has_results
+        assert not semi.ridden
+        assert any("saved with no start time" in line for line in log)
+
     def test_two_heats_sharing_a_start_time_are_reported(self) -> None:
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
@@ -309,6 +332,62 @@ class TestMarkWindows:
         assert semi.numbers == ["105", "104", "108", "101"]
         assert semi.times[semi.numbers.index("101")] == -1.0
         assert bracket.finishing_places(semi) == [1, 2, 3, None]
+
+
+class TestOnlyCrossingsCount:
+    def test_a_lap_mark_is_a_crossing(self) -> None:
+        # A one-lap heat timed with the chronometer in lap mode writes "nextLap".
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1002.0, "nextLap"))
+        event.marks.append(FinishCompetitorElement("104", 1001.0, "nextLap"))
+        bracket = event.build(_ladder(), _starts([1, 4]))[0][0]
+        assert bracket.stages[0][0].numbers[:2] == ["104", "101"]
+
+    def test_a_mark_that_is_not_a_crossing_does_not_beat_a_finish(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1005.0, "nextStage"))
+        event.marks.append(FinishCompetitorElement("101", 1030.0, "finish"))
+        event.marks.append(FinishCompetitorElement("104", 1025.0, "finish"))
+        bracket = event.build(_ladder(), _starts([1, 4]))[0][0]
+        semi = bracket.stages[0][0]
+        assert semi.numbers[:2] == ["104", "101"]
+        assert semi.times[semi.numbers.index("101")] == pytest.approx(30.0)
+
+    def test_a_heat_with_only_other_marks_has_no_result(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1005.0, "nextStage"))
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert any("has no finish marks" in line for line in log)
+        assert brackets[0].stages[0][0].times == [-1.0] * 4
+
+
+class TestGroupNamesWithStrayWhitespace:
+    def test_a_padded_group_still_finds_its_ladder(self) -> None:
+        start_list = [
+            StartProtocolElement.from_line(
+                f"{100 + p}#Rider#  G  #1#1#1990#T#C##{p}#", place_field=True
+            )
+            for p in (1, 4)
+        ]
+        brackets, log = _Event().build(_ladder(), start_list)
+        assert brackets[0].stages[0][0].taken == 2
+        assert log == []
+
+    def test_the_key_is_just_the_trimmed_name(self) -> None:
+        assert group_key("  G  ") == "G"
+        assert group_key("") == ""
+
+    def test_a_padded_group_is_not_reported_as_having_no_ladder(self) -> None:
+        start_list = [
+            StartProtocolElement.from_line(
+                "101#Rider#  G  #1#1#1990#T#C##1#", place_field=True
+            )
+        ]
+        assert start_list_groups(start_list) == ["G"]
+        assert missing_ladders(_ladder(), start_list) == []
 
 
 class TestDisqualification:

@@ -49,6 +49,10 @@ def _chronometer(heats: list[tuple[str, list[str]]]) -> tuple[str, str]:
     return "\n".join(starts) + "\n", "\n".join(marks) + "\n"
 
 
+#: What the chronometer writes when Save group is pressed before Start.
+_NO_START = "0 00:00:00.000"
+
+
 #: Both semi-finals ridden; the finals are still to come.
 _SEMIS = [
     (_SEMI1, ["101", "105", "104", "108"]),
@@ -122,7 +126,7 @@ class TestTheHeatListForTheChronometer:
         cfg = _cfg(tmp_path)
         _run(cfg)
         listed = (tmp_path / "heats.txt").read_text(encoding="utf-8").splitlines()
-        assert listed == [_SEMI1, _SEMI2, _FINAL, _SMALL]
+        assert listed == [_SEMI1, _SEMI2, _SMALL, _FINAL]
 
     def test_the_run_says_where_it_went(self, tmp_path: Path) -> None:
         messages, _errors = _run(_cfg(tmp_path))
@@ -133,7 +137,7 @@ class TestTheHeatListForTheChronometer:
         Path(cfg.eliminator_ladder_file).write_text("Men#4#1#\n", encoding="utf-8")
         _run(cfg)
         listed = (tmp_path / "heats.txt").read_text(encoding="utf-8").splitlines()
-        assert listed == [_FINAL, _SMALL]
+        assert listed == [_SMALL, _FINAL]
 
     def test_it_is_refused_rather_than_overwriting_an_input(
         self, tmp_path: Path
@@ -237,6 +241,22 @@ class TestProblemsAreReported:
         _messages, errors = _run(cfg)
         assert len(errors) == 1
         assert "No ladder for: Men" in errors[0]
+
+    def test_a_heat_saved_before_start_was_pressed_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        # groups.txt copied from the qualification looks exactly like this, and so
+        # does a heat whose Save group came before its Start.
+        cfg = _cfg(tmp_path, heats=[])
+        Path(cfg.group_time_file).write_text(
+            f"{_FINAL}#{_NO_START}#\n", encoding="utf-8"
+        )
+        messages, errors = _run(cfg)
+        assert errors == []
+        assert any("saved with no start time" in m for m in messages)
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        # Eight full seats in the first round: nothing has been decided yet.
+        assert "DNF" not in page
 
     def test_a_mark_that_belongs_to_no_heat_is_logged(self, tmp_path: Path) -> None:
         cfg = _cfg(tmp_path)

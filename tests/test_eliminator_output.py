@@ -319,11 +319,12 @@ class TestGeneratedFiles:
         with tempfile.TemporaryDirectory() as td:
             path = str(Path(td) / "heats.txt")
             write_heat_list(path, _brackets())
+            # In the order a meeting rides them: the small final before the big.
             assert Path(path).read_text(encoding="utf-8").splitlines() == [
                 _SEMI1,
                 _SEMI2,
-                _FINAL,
                 _SMALL,
+                _FINAL,
             ]
 
     def test_the_ladder_file_round_trips(self) -> None:
