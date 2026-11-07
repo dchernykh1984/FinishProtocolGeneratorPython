@@ -52,6 +52,9 @@ _TIE = 0.05
 #: What the chronometers write for a line crossing. They also write "nextStage", and
 #: a penalty record carries its own action, and neither is a rider finishing a heat.
 _CROSSINGS = ("finish", "nextLap")
+#: A window with nothing after it: this heat is the last one started, so it may still
+#: be being ridden.
+_OPEN = float("inf")
 #: Places that get a medal in the big final, so a tie between them is not a detail.
 _PODIUM = 3
 
@@ -299,14 +302,26 @@ class EliminatorBracket:
         """Score a heat from the marks that fall inside its own start window, and say
         which marks it used, so a mark no heat claimed can be reported.
 
-        ``None`` when the heat has started and nothing has come in yet: its riders
-        are still on the course. Sealing it then would print all four as DNF, let the
-        round above it go through on a bye, and hand out medals in the middle of a
-        race -- which is what a protocol refreshed every half minute would publish.
+        ``None`` while the heat is still being ridden, which is the case when some of
+        its riders are unaccounted for and no later heat has started yet. Sealing it
+        then prints the riders still on the course as DNF, lets the round above go
+        through on a bye and hands out places in the middle of a race -- which is
+        what a protocol refreshed every half minute would publish.
+
+        Once a later heat has started this one is over, and whoever has no crossing
+        did not finish, which is what the protocol should say. A heat left pending
+        because its last rider crashed is settled by stamping them DSQ, the way the
+        jury would record it anyway.
         """
         times, dsq, used = _heat_marks(heat, marks)
-        if heat.taken and not times and not dsq:
+        accounted = len(set(times) | dsq)
+        if heat.taken and accounted < heat.taken and heat.window_end == _OPEN:
             return None
+        if heat.taken and not accounted:
+            log.append(
+                f"ERROR: {heat_name(self, heat)} was ridden but has no finish marks "
+                "at all; every rider in it is shown as DNF"
+            )
         order = sorted(times, key=lambda bib: times[bib])
         log.extend(self._tie_problems(heat, order, times))
         self._record(heat, order, len(order), times, dsq, ridden=True)
@@ -653,7 +668,10 @@ def unusable_starts(
     chronometer never took, and the protocol would come out blank or, worse, with an
     earlier heat rewritten from the next one's marks.
     """
-    brackets = [EliminatorBracket(group) for group in groups]
+    # Through the same dedupe the scoring uses: a group with two ladder lines gets one
+    # bracket there, and building two here would make the second one's heats look like
+    # a pair of heats sharing a start and refuse the run for the wrong reason.
+    brackets = _one_ladder_per_group(groups, [])
     return _open_windows(
         brackets, _heat_starts(group_list), log if log is not None else []
     )
@@ -720,9 +738,15 @@ def _open_windows(
                 "neither has a window of its own for finish marks: " + ", ".join(names)
             )
             bad.extend(names)
-    for index, (_bracket, heat) in enumerate(started):
-        following = started[index + 1 :]
-        heat.window_end = following[0][1].start_seconds if following else float("inf")
+    # Every recorded start closes a window, including one that names no heat of any
+    # ladder. Such a line is a heat that was ridden -- the small final of a meeting
+    # that turned them off, a group spelled differently -- and its marks are in the
+    # file. Ignoring it as a boundary lets them fall into the heat before it and
+    # rewrite a result that was already right.
+    boundaries = sorted({when for when in starts.values() if when > 0})
+    for _bracket, heat in started:
+        after = [when for when in boundaries if when > heat.start_seconds]
+        heat.window_end = after[0] if after else _OPEN
     return bad
 
 

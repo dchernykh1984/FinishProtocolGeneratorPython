@@ -114,7 +114,7 @@ class TestHtml:
         assert _html(_brackets(), cfg).count("Group Men") == 1
 
     def test_a_rider_who_did_not_finish_reads_dnf(self) -> None:
-        page = _html(_brackets([(_SEMI1, ["101", "105"])]), _cfg())
+        page = _html(_brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _cfg())
         assert "DNF" in page
 
     def test_a_ladder_nobody_has_ridden_has_no_places(self) -> None:
@@ -262,7 +262,7 @@ class TestDocument:
 
     def test_a_rider_who_did_not_finish_is_marked(self) -> None:
         document = build_finals_document(
-            _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
+            _brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _starts(), _cfg()
         )
         statuses = [
             row.get("status")
