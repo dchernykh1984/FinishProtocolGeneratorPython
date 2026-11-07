@@ -250,3 +250,120 @@ def test_the_export_runs_in_a_mode_it_never_could_before(tmp_path: Path) -> None
         )
     assert (tmp_path / "seeding.txt").exists()
     assert not Path(group_protocol + ".txt").exists()
+
+
+class TestItNeverOverwritesARaceFile:
+    """The field asks for a start protocol, so naming this race's own is an easy slip.
+
+    Writing there would replace a start list with a finishing order in the middle of
+    an event, so the export is dropped for that run and the clash reported.
+    """
+
+    def _cfg(self, tmp_path: Path) -> RaceConfig:
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = str(tmp_path / "start.txt")
+        cfg.group_time_file = str(tmp_path / "groups.txt")
+        cfg.finish_time_file = str(tmp_path / "results.txt")
+        cfg.group_protocol_file = str(tmp_path / "gr.html")
+        cfg.absolute_protocol_file = str(tmp_path / "abs.html")
+        cfg.template_file = str(tmp_path / "template.html")
+        cfg.start_check_list_file = str(tmp_path / "check.txt")
+        return cfg
+
+    @pytest.mark.parametrize(
+        ("attribute", "label"),
+        [
+            ("start_protocol_file", "start protocol"),
+            ("group_time_file", "group times"),
+            ("finish_time_file", "finish times"),
+            ("start_check_list_file", "start check list"),
+            ("group_protocol_file", "group protocol"),
+            ("absolute_protocol_file", "absolute protocol"),
+            ("template_file", "HTML styles template"),
+        ],
+    )
+    def test_every_race_file_is_guarded(
+        self, tmp_path: Path, attribute: str, label: str
+    ) -> None:
+        cfg = self._cfg(tmp_path)
+        cfg.seeding_protocol_file = getattr(cfg, attribute)
+        assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == label
+
+    def test_a_file_of_its_own_is_fine(self, tmp_path: Path) -> None:
+        cfg = self._cfg(tmp_path)
+        cfg.seeding_protocol_file = str(tmp_path / "finals" / "start.txt")
+        assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == ""
+
+    def test_the_default_place_is_fine(self, tmp_path: Path) -> None:
+        cfg = self._cfg(tmp_path)
+        assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == ""
+
+    def test_the_same_file_written_two_ways_is_still_caught(
+        self, tmp_path: Path
+    ) -> None:
+        cfg = self._cfg(tmp_path)
+        cfg.seeding_protocol_file = f"  {tmp_path}/./start.txt  "
+        assert (
+            cfg.seeding_protocol_conflict(cfg.group_protocol_file) == "start protocol"
+        )
+
+    def test_nothing_is_guarded_while_the_export_is_off(self, tmp_path: Path) -> None:
+        # The check only matters when something would be written.
+        cfg = self._cfg(tmp_path)
+        cfg.write_seeding_protocol = False
+        cfg.seeding_protocol_file = cfg.start_protocol_file
+        assert not cfg.generate_text_protocol_effective()
+
+
+class TestTheRunKeepsTheStartList:
+    def _race(self, tmp_path: Path) -> RaceConfig:
+        (tmp_path / "start.txt").write_text(
+            "\n".join(
+                f"{100 + i}#Rider {i}#Men#1#1#1990#Team#City##0 00:00:00.000#"
+                for i in range(1, 5)
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / "groups.txt").write_text("Men#0 10:00:00.000#\n", encoding="utf-8")
+        (tmp_path / "results.txt").write_text(
+            "\n".join(f"{100 + i}#0 10:0:{30 + i}.000#finish#" for i in range(1, 5)),
+            encoding="utf-8",
+        )
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = str(tmp_path / "start.txt")
+        cfg.group_time_file = str(tmp_path / "groups.txt")
+        cfg.finish_time_file = str(tmp_path / "results.txt")
+        cfg.group_protocol_file = str(tmp_path / "gr.html")
+        cfg.absolute_protocol_file = str(tmp_path / "abs.html")
+        return cfg
+
+    def _run(self, cfg: RaceConfig) -> list[str]:
+        from app.main_window import _GenerateWorker
+
+        worker = _GenerateWorker(cfg)
+        messages: list[str] = []
+        worker.log_message.connect(messages.append)
+        worker.run()
+        return messages
+
+    def test_a_clash_leaves_the_start_protocol_untouched(self, tmp_path: Path) -> None:
+        cfg = self._race(tmp_path)
+        cfg.seeding_protocol_file = cfg.start_protocol_file
+        before = Path(cfg.start_protocol_file).read_bytes()
+        messages = self._run(cfg)
+        assert Path(cfg.start_protocol_file).read_bytes() == before
+        assert any("would overwrite the start protocol" in m for m in messages)
+
+    def test_the_protocols_are_still_written(self, tmp_path: Path) -> None:
+        cfg = self._race(tmp_path)
+        cfg.seeding_protocol_file = cfg.start_protocol_file
+        self._run(cfg)
+        assert Path(cfg.group_protocol_file).exists()
+        assert Path(cfg.absolute_protocol_file).exists()
+
+    def test_a_sound_path_still_gets_its_file(self, tmp_path: Path) -> None:
+        cfg = self._race(tmp_path)
+        cfg.seeding_protocol_file = str(tmp_path / "finals_start.txt")
+        messages = self._run(cfg)
+        assert Path(cfg.seeding_protocol_file).exists()
+        assert not any("would overwrite" in m for m in messages)

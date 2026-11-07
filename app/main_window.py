@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
@@ -520,6 +521,25 @@ class _GenerateWorker(QThread):
         # HTTP_ACTION_NOTHING or any unrecognised value: leave the site untouched.
         return False
 
+    def _safe_seeding_cfg(self, cfg: RaceConfig, log: list[str]) -> RaceConfig:
+        """The config to write protocols with, never one that destroys a race file.
+
+        The seeding protocol is written where its setting points, so a path naming
+        one of this race's own files would replace it -- a start list turned into a
+        finishing order mid-event. The protocols are still worth having, so the
+        export alone is dropped and the clash is reported.
+        """
+        if not cfg.generate_text_protocol_effective():
+            return cfg
+        clash = cfg.seeding_protocol_conflict(cfg.group_protocol_file)
+        if not clash:
+            return cfg
+        log.append(
+            "ERROR: the seeding protocol would overwrite the "
+            f"{clash}; it was not written"
+        )
+        return replace(cfg, write_seeding_protocol=False)
+
     def _build_documents(self, cfg, sorted_proto, group_list, n_points):
         """The structured protocols for the site, when it is to be sent any.
 
@@ -667,7 +687,11 @@ class _GenerateWorker(QThread):
 
             self.log_message.emit("Writing group protocol...")
             write_group_protocol(
-                cfg.group_protocol_file, sorted_proto, group_list, cfg, n_points
+                cfg.group_protocol_file,
+                sorted_proto,
+                group_list,
+                self._safe_seeding_cfg(cfg, log),
+                n_points,
             )
             self.log_message.emit("Writing absolute protocol...")
             write_absolute_protocol(
@@ -891,7 +915,6 @@ class MainWindow(QMainWindow):
         An ordinary race can be ridden as a qualifier, and this is what hands its
         finishing order to an Eliminator Finals ladder.
         """
-
         self._seeding_row = QWidget()
         row_seed = QHBoxLayout(self._seeding_row)
         row_seed.setContentsMargins(0, 0, 0, 0)
