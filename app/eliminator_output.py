@@ -15,11 +15,18 @@ import html
 from typing import Any, TextIO
 
 from app.config import RaceConfig
-from app.eliminator import EliminatorBracket, Heat
+from app.eliminator import (
+    EliminatorBracket,
+    Heat,
+    heat_names,
+    heat_title,
+    ladder_lines,
+)
 from app.html_writer import _write_footer, _write_header
 from app.models import GroupStartElement, StartProtocolElement
 from app.paths import app_path
 from app.protocol_document import _cell, _column, _document, _group_id, _plain
+from app.protocol_rows import format_time
 
 
 def _rider_index(
@@ -28,12 +35,16 @@ def _rider_index(
     return {start.competitor_id: start for start in start_list}
 
 
-def heat_title(bracket: EliminatorBracket, heat: Heat) -> str:
-    """ "1/4 final 2", "Final" or "Small final", as the C++ version titled them."""
-    remaining = 2 ** (bracket.group.rounds - heat.stage - 1)
-    if remaining != 1:
-        return f"1/{remaining} final {heat.number + 1}"
-    return "Small final" if heat.is_small_final else "Final"
+def _heat_heading(bracket: EliminatorBracket, heat: Heat, cfg: RaceConfig) -> str:
+    """The heat's title, saying so when its riders went through unraced.
+
+    Without it the protocol would present places nobody rode for as a result, which
+    is the one thing a finals protocol must not do.
+    """
+    title = heat_title(bracket, heat)
+    if heat.has_results and not heat.ridden and heat.taken:
+        return f"{title} ({cfg.not_ridden_label})"
+    return title
 
 
 def _person_fields(cfg: RaceConfig) -> list[tuple[str, str, str]]:
@@ -49,17 +60,37 @@ def _person_fields(cfg: RaceConfig) -> list[tuple[str, str, str]]:
     return [(key, label, attr) for shown, key, label, attr in wanted if shown]
 
 
+def _result_text(heat: Heat, seat: int, cfg: RaceConfig) -> str:
+    """The time this seat rode, with the gap to the heat winner behind it.
+
+    A heat is its own race, so the gap is measured inside it: against the field of a
+    whole group the number would mean nothing.
+    """
+    if heat.times[seat] < 0:
+        return ""
+    text = format_time(heat.times[seat], cfg.n_signs_after_point)
+    if not cfg.show_time_difference:
+        return text
+    best = min((time for time in heat.times if time >= 0), default=-1.0)
+    gap = heat.times[seat] - best
+    if gap <= 0:
+        return text
+    return f"{text} (+{format_time(gap, cfg.n_signs_after_point)})"
+
+
 def _seat_values(
     bracket: EliminatorBracket,
     heat: Heat,
     seat: int,
     riders: dict[str, StartProtocolElement],
     cfg: RaceConfig,
-) -> tuple[str, list[str]]:
-    """The place cell and the rider cells of one seat."""
+) -> tuple[str, list[str], str]:
+    """The place cell, the rider cells and the result cell of one seat."""
     bib = heat.numbers[seat]
     place = bracket.finishing_places(heat)[seat]
-    if place is not None:
+    if heat.disqualified[seat]:
+        place_text = "DSQ"
+    elif place is not None:
         place_text = str(place)
     elif bib and heat.has_results:
         # Only a heat that has been ridden can leave somebody unclassified. The C++
@@ -76,7 +107,7 @@ def _seat_values(
         else:
             # A seat whose bib is not in the start protocol still shows the bib.
             values.append(bib if attr == "competitor_id" else "")
-    return place_text, values
+    return place_text, values, _result_text(heat, seat, cfg)
 
 
 # -- HTML ---------------------------------------------------------------------
@@ -90,7 +121,7 @@ def _write_heat(
     cfg: RaceConfig,
 ) -> None:
     st = cfg.styles
-    title = html.escape(heat_title(bracket, heat))
+    title = html.escape(_heat_heading(bracket, heat, cfg))
     f.write(f'<FONT SIZE="3" COLOR="#000000"><B><CENTER>{title}</CENTER></B></FONT>')
     f.write(f'<table style="{st.table_style}"')
     if cfg.stretch:
@@ -101,15 +132,19 @@ def _write_heat(
         f.write(f"<td ALIGN=center><B>{html.escape(cfg.place_label)}</B></td>\n")
     for _key, label, _attr in _person_fields(cfg):
         f.write(f"<td ALIGN=center><B>{html.escape(label)}</B></td>\n")
+    if cfg.show_finish_time:
+        f.write(f"<td ALIGN=center><B>{html.escape(cfg.finish_time_label)}</B></td>\n")
     f.write("</tr>\n")
     for seat in range(len(heat.numbers)):
-        place_text, values = _seat_values(bracket, heat, seat, riders, cfg)
+        place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
         row_style = st.even_line_style if seat % 2 == 0 else st.odd_line_style
         f.write(f'<tr style="{row_style}">')
         if cfg.show_place:
             f.write(f"<td ALIGN=center>{html.escape(place_text)}</td>\n")
         for value in values:
             f.write(f"<td ALIGN=center>{html.escape(value)}</td>\n")
+        if cfg.show_finish_time:
+            f.write(f"<td ALIGN=center>{html.escape(result)}</td>\n")
         f.write("</tr>\n")
     f.write("</table>\n")
 
@@ -167,6 +202,26 @@ def write_finals_protocol(
         _write_footer(f, cfg)
 
 
+# -- files the chronometer and the next run read ------------------------------
+
+
+def write_ladder_file(path: str, rows: list[tuple[str, str, str]]) -> None:
+    """Save the ladders back where the next run and the referee both read them."""
+    with app_path(path).open("w", encoding="utf-8") as f:
+        f.write("".join(line + "\n" for line in ladder_lines(rows)))
+
+
+def write_heat_list(path: str, brackets: list[EliminatorBracket]) -> None:
+    """The heat names, one per line, to paste above ``configFiles`` in the
+    chronometer's group list.
+
+    Generated rather than typed: the chronometer matches a heat by its name, and one
+    character out means a heat whose start nothing reads.
+    """
+    with app_path(path).open("w", encoding="utf-8") as f:
+        f.write("".join(name + "\n" for name in heat_names(brackets)))
+
+
 # -- site document ------------------------------------------------------------
 
 
@@ -182,19 +237,31 @@ def _heat_section(
     for key, label, _attr in _person_fields(cfg):
         role = "name" if key == "name" else None
         columns.append(_column(key, label, role=role, priority=1 if role else 3))
+    if cfg.show_finish_time:
+        sub = [_plain(cfg.time_difference_label)] if cfg.show_time_difference else []
+        columns.append(
+            _column("result", cfg.finish_time_label, role="result", sub_label=sub)
+        )
     rows = []
     for seat in range(len(heat.numbers)):
-        place_text, values = _seat_values(bracket, heat, seat, riders, cfg)
+        place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
         if not heat.numbers[seat]:
             continue
         cells = ([_cell(place_text)] if cfg.show_place else []) + [
             _cell(value) for value in values
         ]
+        if cfg.show_finish_time:
+            cells.append(_cell(result))
         row: dict[str, Any] = {"cells": cells}
         if place_text == "DNF":
             row["status"] = "dnf"
+        elif place_text == "DSQ":
+            row["status"] = "dsq"
         rows.append(row)
-    title = f"{cfg.group_label} {bracket.group.group_id} - {heat_title(bracket, heat)}"
+    title = (
+        f"{cfg.group_label} {bracket.group.group_id} - "
+        f"{_heat_heading(bracket, heat, cfg)}"
+    )
     section: dict[str, Any] = {
         "type": "table",
         "title": _plain(title),

@@ -334,13 +334,16 @@ def test_the_section_survives_save_and_load_and_a_file_without_it_is_the_first()
             path = Path(td) / "fpg_info.txt"
             win._save_race_info_to_path(str(path))
             text = path.read_text(encoding="utf-8")
-            # Last in the file, after every tag an older version knows.
-            assert text.endswith("HttpSection\n4\n")
+            # After every tag an older version knows, and newer tags go after it:
+            # the reader walks them in the order they are written.
+            older, marker, newer = text.partition("HttpSection\n4\n")
+            assert marker
+            assert "HttpSection" not in older
+            assert "EliminatorLadderFile" in newer
             win._cfg.http_section = 2
             win._load_race_info_from_path(str(path))
             assert win._cfg.http_section == 4
             assert win.findChild(QSpinBox, "http_section").value() == 4
-            older = text.removesuffix("HttpSection\n4\n")
             broken = (older + "HttpSection\n0\n", older + "HttpSection\nx\n")
             for saved in (older, *broken):
                 win._cfg.http_section = 4

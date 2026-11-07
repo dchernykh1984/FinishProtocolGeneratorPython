@@ -5,14 +5,24 @@ fully determined by two numbers -- how many ride each heat and how many rounds d
 the ladder goes -- so it is built here as plain lists of heats per stage instead of
 the original tree of pointers, which computes the same seats in far less code.
 
-In this mode the three input files mean something else than in a timed race, exactly
-as they did in the C++ version:
+In this mode the three input files mean this:
 
-* ``groups.txt``  -- ``group id # riders per heat # rounds #``, one ladder per group.
+* ``ladders.txt`` -- ``group id # riders per heat # rounds #``, one ladder per group.
+  A separate file because ``groups.txt`` is the chronometer's own, and the chronometer
+  appends a line to it on every start.
 * ``start.txt``   -- field 9 holds the qualification place, not a start delay. That
-  is the field the Eliminator Qualification text export writes.
-* ``results.txt`` -- one line per heat, the bibs in finishing order (or only those
-  who went through). No timing marks are read at all: a heat result is an order.
+  is the field the seeding export writes, already renumbered past anyone the
+  qualification disqualified.
+* ``groups.txt``  -- one line per heat ridden: the heat's name and when it started.
+  The chronometer writes it by picking the heat from its group list, so each heat is
+  an ordinary "group" to it.
+* ``results.txt`` -- plain finish marks, ``bib # time of day # action #``, exactly as
+  in a timed race. A heat's result is the order of its own marks.
+
+A heat is scored from times when a start was recorded for it. A heat that cannot
+eliminate anybody and was never started is not worth riding, so its riders go through
+in qualification order and the protocol says it was not ridden. Anything else is still
+to come and stays empty.
 
 Stage 0 is the first round ridden and stage ``rounds - 1`` is the final; the small
 final shares that last stage, as heat number 1.
@@ -22,7 +32,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.models import StartProtocolElement, get_field
+from app.models import (
+    FinishCompetitorElement,
+    GroupStartElement,
+    StartProtocolElement,
+    get_field,
+)
 
 #: The C++ version accepted only these, and threw on anything else. Kept: the seeding
 #: formula below pairs a rider against one opponent, so a heat splits exactly in two.
@@ -30,6 +45,10 @@ HEAT_SIZES = (2, 4)
 #: Each heat is fed by two heats of the previous stage. The C++ code carried this as a
 #: configurable "elimination coefficient" but only ever passed 2.0.
 _FEEDERS = 2
+#: Two marks closer together than this are the same hundredth to the chronometer.
+_TIE = 0.0005
+#: Places that get a medal in the big final, so a tie between them is not a detail.
+_PODIUM = 3
 
 
 @dataclass(frozen=True)
@@ -58,13 +77,28 @@ class Heat:
     numbers: list[str] = field(default_factory=list)
     #: Whether the rider in each seat was classified; False reads as DNF.
     finished: list[bool] = field(default_factory=list)
+    #: Time ridden per seat, -1 where there is none.
+    times: list[float] = field(default_factory=list)
+    #: Whether the rider in each seat was disqualified in this heat.
+    disqualified: list[bool] = field(default_factory=list)
     has_results: bool = False
     is_small_final: bool = False
+    #: When this heat was started, -1 when no start was recorded for it.
+    start_seconds: float = -1.0
+    #: The next start after this one: a mark past it belongs to another heat.
+    window_end: float = float("inf")
+    #: Whether it was actually raced, as opposed to going through unraced.
+    ridden: bool = False
 
     @property
     def taken(self) -> int:
         """How many seats actually hold a rider."""
         return sum(1 for number in self.numbers if number)
+
+    @property
+    def advancing(self) -> int:
+        """How many of its riders this heat sends on to the next round."""
+        return len(self.numbers) // _FEEDERS
 
 
 class EliminatorBracket:
@@ -78,25 +112,23 @@ class EliminatorBracket:
         for stage in range(group.rounds):
             count = _FEEDERS ** (group.rounds - 1 - stage)
             self.stages.append(
-                [
-                    Heat(
-                        stage=stage,
-                        number=number,
-                        numbers=[""] * size,
-                        finished=[False] * size,
-                    )
-                    for number in range(count)
-                ]
+                [self._blank(stage, number, size) for number in range(count)]
             )
-        self.small_final = Heat(
-            stage=group.rounds - 1,
-            number=1,
-            seeds=tuple(range(size + 1, 2 * size + 1)),
+        self.small_final = self._blank(group.rounds - 1, 1, size)
+        self.small_final.seeds = tuple(range(size + 1, 2 * size + 1))
+        self.small_final.is_small_final = True
+        self._seed()
+
+    @staticmethod
+    def _blank(stage: int, number: int, size: int) -> Heat:
+        return Heat(
+            stage=stage,
+            number=number,
             numbers=[""] * size,
             finished=[False] * size,
-            is_small_final=True,
+            times=[-1.0] * size,
+            disqualified=[False] * size,
         )
-        self._seed()
 
     # -- construction ---------------------------------------------------------
 
@@ -132,6 +164,17 @@ class EliminatorBracket:
         if stage == self.group.rounds - 1:
             heats.append(self.small_final)
         return heats
+
+    def all_heats(self) -> list[Heat]:
+        """Every heat of the ladder, first round first."""
+        return [
+            heat
+            for stage in range(self.group.rounds)
+            for heat in self.heats_in_stage(stage)
+        ]
+
+    def is_big_final(self, heat: Heat) -> bool:
+        return not heat.is_small_final and heat.stage == self.group.rounds - 1
 
     def _parent(self, heat: Heat) -> Heat | None:
         if heat.is_small_final or heat.stage + 1 >= self.group.rounds:
@@ -172,39 +215,7 @@ class EliminatorBracket:
                 return True
         return False
 
-    def advance_byes(self) -> None:
-        """Complete heats that cannot eliminate anyone.
-
-        A heat with no more riders than it would send on is not worth riding, so its
-        riders go through unraced. The C++ version did the same before reading any
-        result, which is what keeps a ladder with empty seats moving.
-        """
-        for stage in range(self.group.rounds):
-            for heat in self.heats_in_stage(stage):
-                # Only once the heats below have been ridden: an empty seat upstream
-                # is not a bye, it is a seat still waiting to be filled.
-                if heat.has_results or not self._ready(heat):
-                    continue
-                if heat.taken * _FEEDERS > len(heat.numbers):
-                    continue
-                order = [number for number in heat.numbers if number]
-                self._record(heat, order, classified_count=len(order))
-
-    def apply_result(self, order: list[str]) -> Heat | None:
-        """Apply one heat result -- bibs in finishing order -- to the heat it belongs
-        to, and return that heat. ``None`` when no heat is waiting for it."""
-        if not order:
-            return None
-        for stage in range(self.group.rounds):
-            for heat in self.heats_in_stage(stage):
-                if heat.has_results or not self._ready(heat):
-                    continue
-                if all(bib in heat.numbers for bib in order):
-                    self._record(heat, order, classified_count=len(order))
-                    return heat
-        return None
-
-    def _ready(self, heat: Heat) -> bool:
+    def ready(self, heat: Heat) -> bool:
         """Whether the heats that feed this one have been ridden."""
         if heat.stage == 0:
             return True
@@ -212,12 +223,84 @@ class EliminatorBracket:
             return all(f.has_results for f in self._feeders(self.stages[-1][0]))
         return all(feeder.has_results for feeder in self._feeders(heat))
 
-    def _record(self, heat: Heat, order: list[str], classified_count: int) -> None:
+    def is_bye(self, heat: Heat) -> bool:
+        """Whether this heat cannot eliminate anybody, so riding it is pointless."""
+        return heat.taken * _FEEDERS <= len(heat.numbers)
+
+    def ride_unraced(self, heat: Heat) -> None:
+        """Send a heat's riders through in qualification order, without times.
+
+        Their seats hold the better qualifier first once sorted by seed: a seeded
+        heat pairs first against last, so seat order is not merit order.
+        """
+        order = [
+            bib
+            for _seed, bib in sorted(
+                zip(heat.seeds, heat.numbers, strict=False), key=lambda pair: pair[0]
+            )
+            if bib
+        ]
+        self._record(heat, order, len(order), {}, set(), ridden=False)
+
+    def ride_timed(
+        self, heat: Heat, marks: list[FinishCompetitorElement], log: list[str]
+    ) -> list[FinishCompetitorElement]:
+        """Score a heat from the marks that fall inside its own start window, and
+        say which marks it used, so a mark no heat claimed can be reported."""
+        times, dsq, used = _heat_marks(heat, marks)
+        order = sorted(times, key=lambda bib: times[bib])
+        log.extend(self._tie_problems(heat, order, times))
+        if not order and not dsq and heat.taken:
+            log.append(
+                f"ERROR: {heat_name(self, heat)} was started but has no finish marks"
+            )
+        self._record(heat, order, len(order), times, dsq, ridden=True)
+        return used
+
+    def _tie_problems(
+        self, heat: Heat, order: list[str], times: dict[str, float]
+    ) -> list[str]:
+        """Equal times, told apart by whether they decide anything.
+
+        Two riders cannot really share a hundredth, so a tie is a timing slip either
+        way; what changes is the damage. A tie across the line that sends riders on,
+        or between medals in the big final, has to be resolved before the protocol
+        means anything -- the rest only has to be noticed.
+        """
+        problems: list[str] = []
+        for tied in _tied_runs(order, times):
+            first, last = tied[0], tied[-1]
+            if self.is_big_final(heat):
+                decisive = first < _PODIUM
+            elif heat.is_small_final:
+                decisive = False
+            else:
+                decisive = first < heat.advancing <= last
+            level = "ERROR" if decisive else "WARNING"
+            bibs = ", ".join(order[i] for i in tied)
+            tail = " and it decides who goes on" if decisive else ""
+            problems.append(
+                f"{level}: {bibs} share a time in {heat_name(self, heat)}{tail}"
+            )
+        return problems
+
+    def _record(
+        self,
+        heat: Heat,
+        order: list[str],
+        classified_count: int,
+        times: dict[str, float],
+        dsq: set[str],
+        *,
+        ridden: bool,
+    ) -> None:
         """Write a finishing order into a heat and move its riders onward.
 
         A result may list only the riders who went through; the seats left over keep
         the heat's other riders, marked as not advancing, which is how they come out
-        as DNF in the protocol.
+        as DNF in the protocol. A disqualified rider is never one of them, whatever
+        the clock said, so he sits past the classified seats like a rider who never
+        finished.
         """
         rest = [number for number in heat.numbers if number and number not in order]
         filled = order + rest
@@ -226,12 +309,15 @@ class EliminatorBracket:
         heat.finished = [
             i < classified_count and bool(heat.numbers[i]) for i in range(size)
         ]
+        heat.times = [times.get(number, -1.0) for number in heat.numbers]
+        heat.disqualified = [number in dsq for number in heat.numbers]
         heat.has_results = True
+        heat.ridden = ridden
         if heat.is_small_final:
             return
         going_on = [
             heat.numbers[i]
-            for i in range(size // _FEEDERS)
+            for i in range(heat.advancing)
             if heat.finished[i] and heat.numbers[i]
         ]
         parent = self._parent(heat)
@@ -240,7 +326,7 @@ class EliminatorBracket:
         if heat.stage + 2 == self.group.rounds:
             dropped = [
                 heat.numbers[i]
-                for i in range(size // _FEEDERS, size)
+                for i in range(heat.advancing, size)
                 if heat.finished[i] and heat.numbers[i]
             ]
             _fill_free_seats(self.small_final, dropped)
@@ -286,8 +372,77 @@ def _fill_free_seats(heat: Heat, bibs: list[str]) -> None:
                 break
 
 
+def _heat_marks(
+    heat: Heat, marks: list[FinishCompetitorElement]
+) -> tuple[dict[str, float], set[str], list[FinishCompetitorElement]]:
+    """The time each rider of this heat rode, who was disqualified in it, and which
+    marks the heat accounted for.
+
+    A disqualification wins over a finish mark however they are ordered: the
+    chronometer stamps it when the jury decides, which is usually after the rider
+    has already crossed.
+    """
+    times: dict[str, float] = {}
+    dsq: set[str] = set()
+    used: list[FinishCompetitorElement] = []
+    for bib in heat.numbers:
+        if not bib:
+            continue
+        seen = [
+            mark
+            for mark in marks
+            if mark.competitor_id == bib
+            and heat.start_seconds <= mark.seconds < heat.window_end
+        ]
+        used.extend(seen)
+        if any(mark.is_dsq for mark in seen):
+            dsq.add(bib)
+        elif seen:
+            times[bib] = min(mark.seconds for mark in seen) - heat.start_seconds
+    return times, dsq, used
+
+
+def _tied_runs(order: list[str], times: dict[str, float]) -> list[list[int]]:
+    """Positions in the finishing order that share a time, as runs of two or more."""
+    runs: list[list[int]] = []
+    current: list[int] = []
+    for index in range(len(order)):
+        same = index > 0 and abs(times[order[index]] - times[order[index - 1]]) < _TIE
+        if same:
+            current = current or [index - 1]
+            current.append(index)
+        elif current:
+            runs.append(current)
+            current = []
+    if current:
+        runs.append(current)
+    return runs
+
+
+def heat_title(bracket: EliminatorBracket, heat: Heat) -> str:
+    """ "1/4 final 2", "Final" or "Small final", as the C++ version titled them."""
+    remaining = 2 ** (bracket.group.rounds - heat.stage - 1)
+    if remaining != 1:
+        return f"1/{remaining} final {heat.number + 1}"
+    return "Small final" if heat.is_small_final else "Final"
+
+
+def heat_name(bracket: EliminatorBracket, heat: Heat) -> str:
+    """What this heat is called in the chronometer's group list.
+
+    Generated at both ends and never parsed back, so there is one spelling and a
+    rename in the chronometer's list shows up as a heat nobody started.
+    """
+    return f"{bracket.group.group_id} - {heat_title(bracket, heat)}"
+
+
+def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
+    """Every heat of every ladder, in the order they are ridden."""
+    return [heat_name(b, heat) for b in brackets for heat in b.all_heats()]
+
+
 def parse_eliminator_groups(lines: list[str], sep: str = "#") -> list[EliminatorGroup]:
-    """Read the ladders out of groups.txt, skipping lines that do not describe one."""
+    """Read the ladders out of the ladder file, skipping lines that describe none."""
     groups: list[EliminatorGroup] = []
     for line in lines:
         group_id = get_field(line, 0, sep).strip()
@@ -301,8 +456,22 @@ def parse_eliminator_groups(lines: list[str], sep: str = "#") -> list[Eliminator
     return groups
 
 
+def ladder_lines(rows: list[tuple[str, str, str]]) -> list[str]:
+    """The ladder file as text, the inverse of ``parse_eliminator_groups``.
+
+    Takes the numbers as typed rather than parsed, so a group waiting for its shape
+    keeps its line: the referee sees it again next time instead of the group quietly
+    going missing, and the run refuses while it is still blank.
+    """
+    return [
+        f"{group.strip()}#{heat.strip()}#{rounds.strip()}#"
+        for group, heat, rounds in rows
+        if group.strip()
+    ]
+
+
 def group_problems(lines: list[str], sep: str = "#") -> list[str]:
-    """Why a groups.txt line does not describe a ladder, for the run log."""
+    """Why a ladder line does not describe a ladder, for the run log."""
     problems: list[str] = []
     for line in lines:
         group_id = get_field(line, 0, sep).strip()
@@ -320,21 +489,33 @@ def group_problems(lines: list[str], sep: str = "#") -> list[str]:
     return problems
 
 
+def start_list_groups(start_list: list[StartProtocolElement]) -> list[str]:
+    """The groups that qualified riders, in start protocol order, each once."""
+    groups: list[str] = []
+    for start in start_list:
+        if start.group_id and start.group_id not in groups:
+            groups.append(start.group_id)
+    return groups
+
+
+def missing_ladders(
+    groups: list[EliminatorGroup], start_list: list[StartProtocolElement]
+) -> list[str]:
+    """Groups that qualified riders but have no ladder, in start protocol order.
+
+    An unfilled ladder line is skipped rather than guessed at, and a group skipped
+    that way would come out as a heading with nothing under it, so the run stops on
+    this instead of writing a protocol that is quietly short of a whole group.
+    """
+    described = {group.group_id for group in groups}
+    return [name for name in start_list_groups(start_list) if name not in described]
+
+
 def _as_int(value: str) -> int:
     try:
         return int(str(value).strip())
     except TypeError, ValueError:
         return 0
-
-
-def read_heat_results(lines: list[str], sep: str = "#") -> list[list[str]]:
-    """results.txt in this mode: one line per heat, bibs in finishing order."""
-    results: list[list[str]] = []
-    for line in lines:
-        bibs = [part.strip() for part in line.split(sep) if part.strip()]
-        if bibs:
-            results.append(bibs)
-    return results
 
 
 def _one_ladder_per_group(
@@ -356,13 +537,52 @@ def _one_ladder_per_group(
     return brackets
 
 
+def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
+    """When each heat started, last line winning.
+
+    The chronometer appends a line per start and never rewrites, so a heat started
+    again after a false start has two lines and the later one is the real one.
+    """
+    return {gs.group_id: gs.seconds for gs in group_list if gs.group_id}
+
+
+def _open_windows(
+    brackets: list[EliminatorBracket], starts: dict[str, float], log: list[str]
+) -> None:
+    """Give every started heat the span its own marks fall in.
+
+    The span ends where the next heat starts, whichever ladder that heat belongs to:
+    a rider rides several heats, so his bib carries several honest marks, and only
+    the span keeps the one that belongs to this heat. Ordering the heats by their
+    start time is what makes this work without looking ahead in the ladder, which
+    could not be done anyway -- who rides the next heat is decided by this one.
+    """
+    started: list[Heat] = []
+    for bracket in brackets:
+        for heat in bracket.all_heats():
+            seconds = starts.get(heat_name(bracket, heat))
+            if seconds is not None:
+                heat.start_seconds = seconds
+                started.append(heat)
+    started.sort(key=lambda heat: heat.start_seconds)
+    for index, heat in enumerate(started):
+        following = started[index + 1 :]
+        heat.window_end = following[0].start_seconds if following else float("inf")
+        if heat.window_end == heat.start_seconds:
+            log.append(
+                "WARNING: two heats are recorded as starting at the same time; "
+                "one of them has no window of its own for finish marks"
+            )
+
+
 def build_brackets(
     groups: list[EliminatorGroup],
     start_list: list[StartProtocolElement],
-    results: list[list[str]],
+    group_list: list[GroupStartElement],
+    marks: list[FinishCompetitorElement],
     log: list[str],
 ) -> list[EliminatorBracket]:
-    """Build every ladder, seat the qualifiers and ride the results through it."""
+    """Build every ladder, seat the qualifiers and ride the heats through it."""
     brackets = _one_ladder_per_group(groups, log)
     by_id = {bracket.group.group_id: bracket for bracket in brackets}
     for start in start_list:
@@ -375,19 +595,61 @@ def build_brackets(
                 f"WARNING: {start.competitor_id} has qualification place {place}, "
                 f"outside the ladder of group {start.group_id}"
             )
-    for bracket in brackets:
-        bracket.advance_byes()
-    for order in results:
-        if len(set(order)) != len(order):
-            # One bib twice would place the same rider in two seats and push another
-            # out of the heat entirely.
-            log.append(
-                "ERROR: heat result repeats a number and was ignored: "
-                + ", ".join(order)
-            )
-            continue
-        if not any(bracket.apply_result(order) for bracket in brackets):
-            log.append("WARNING: no heat is waiting for the result " + ", ".join(order))
-        for bracket in brackets:
-            bracket.advance_byes()
+    starts = _heat_starts(group_list)
+    _open_windows(brackets, starts, log)
+    used = _score(brackets, marks, log)
+    known = set(heat_names(brackets))
+    for name in starts:
+        if name not in known:
+            log.append(f"WARNING: no heat of any ladder is called {name}")
+    for bib in _unclaimed(marks, used):
+        log.append(
+            f"WARNING: the finish mark for {bib} belongs to no heat that was ridden"
+        )
     return brackets
+
+
+def _unclaimed(marks: list[FinishCompetitorElement], used: set[int]) -> list[str]:
+    """Bibs with a mark no heat accounted for, each named once.
+
+    Either the bib is a typo or the mark landed outside every heat's window, and both
+    mean a rider is missing from a protocol that otherwise looks complete.
+    """
+    bibs: list[str] = []
+    for mark in marks:
+        if id(mark) not in used and mark.competitor_id not in bibs:
+            bibs.append(mark.competitor_id)
+    return bibs
+
+
+def _score(
+    brackets: list[EliminatorBracket],
+    marks: list[FinishCompetitorElement],
+    log: list[str],
+) -> set[int]:
+    """Score what can be scored, over and over until nothing moves.
+
+    Scoring a heat fills the one above it, which may in turn become rideable, and a
+    heat high in the ladder may well have been started before a lower one was
+    entered, so a single pass down the stages is not enough. Returns the marks that
+    were accounted for.
+    """
+    used: set[int] = set()
+    moved = True
+    while moved:
+        moved = False
+        for bracket in brackets:
+            for heat in bracket.all_heats():
+                if heat.has_results or not bracket.ready(heat):
+                    continue
+                if heat.start_seconds >= 0:
+                    used.update(id(m) for m in bracket.ride_timed(heat, marks, log))
+                elif bracket.is_bye(heat):
+                    bracket.ride_unraced(heat)
+                else:
+                    # Still to be ridden: leaving it empty is the whole point, so a
+                    # protocol refreshed mid-event shows the final as pending rather
+                    # than handing out its medals on qualification order.
+                    continue
+                moved = True
+    return used
