@@ -9,7 +9,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication, QCheckBox, QLineEdit, QSpinBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QLineEdit,
+    QSpinBox,
+)
 
 from app import http_io
 from app.config import (
@@ -19,6 +25,10 @@ from app.config import (
     PROTOCOL_FORMAT_HTML,
     RaceConfig,
     normalize_protocol_format,
+)
+from app.eliminator import (
+    SEEDING_KEEP_ADJACENT,
+    SEEDING_SPLIT_ADJACENT,
 )
 from app.main_window import MainWindow, _GenerateWorker
 
@@ -215,17 +225,24 @@ def test_the_eliminator_settings_survive_save_and_load():
     win = MainWindow()
     try:
         win._cfg.eliminator_small_final = False
+        win._cfg.eliminator_seeding = SEEDING_KEEP_ADJACENT
         win._cfg.eliminator_ladder_file = "finals/ladders.txt"
         win._cfg.not_ridden_label = "unraced"
         with tempfile.TemporaryDirectory() as td:
             path = str(Path(td) / "fpg_info.txt")
             win._save_race_info_to_path(path)
             win._cfg.eliminator_small_final = True
+            win._cfg.eliminator_seeding = SEEDING_SPLIT_ADJACENT
             win._cfg.eliminator_ladder_file = "ladders.txt"
             win._cfg.not_ridden_label = ""
             win._load_race_info_from_path(path)
         assert win._cfg.eliminator_small_final is False
+        assert win._cfg.eliminator_seeding == SEEDING_KEEP_ADJACENT
         assert win._cfg.eliminator_ladder_file == "finals/ladders.txt"
+        assert (
+            win.findChild(QComboBox, "eliminator_seeding").currentText()
+            == SEEDING_KEEP_ADJACENT
+        )
         assert win._cfg.not_ridden_label == "unraced"
         assert not win.findChild(QCheckBox, "eliminator_small_final").isChecked()
     finally:
@@ -245,6 +262,7 @@ def test_a_config_without_the_eliminator_tags_keeps_the_defaults():
             win._cfg.eliminator_small_final = False
             win._load_race_info_from_path(str(path))
         assert win._cfg.eliminator_small_final is True
+        assert win._cfg.eliminator_seeding == SEEDING_SPLIT_ADJACENT
         assert win._cfg.eliminator_ladder_file == "ladders.txt"
     finally:
         win.deleteLater()

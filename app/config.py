@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.eliminator import SEEDING_SPLIT_ADJACENT
 from app.paths import app_path
 
 
@@ -141,6 +142,10 @@ class RaceConfig:
     #: decision for the whole meeting, unlike riders per heat and rounds, which are
     #: per group because group sizes differ.
     eliminator_small_final: bool = True
+    #: Which way the qualification places are spread over the first round's heats.
+    #: One decision for the meeting: it comes out of the race regulations, not out of
+    #: how many riders turned up in a given group.
+    eliminator_seeding: str = SEEDING_SPLIT_ADJACENT
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"

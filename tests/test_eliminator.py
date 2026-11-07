@@ -13,6 +13,9 @@ import pytest
 
 from app.eliminator import (
     HEAT_SIZES,
+    SEEDING_KEEP_ADJACENT,
+    SEEDING_SCHEMES,
+    SEEDING_SPLIT_ADJACENT,
     EliminatorBracket,
     EliminatorGroup,
     build_brackets,
@@ -23,6 +26,7 @@ from app.eliminator import (
     heat_title,
     ladder_lines,
     missing_ladders,
+    normalize_seeding,
     parse_eliminator_groups,
     start_list_groups,
     tie_tolerance,
@@ -159,33 +163,132 @@ class TestMeetingsWithoutASmallFinal:
         assert EliminatorGroup("G", 4, 2).small_final is True
 
 
+def _seeded(heat_size: int, rounds: int, seeding: str) -> list[tuple[int, ...]]:
+    group = EliminatorGroup("G", heat_size, rounds, seeding)
+    return [heat.seeds for heat in EliminatorBracket(group).stages[0]]
+
+
 class TestSeeding:
+    """The UCI numbers are printed in UCI Cycling Regulations, Part 4 Mountain Bike,
+    Annex 5 (XCE schedule, 32 riders, 4 per heat). A ladder that seeds differently
+    sends the wrong riders against each other, so these are copied from it."""
+
     def test_eight_riders_pair_first_against_last(self) -> None:
-        # The C++ bracket put places 1,4,5,8 in one heat and 2,3,6,7 in the other.
-        assert [h.seeds for h in _bracket(4, 2).stages[0]] == [
-            (1, 4, 5, 8),
-            (2, 3, 6, 7),
-        ]
+        assert _seeded(4, 2, SEEDING_SPLIT_ADJACENT) == [(1, 4, 5, 8), (2, 3, 6, 7)]
 
     def test_four_riders_in_heats_of_two(self) -> None:
-        assert [h.seeds for h in _bracket(2, 2).stages[0]] == [(1, 4), (2, 3)]
+        assert _seeded(2, 2, SEEDING_SPLIT_ADJACENT) == [(1, 4), (2, 3)]
 
     def test_sixteen_riders_over_three_rounds(self) -> None:
-        assert [h.seeds for h in _bracket(4, 3).stages[0]] == [
+        # Annex 5, the note on fields under 24: "Heat 1 > Bib 1-8-9-16, Heat 2 >
+        # 4-5-12-13, Heat 3 > 2-7-10-15, Heat 4 > 3-6-11-14."
+        assert _seeded(4, 3, SEEDING_SPLIT_ADJACENT) == [
             (1, 8, 9, 16),
             (4, 5, 12, 13),
             (2, 7, 10, 15),
             (3, 6, 11, 14),
         ]
 
+    def test_thirty_two_riders_match_the_published_schedule(self) -> None:
+        # Annex 5's own 1/8 final table, heats 1 to 8.
+        assert _seeded(4, 4, SEEDING_SPLIT_ADJACENT) == [
+            (1, 16, 17, 32),
+            (8, 9, 24, 25),
+            (4, 13, 20, 29),
+            (5, 12, 21, 28),
+            (2, 15, 18, 31),
+            (7, 10, 23, 26),
+            (3, 14, 19, 30),
+            (6, 11, 22, 27),
+        ]
+
     @pytest.mark.parametrize("heat_size", HEAT_SIZES)
     @pytest.mark.parametrize("rounds", [1, 2, 3])
+    @pytest.mark.parametrize("seeding", SEEDING_SCHEMES)
     def test_every_place_gets_exactly_one_seat(
-        self, heat_size: int, rounds: int
+        self, heat_size: int, rounds: int, seeding: str
     ) -> None:
-        bracket = _bracket(heat_size, rounds)
+        group = EliminatorGroup("G", heat_size, rounds, seeding)
+        bracket = EliminatorBracket(group)
         seats = [seed for heat in bracket.stages[0] for seed in heat.seeds]
         assert sorted(seats) == list(range(1, bracket.group.capacity + 1))
+
+    @pytest.mark.parametrize("heat_size", HEAT_SIZES)
+    @pytest.mark.parametrize("rounds", [2, 3, 4])
+    @pytest.mark.parametrize("seeding", SEEDING_SCHEMES)
+    def test_the_heats_of_a_round_are_of_equal_strength(
+        self, heat_size: int, rounds: int, seeding: str
+    ) -> None:
+        # Both schemes balance a round by the sum of the places in it; that is not
+        # what tells them apart.
+        sums = {sum(seeds) for seeds in _seeded(heat_size, rounds, seeding)}
+        assert len(sums) == 1
+
+
+class TestKeepingAdjacentSeedsTogether:
+    """The other scheme some race regulations are written with."""
+
+    def test_eight_riders_keep_their_neighbours(self) -> None:
+        assert _seeded(4, 2, SEEDING_KEEP_ADJACENT) == [(1, 2, 7, 8), (3, 4, 5, 6)]
+
+    def test_it_carries_on_into_deeper_ladders(self) -> None:
+        assert _seeded(4, 3, SEEDING_KEEP_ADJACENT) == [
+            (1, 2, 15, 16),
+            (7, 8, 9, 10),
+            (3, 4, 13, 14),
+            (5, 6, 11, 12),
+        ]
+        assert _seeded(4, 4, SEEDING_KEEP_ADJACENT)[0] == (1, 2, 31, 32)
+
+    @pytest.mark.parametrize("rounds", [2, 3, 4])
+    def test_the_two_fastest_meet_a_round_earlier_each_time(self, rounds: int) -> None:
+        # The cost of the scheme, and the reason the UCI one splits them: here the
+        # first two qualifiers are always in the same first-round heat.
+        assert {1, 2} <= set(_seeded(4, rounds, SEEDING_KEEP_ADJACENT)[0])
+        assert not {1, 2} <= set(_seeded(4, rounds, SEEDING_SPLIT_ADJACENT)[0])
+
+    @pytest.mark.parametrize("rounds", [1, 2, 3, 4])
+    def test_heats_of_two_cannot_tell_the_schemes_apart(self, rounds: int) -> None:
+        # Nothing adjacent to keep together inside a heat that holds two riders.
+        assert _seeded(2, rounds, SEEDING_KEEP_ADJACENT) == _seeded(
+            2, rounds, SEEDING_SPLIT_ADJACENT
+        )
+
+
+class TestChoosingTheScheme:
+    def test_a_name_the_ladders_know_is_kept(self) -> None:
+        for scheme in SEEDING_SCHEMES:
+            assert normalize_seeding(scheme) == scheme
+
+    def test_anything_else_falls_back_to_the_uci_one(self) -> None:
+        # A config from another build, or edited by hand, must not quietly reseed a
+        # championship.
+        for junk in ("", "1-2-7-8", "Keep adjacent seeds together ", "UCI"):
+            assert normalize_seeding(junk) == SEEDING_SPLIT_ADJACENT
+
+    def test_the_file_carries_the_shape_and_the_settings_carry_the_scheme(self) -> None:
+        assert parse_eliminator_groups(["G#4#2#"], seeding=SEEDING_KEEP_ADJACENT) == [
+            EliminatorGroup("G", 4, 2, SEEDING_KEEP_ADJACENT)
+        ]
+        assert parse_eliminator_groups(["G#4#2#"]) == [
+            EliminatorGroup("G", 4, 2, SEEDING_SPLIT_ADJACENT)
+        ]
+
+    def test_a_junk_scheme_does_not_reach_a_ladder(self) -> None:
+        assert parse_eliminator_groups(["G#4#2#"], seeding="nonsense") == [
+            EliminatorGroup("G", 4, 2, SEEDING_SPLIT_ADJACENT)
+        ]
+
+    def test_the_scheme_decides_who_meets_whom(self) -> None:
+        event = _Event().ride(SEMI1, ["101", "104", "105", "108"])
+        split = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        assert split.stages[0][0].numbers == ["101", "104", "105", "108"]
+        keep = _Event().build(
+            [EliminatorGroup("G", 4, 2, SEEDING_KEEP_ADJACENT)],
+            _starts(list(range(1, 9))),
+        )[0][0]
+        assert keep.stages[0][0].seeds == (1, 2, 7, 8)
+        assert keep.stages[0][0].numbers == ["101", "102", "107", "108"]
 
     def test_the_final_holds_the_first_places(self) -> None:
         assert _bracket(4, 3).stages[-1][0].seeds == (1, 2, 3, 4)
