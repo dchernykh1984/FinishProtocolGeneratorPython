@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.13.0...v0.14.0) (2026-11-07)
+
+
+### Features
+
+* **eliminator:** place and advance a rider the moment he crosses the line ([77c011d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/77c011d8724096ed0b73e2a912a00791c39e6cbf))
+
+
+### Bug Fixes
+
+* **eliminator:** a lap is not a finish, so say how many laps a heat is ([a9ed664](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a9ed664be79c3de50c8fa8661db3d0df2f657803))
+* **eliminator:** count every crossing as a lap, whatever the chronometer called it ([c686ddd](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c686dddec4ec1893d44f7d35ab50119ad227cb34))
+
 ## [0.13.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.12.0...v0.13.0) (2026-11-07)
 
 
