@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.14.0...v0.14.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **eliminator:** a heat with no usable start is logged, not put in a dialog ([7aaa925](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7aaa925312db02421973c05f6e737fee7ef1f2b1))
+* **eliminator:** finals tables use the timed protocol's columns, so the number stays in view ([d039d27](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d039d27f7a23296450f41e18cacf9e6e522621d8))
+* **eliminator:** send each finals cell under its column, so the site draws the heats ([2be3092](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2be3092adbf409559c4923502707377c98e5456d))
+
 ## [0.14.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.13.0...v0.14.0) (2026-11-07)
 
 
