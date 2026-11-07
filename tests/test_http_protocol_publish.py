@@ -153,3 +153,27 @@ def test_unknown_action_does_nothing_not_delete() -> None:
     up, dl = _run(_cfg(http_groups_action="Uplaod", http_absolute_action="garbage"))
     assert up == []
     assert dl == []
+
+
+def test_both_actions_name_the_configured_section() -> None:
+    sent: list[tuple[str, int]] = []
+
+    def record(kind: str):
+        def call(*a, **k) -> int:
+            sent.append((kind, k["section"]))
+            return 0
+
+        return call
+
+    cfg = _cfg(
+        http_groups_action=HTTP_ACTION_UPLOAD,
+        http_absolute_action=HTTP_ACTION_DELETE,
+        http_section=3,
+    )
+    worker = _GenerateWorker(cfg)
+    with (
+        patch("app.main_window.http_upload_protocol", side_effect=record("upload")),
+        patch("app.main_window.http_delete_protocol", side_effect=record("delete")),
+    ):
+        worker._do_uploads(cfg, [])
+    assert sorted(sent) == [("delete", 3), ("upload", 3)]

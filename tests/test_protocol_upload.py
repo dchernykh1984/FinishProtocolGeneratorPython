@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication, QLineEdit
+from PySide6.QtWidgets import QApplication, QLineEdit, QSpinBox
 
 from app import http_io
 from app.config import (
@@ -59,6 +59,13 @@ def _upload(tmp_path, answer=b'{"id": 1, "file_hash": "h"}', **kwargs):
             **kwargs,
         )
     return code, sent.get("body", b""), errors, warnings
+
+
+def test_an_upload_names_its_section(tmp_path):
+    _, first, _, _ = _upload(tmp_path)
+    _, fourth, _, _ = _upload(tmp_path, section=4)
+    assert b'name="section"\r\n\r\n1\r\n' in first
+    assert b'name="section"\r\n\r\n4\r\n' in fourth
 
 
 def test_both_parts_go_in_one_request(tmp_path):
@@ -317,3 +324,28 @@ def test_refused_data_only_publishes_the_html_instead():
     ]
     assert any("too big" in line for line in logged)
     assert any("HTML was published instead" in line for line in logged)
+
+
+def test_the_section_survives_save_and_load_and_a_file_without_it_is_the_first():
+    win = MainWindow()
+    try:
+        win._cfg.http_section = 4
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            win._save_race_info_to_path(str(path))
+            text = path.read_text(encoding="utf-8")
+            # Last in the file, after every tag an older version knows.
+            assert text.endswith("HttpSection\n4\n")
+            win._cfg.http_section = 2
+            win._load_race_info_from_path(str(path))
+            assert win._cfg.http_section == 4
+            assert win.findChild(QSpinBox, "http_section").value() == 4
+            older = text.removesuffix("HttpSection\n4\n")
+            broken = (older + "HttpSection\n0\n", older + "HttpSection\nx\n")
+            for saved in (older, *broken):
+                win._cfg.http_section = 4
+                path.write_text(saved, encoding="utf-8")
+                win._load_race_info_from_path(str(path))
+                assert win._cfg.http_section == 1, saved[-30:]
+    finally:
+        win.deleteLater()

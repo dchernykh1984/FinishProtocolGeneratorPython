@@ -249,6 +249,15 @@ number, and the start delay last; a lap's statistics sit under its time behind t
 data only to a site that understands it (cycling-site after its #375): an older site refuses
 it and the HTML is published instead.
 
+**Protocol section on the site** is the number of the section of the event's protocols to
+publish into and delete from, so the qualification and the finals (or the days of a stage
+race) can share one event and one token, each under a heading of its own. 1 is the event's
+own section, and what a config saved before this setting reads as; the organizer adds the
+others on the site (the event page's timing-token block, "Protocol sections"), where each
+shows its number. A number the event does not have is refused, and the error says so. It
+needs cycling-site after its #452. The setting is the last line of `fpg_info.txt`, so an
+older version of the application still reads every setting before it.
+
 ## Live race statistics (for the Garmin data field)
 
 When **Send group statistics** and/or **Send absolute statistics** are enabled in

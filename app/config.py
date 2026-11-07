@@ -31,6 +31,12 @@ def _same_file_key(path: str) -> str:
         return ""
 
 
+# The section of protocols every event has on the site: a protocol that names no section
+# goes there, and so does everything a config saved before sections publishes.
+FIRST_SECTION = 1
+# The largest section number the site can hold (its column's range).
+LAST_SECTION = 2_147_483_647
+
 RACE_TYPE_MASS_SPLITTED = "Mass/Splitted"
 #: No longer a race type: qualifying is an ordinary race, and the seeding export it
 #: used to carry is now a setting of its own. Kept so an old config can be migrated.
@@ -200,6 +206,9 @@ class RaceConfig:
     http_upload_token: str = ""
     http_is_live: bool = True
     http_stage_label: str = ""
+    # The section of the event's protocols on the site to publish into: the first, the
+    # event's own, unless the organizer added another there and gave its number.
+    http_section: int = FIRST_SECTION
     # Language of the protocol's labels (e.g. "ru"), told to the site with the document.
     protocol_language: str = ""
     http_protocol_format: str = PROTOCOL_FORMAT_BOTH
