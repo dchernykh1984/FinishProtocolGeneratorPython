@@ -618,7 +618,7 @@ class TestHeatsScoredFromTimes:
         riding = [line for line in log if "is being ridden" in line]
         assert len(riding) == 1
         assert SEMI1 in riding[0]
-        assert "4 of its rider(s) have no crossing yet" in riding[0]
+        assert "4 of its rider(s) have not finished their laps" in riding[0]
 
 
 class TestMarkWindows:
@@ -719,15 +719,37 @@ class TestOnlyCrossingsCount:
         assert brackets[0].finishing_places(brackets[0].stages[0][0])[0] == 1
         assert brackets[0].stages[1][0].numbers[:1] == ["101"]
 
-    def test_a_finish_mark_needs_no_lap_counting(self) -> None:
-        # The chronometer was told which crossing was the finish, so it is.
+    def test_a_finish_mark_does_not_bypass_the_lap_count(self) -> None:
+        # "Finish mode" is one switch for the whole session, so on a multi-lap heat
+        # it stamps lap one as a finish too. Believing it places the lap-one leader.
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         event.marks.append(FinishCompetitorElement("101", 1010.0, "finish"))
         brackets, _log = event.build(
             [EliminatorGroup("G", 4, 2, laps=3)], _starts(list(range(1, 9)))
         )
-        assert brackets[0].finishing_places(brackets[0].stages[0][0])[0] == 1
+        assert brackets[0].finishing_places(brackets[0].stages[0][0]) == [None] * 4
+
+    def test_every_lap_counts_however_it_was_stamped(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        for gap in (10.0, 20.0):
+            event.marks.append(FinishCompetitorElement("101", 1000.0 + gap, "finish"))
+        brackets, _log = event.build(
+            [EliminatorGroup("G", 4, 2, laps=2)], _starts(list(range(1, 9)))
+        )
+        semi = brackets[0].stages[0][0]
+        assert brackets[0].finishing_places(semi)[0] == 1
+        assert semi.times[0] == pytest.approx(20.0)
+
+    def test_crossing_more_often_than_the_heat_has_laps_is_reported(self) -> None:
+        # The signal that the laps per heat setting is wrong.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        for gap in (10.0, 20.0, 30.0):
+            event.marks.append(FinishCompetitorElement("101", 1000.0 + gap, "nextLap"))
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert any("more often than the 1 lap(s)" in line for line in log)
 
     def test_the_lap_count_reaches_the_ladder_from_the_settings(self) -> None:
         assert parse_eliminator_groups(["G#4#2#"], laps=3)[0].laps == 3

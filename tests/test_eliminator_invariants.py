@@ -226,12 +226,10 @@ def _ended_on(
     marks: list[FinishCompetitorElement], start: float, span: float, laps: int
 ) -> float | None:
     """When this rider ended a heat of ``laps`` laps running from ``start`` to
-    ``span``: the finish mark if the chronometer stamped one, else the crossing on
-    which he completed the last lap."""
+    ``span``: the crossing on which he completed the last of them. The action is not
+    consulted -- "Finish mode" is one switch for the whole session, so it stamps
+    every lap of a multi-lap heat as a finish."""
     inside = [mark for mark in marks if start <= mark.seconds < span]
-    finishes = [mark.seconds for mark in inside if mark.action == "finish"]
-    if finishes:
-        return max(finishes)
     crossed = sorted(mark.seconds for mark in inside if mark.action in _CROSSINGS)
     return crossed[laps - 1] if len(crossed) >= laps else None
 
