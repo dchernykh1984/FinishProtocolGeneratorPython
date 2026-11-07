@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.9.0...v0.10.0) (2026-11-07)
+
+
+### Features
+
+* **config:** make the finals seeding export a setting with its own path ([5c37d2a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5c37d2afebbf313fdbae742a2ef43f81646d5fec))
+
+
+### Bug Fixes
+
+* **config:** compare seeding paths the way the writers resolve them ([acb7649](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/acb764945f314154c6921f812cc16c7f8d1043c2))
+* **config:** keep a bad seeding path from aborting the protocol run ([baa017d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/baa017da60a262953f2e785575dcc368c39bad4c))
+* **config:** never let the seeding protocol overwrite one of the race files ([db0218b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/db0218bb6b5dc3584ed4d3eee5e62e2149f8f4f8))
+* **config:** validate the seeding path as the writer sees it, name and all ([2a36937](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2a36937bab0fdcda1b53438e5fc69e25c8e029fb))
+
 ## [0.9.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.8.1...v0.9.0) (2026-11-06)
 
 
