@@ -8,7 +8,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
+from test_protocol_document import SCHEMA, check_document_rules
 
 from app.config import RACE_TYPE_ELIMINATOR_FINALS, RaceConfig
 from app.eliminator import EliminatorGroup, build_brackets
@@ -250,6 +252,23 @@ class TestDocument:
         assert document["schema"] == 1
         assert document["generator"]["name"] == "FinishProtocolGenerator"
 
+    @pytest.mark.parametrize(
+        "shown",
+        [
+            {},
+            {"show_place": False},
+            {"show_finish_time": False},
+            {"show_time_difference": False},
+            {"show_additional_info": True},
+        ],
+    )
+    def test_the_site_accepts_it(self, shown: dict[str, bool]) -> None:
+        # A document the site refuses is replaced by the HTML on the page, so the
+        # finals would never be drawn as the site's own tables.
+        document = self._document(**shown)
+        jsonschema.validate(document, SCHEMA)
+        check_document_rules(document)
+
     def test_one_plain_table_per_ridden_heat(self) -> None:
         sections = self._document()["sections"]
         assert {section["type"] for section in sections} == {"table"}
@@ -271,13 +290,13 @@ class TestDocument:
 
     def test_rows_carry_the_places_and_the_riders(self) -> None:
         final = self._document()["sections"][0]
-        assert [row["cells"][0] for row in final["rows"]] == ["1", "2", "3", "4"]
-        assert final["rows"][0]["cells"][1] == "101"
+        assert [row["cells"]["place"] for row in final["rows"]] == ["1", "2", "3", "4"]
+        assert final["rows"][0]["cells"]["bib"] == "101"
 
     def test_the_result_column_is_declared_and_filled(self) -> None:
         final = self._document()["sections"][0]
         assert [column["id"] for column in final["columns"]][-1] == "result"
-        assert final["rows"][0]["cells"][-1] == "00:00:01.0"
+        assert final["rows"][0]["cells"]["result"] == "00:00:01.0"
 
     def test_the_gap_sits_under_the_time_as_the_column_promises(self) -> None:
         # The column declares a sub-label for the difference, so the difference has
@@ -286,14 +305,14 @@ class TestDocument:
         final = self._document(show_time_difference=True)["sections"][0]
         result_column = final["columns"][-1]
         assert result_column["sub_label"]
-        winner, second = final["rows"][0]["cells"][-1], final["rows"][1]["cells"][-1]
+        winner, second = (row["cells"]["result"] for row in final["rows"][:2])
         assert winner == "00:00:01.0"
         assert second == {"text": "00:00:02.0", "sub": ["(+00:00:01.0)"]}
 
     def test_without_the_difference_the_column_promises_nothing(self) -> None:
         final = self._document(show_time_difference=False)["sections"][0]
         assert "sub_label" not in final["columns"][-1]
-        assert final["rows"][1]["cells"][-1] == "00:00:02.0"
+        assert final["rows"][1]["cells"]["result"] == "00:00:02.0"
 
     def test_the_result_column_is_absent_when_hidden(self) -> None:
         final = self._document(show_finish_time=False)["sections"][0]
@@ -422,9 +441,11 @@ class TestGeneratedFiles:
             ]
 
 
-@pytest.mark.parametrize("rounds", [1, 2, 3])
+@pytest.mark.parametrize("rounds", [1, 2, 3, 4])
 def test_a_ladder_of_any_depth_writes_without_error(rounds: int) -> None:
     brackets = _brackets([], rounds=rounds)
     page = _html(brackets, _cfg())
     assert "Final" in page
-    assert build_finals_document(brackets, _starts(), _cfg())["schema"] == 1
+    document = build_finals_document(brackets, _starts(4 * 2 ** (rounds - 1)), _cfg())
+    jsonschema.validate(document, SCHEMA)
+    check_document_rules(document)

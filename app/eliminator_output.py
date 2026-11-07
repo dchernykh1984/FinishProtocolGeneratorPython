@@ -233,6 +233,33 @@ def write_heat_list(path: str, brackets: list[EliminatorBracket]) -> None:
 # -- site document ------------------------------------------------------------
 
 
+def _heat_row(
+    bracket: EliminatorBracket,
+    heat: Heat,
+    seat: int,
+    riders: dict[str, StartProtocolElement],
+    cfg: RaceConfig,
+) -> dict[str, Any]:
+    """One seat as a site row: its cells keyed by column id, as the site's schema
+    has them, and an empty cell left out, as the timed protocol leaves it."""
+    place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
+    keys = [key for key, _label, _attr in _person_fields(cfg)]
+    cells: dict[str, Any] = dict(zip(keys, values, strict=True))
+    if cfg.show_place:
+        cells["place"] = place_text
+    if cfg.show_finish_time:
+        time_text, gap_text = result
+        cells["result"] = _cell(time_text, [gap_text])
+    row: dict[str, Any] = {
+        "cells": {key: value for key, value in cells.items() if value}
+    }
+    if place_text == "DNF":
+        row["status"] = "dnf"
+    elif place_text == "DSQ":
+        row["status"] = "dsq"
+    return row
+
+
 def _heat_section(
     bracket: EliminatorBracket,
     heat: Heat,
@@ -250,23 +277,11 @@ def _heat_section(
         columns.append(
             _column("result", cfg.finish_time_label, role="result", sub_label=sub)
         )
-    rows = []
-    for seat in range(len(heat.numbers)):
-        place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
-        if not heat.numbers[seat]:
-            continue
-        cells = ([_cell(place_text)] if cfg.show_place else []) + [
-            _cell(value) for value in values
-        ]
-        if cfg.show_finish_time:
-            time_text, gap_text = result
-            cells.append(_cell(time_text, [gap_text]))
-        row: dict[str, Any] = {"cells": cells}
-        if place_text == "DNF":
-            row["status"] = "dnf"
-        elif place_text == "DSQ":
-            row["status"] = "dsq"
-        rows.append(row)
+    rows = [
+        _heat_row(bracket, heat, seat, riders, cfg)
+        for seat in range(len(heat.numbers))
+        if heat.numbers[seat]
+    ]
     title = (
         f"{cfg.group_label} {bracket.group.group_id} - "
         f"{_heat_heading(bracket, heat, cfg)}"
