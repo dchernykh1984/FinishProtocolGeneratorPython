@@ -292,7 +292,7 @@ def delete_protocol(
     except urllib.error.HTTPError as exc:
         if errors_out is not None:
             errors_out.append(
-                f"HTTP delete to {delete_url} failed: {exc.code} {exc.reason}"
+                f"HTTP delete to {delete_url} failed: {exc.code} {_detail(exc)}"
             )
         return -1
     except Exception as exc:
