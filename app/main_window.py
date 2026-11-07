@@ -664,6 +664,7 @@ class _GenerateWorker(QThread):
             ladders,
             small_final=cfg.eliminator_small_final,
             seeding=cfg.eliminator_seeding,
+            laps=cfg.eliminator_laps,
         )
         self.log_message.emit(f"  {len(groups)} ladder(s) loaded")
 
@@ -1103,6 +1104,20 @@ class MainWindow(QMainWindow):
             lambda value: setattr(self._cfg, "eliminator_seeding", value)
         )
         top.addWidget(self._combo_seeding)
+        top.addSpacing(20)
+        top.addWidget(QLabel("Laps per heat:"))
+        self._spin_laps = QSpinBox()
+        self._spin_laps.setObjectName("eliminator_laps")
+        self._spin_laps.setRange(1, 99)
+        self._spin_laps.setValue(max(self._cfg.eliminator_laps, 1))
+        self._spin_laps.setToolTip(
+            "How many laps a heat is. A rider is placed, and sent up a round, once "
+            "he has ridden them all -- before that a crossing of his is a lap."
+        )
+        self._spin_laps.valueChanged.connect(
+            lambda value: setattr(self._cfg, "eliminator_laps", value)
+        )
+        top.addWidget(self._spin_laps)
         top.addStretch()
         outer.addLayout(top)
 
@@ -2205,6 +2220,7 @@ class MainWindow(QMainWindow):
             "1" if cfg.eliminator_small_final else "0",
         ]
         lines += ["EliminatorSeeding", cfg.eliminator_seeding]
+        lines += ["EliminatorLaps", str(cfg.eliminator_laps)]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2385,6 +2401,7 @@ class MainWindow(QMainWindow):
             # quietly reseeds somebody's championship.
             cfg.eliminator_small_final = _bool("EliminatorSmallFinal", True)
             cfg.eliminator_seeding = normalize_seeding(_str("EliminatorSeeding"))
+            cfg.eliminator_laps = max(_int("EliminatorLaps", 1), 1)
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2702,6 +2719,7 @@ class MainWindow(QMainWindow):
             cfg.not_ridden_label = d.get("not_ridden_label", cfg.not_ridden_label)
             cfg.eliminator_small_final = d.get("eliminator_small_final", "1") == "1"
             cfg.eliminator_seeding = normalize_seeding(d.get("eliminator_seeding", ""))
+            cfg.eliminator_laps = max(_di("eliminator_laps", 1), 1)
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
@@ -2765,6 +2783,7 @@ class MainWindow(QMainWindow):
         self._btn_seeding.setEnabled(cfg.write_seeding_protocol)
         self._chk_small_final.setChecked(cfg.eliminator_small_final)
         self._combo_seeding.setCurrentText(normalize_seeding(cfg.eliminator_seeding))
+        self._spin_laps.setValue(max(cfg.eliminator_laps, 1))
         self._sync_ladders_row()
         if hasattr(self, "_combo_race_type"):
             self._combo_race_type.blockSignals(True)

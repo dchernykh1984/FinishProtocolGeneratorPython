@@ -227,6 +227,7 @@ def test_the_eliminator_settings_survive_save_and_load():
     try:
         win._cfg.eliminator_small_final = False
         win._cfg.eliminator_seeding = SEEDING_KEEP_ADJACENT
+        win._cfg.eliminator_laps = 3
         win._cfg.eliminator_ladder_file = "finals/ladders.txt"
         win._cfg.not_ridden_label = "unraced"
         with tempfile.TemporaryDirectory() as td:
@@ -234,11 +235,14 @@ def test_the_eliminator_settings_survive_save_and_load():
             win._save_race_info_to_path(path)
             win._cfg.eliminator_small_final = True
             win._cfg.eliminator_seeding = SEEDING_SPLIT_ADJACENT
+            win._cfg.eliminator_laps = 1
             win._cfg.eliminator_ladder_file = "ladders.txt"
             win._cfg.not_ridden_label = ""
             win._load_race_info_from_path(path)
         assert win._cfg.eliminator_small_final is False
         assert win._cfg.eliminator_seeding == SEEDING_KEEP_ADJACENT
+        assert win._cfg.eliminator_laps == 3
+        assert win.findChild(QSpinBox, "eliminator_laps").value() == 3
         assert win._cfg.eliminator_ladder_file == "finals/ladders.txt"
         assert (
             win.findChild(QComboBox, "eliminator_seeding").currentText()
@@ -261,6 +265,7 @@ def test_a_config_without_the_tags_does_not_inherit_the_last_meetings_scheme():
     try:
         win._cfg.eliminator_seeding = SEEDING_KEEP_ADJACENT
         win._cfg.eliminator_small_final = False
+        win._cfg.eliminator_laps = 4
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "fpg_info.txt"
             win._save_race_info_to_path(str(path))

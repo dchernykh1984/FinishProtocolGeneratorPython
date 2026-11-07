@@ -74,6 +74,7 @@ class _Meeting:
             rng.choice(HEAT_SIZES),
             rng.randint(1, 3),
             rng.choice(SEEDING_SCHEMES),
+            rng.choice((1, 1, 1, 2, 3)),
             small_final=rng.random() < 0.7,
         )
         #: Thin fields on purpose: when a heat sends up only one rider, the round
@@ -81,6 +82,11 @@ class _Meeting:
         #: seats hold arrival order, not qualification order. That is where unraced
         #: heats above the first round come from at all.
         self.sparse = rng.random() < 0.4
+        #: The chronometer with "Finish mode" off stamps every crossing as a lap, so
+        #: the heat has no finish mark at all and its last lap is the result. That is
+        #: how the real one was set up, and it is the only way the lap counting is
+        #: reached, so half the meetings are run that way.
+        self.lap_mode = rng.random() < 0.5
         riders = rng.randint(0, self.group.capacity)
         self.start_list = [
             StartProtocolElement.from_line(
@@ -149,19 +155,28 @@ class _Meeting:
     def _cross(self, bib: str, offset: float) -> None:
         """One rider's marks in the heat that is being ridden."""
         at = self._clock
-        if self.rng.random() < 0.2:
-            # A lap mark before the finish, as a multi-lap heat produces.
-            self.marks.append(FinishCompetitorElement(bib, at + offset / 2, "nextLap"))
+        laps = self.group.laps
+        for lap in range(1, laps):
+            # Every lap but the last. A rider is not past anybody until he has ridden
+            # them all, so none of these may place him or send him up a round.
+            self.marks.append(
+                FinishCompetitorElement(bib, at + offset * lap / (laps + 1), "nextLap")
+            )
         if self.rng.random() < 0.15:
             # Not a crossing at all, and must not be read as one.
             self.marks.append(
                 FinishCompetitorElement(bib, at + offset / 3, "nextStage")
             )
-        self.marks.append(FinishCompetitorElement(bib, at + offset, "finish"))
-        if self.rng.random() < 0.15:
-            # Stamped twice. The timed pipeline warns about this, so it happens, and
-            # which of the two counts decides the heat.
-            self.marks.append(FinishCompetitorElement(bib, at + offset + 2.0, "finish"))
+        if self.lap_mode:
+            self.marks.append(FinishCompetitorElement(bib, at + offset, "nextLap"))
+        else:
+            self.marks.append(FinishCompetitorElement(bib, at + offset, "finish"))
+            if self.rng.random() < 0.15:
+                # Stamped twice. The timed pipeline warns about this, so it happens,
+                # and which of the two counts decides the heat.
+                self.marks.append(
+                    FinishCompetitorElement(bib, at + offset + 2.0, "finish")
+                )
         if self.rng.random() < 0.1:
             self.marks.append(FinishCompetitorElement(bib, at + 40.0, "DSQ: cut in"))
 
@@ -208,15 +223,17 @@ def _own_span(starts: dict[str, float], heat_start: float) -> float:
 
 
 def _ended_on(
-    marks: list[FinishCompetitorElement], start: float, span: float
+    marks: list[FinishCompetitorElement], start: float, span: float, laps: int
 ) -> float | None:
-    """When this rider ended a heat running from ``start`` to ``span``."""
+    """When this rider ended a heat of ``laps`` laps running from ``start`` to
+    ``span``: the finish mark if the chronometer stamped one, else the crossing on
+    which he completed the last lap."""
     inside = [mark for mark in marks if start <= mark.seconds < span]
     finishes = [mark.seconds for mark in inside if mark.action == "finish"]
     if finishes:
         return max(finishes)
-    laps = [mark.seconds for mark in inside if mark.action in _CROSSINGS]
-    return max(laps) if laps else None
+    crossed = sorted(mark.seconds for mark in inside if mark.action in _CROSSINGS)
+    return crossed[laps - 1] if len(crossed) >= laps else None
 
 
 def _claims(bracket: EliminatorBracket) -> list[tuple[str, float, Heat]]:
@@ -272,7 +289,9 @@ def _check_credits_come_from_the_heats_own_span(
             f"{where}: {heat_name(bracket, heat)} credits {bib} with a crossing "
             "from outside its own span"
         )
-        ended = _ended_on(by_bib.get(bib, []), heat.start_seconds, span)
+        ended = _ended_on(
+            by_bib.get(bib, []), heat.start_seconds, span, bracket.group.laps
+        )
         assert ended is not None and round(moment, 6) == round(ended, 6), (
             f"{where}: {heat_name(bracket, heat)} credits {bib} with a crossing "
             "that is not the one they ended the heat on"
