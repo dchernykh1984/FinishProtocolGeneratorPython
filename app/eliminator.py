@@ -47,6 +47,9 @@ HEAT_SIZES = (2, 4)
 _FEEDERS = 2
 #: Two marks closer together than this are the same hundredth to the chronometer.
 _TIE = 0.0005
+#: What the chronometers write for a line crossing. They also write "nextStage", and
+#: a penalty record carries its own action, and neither is a rider finishing a heat.
+_CROSSINGS = ("finish", "nextLap")
 #: Places that get a medal in the big final, so a tie between them is not a detail.
 _PODIUM = 3
 
@@ -99,6 +102,17 @@ class Heat:
     def advancing(self) -> int:
         """How many of its riders this heat sends on to the next round."""
         return len(self.numbers) // _FEEDERS
+
+    @property
+    def was_started(self) -> bool:
+        """Whether a real start time was recorded for this heat.
+
+        Midnight of day zero is not one. The chronometer's start-time field reads
+        "0 00:00:00.000" until Start is pressed and it saves whatever the field
+        holds, so a heat saved without a start carries that -- and a window opening
+        there would swallow the whole morning's marks.
+        """
+        return self.start_seconds > 0
 
 
 class EliminatorBracket:
@@ -399,10 +413,11 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
+        crossings = [mark.seconds for mark in seen if mark.action in _CROSSINGS]
         if any(mark.is_dsq for mark in seen):
             dsq.add(bib)
-        elif seen:
-            times[bib] = min(mark.seconds for mark in seen) - heat.start_seconds
+        elif crossings:
+            times[bib] = min(crossings) - heat.start_seconds
     return times, dsq, used
 
 
@@ -441,8 +456,19 @@ def heat_name(bracket: EliminatorBracket, heat: Heat) -> str:
 
 
 def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
-    """Every heat of every ladder, in the order they are ridden."""
-    return [heat_name(b, heat) for b in brackets for heat in b.all_heats()]
+    """Every heat of every ladder, in the order a meeting rides them.
+
+    The small final goes before the big one, which is the order it is ridden in, so
+    the referee picks heats off the top of the chronometer's list as the day runs.
+    """
+    names: list[str] = []
+    for bracket in brackets:
+        for stage in range(bracket.group.rounds):
+            heats = sorted(
+                bracket.heats_in_stage(stage), key=lambda heat: not heat.is_small_final
+            )
+            names.extend(heat_name(bracket, heat) for heat in heats)
+    return names
 
 
 def parse_eliminator_groups(lines: list[str], sep: str = "#") -> list[EliminatorGroup]:
@@ -493,12 +519,23 @@ def group_problems(lines: list[str], sep: str = "#") -> list[str]:
     return problems
 
 
+def group_key(text: str) -> str:
+    """A group id with its edges trimmed.
+
+    The ladder file's ids are read trimmed, and the start protocol's are not trimmed
+    at all, so everything that matches the two sides goes through this. Without it a
+    group field with a stray space is a group that can never be given a ladder.
+    """
+    return text.strip()
+
+
 def start_list_groups(start_list: list[StartProtocolElement]) -> list[str]:
     """The groups that qualified riders, in start protocol order, each once."""
     groups: list[str] = []
     for start in start_list:
-        if start.group_id and start.group_id not in groups:
-            groups.append(start.group_id)
+        name = group_key(start.group_id)
+        if name and name not in groups:
+            groups.append(name)
     return groups
 
 
@@ -564,10 +601,18 @@ def _open_windows(
     started: list[Heat] = []
     for bracket in brackets:
         for heat in bracket.all_heats():
-            seconds = starts.get(heat_name(bracket, heat))
-            if seconds is not None:
-                heat.start_seconds = seconds
-                started.append(heat)
+            name = heat_name(bracket, heat)
+            seconds = starts.get(name)
+            if seconds is None:
+                continue
+            if seconds <= 0:
+                log.append(
+                    f"WARNING: {name} was saved with no start time, so it counts as "
+                    "not ridden; press Start before Save group"
+                )
+                continue
+            heat.start_seconds = seconds
+            started.append(heat)
     started.sort(key=lambda heat: heat.start_seconds)
     for index, heat in enumerate(started):
         following = started[index + 1 :]
@@ -590,14 +635,14 @@ def build_brackets(
     brackets = _one_ladder_per_group(groups, log)
     by_id = {bracket.group.group_id: bracket for bracket in brackets}
     for start in start_list:
-        bracket = by_id.get(start.group_id)
+        bracket = by_id.get(group_key(start.group_id))
         if bracket is None:
             continue
         place = start.start_place
         if not bracket.place_competitor(start.competitor_id, place, log):
             log.append(
                 f"WARNING: {start.competitor_id} has qualification place {place}, "
-                f"outside the ladder of group {start.group_id}"
+                f"outside the ladder of group {group_key(start.group_id)}"
             )
     starts = _heat_starts(group_list)
     _open_windows(brackets, starts, log)
@@ -646,7 +691,7 @@ def _score(
             for heat in bracket.all_heats():
                 if heat.has_results or not bracket.ready(heat):
                     continue
-                if heat.start_seconds >= 0:
+                if heat.was_started:
                     used.update(id(m) for m in bracket.ride_timed(heat, marks, log))
                 elif bracket.is_bye(heat):
                     bracket.ride_unraced(heat)
