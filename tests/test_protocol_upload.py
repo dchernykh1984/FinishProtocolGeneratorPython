@@ -30,6 +30,7 @@ from app.eliminator import (
     SEEDING_KEEP_ADJACENT,
     SEEDING_SPLIT_ADJACENT,
 )
+from app.file_io import KEY_VALUE_HEADER
 from app.main_window import MainWindow, _GenerateWorker
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -245,6 +246,49 @@ def test_the_eliminator_settings_survive_save_and_load():
         )
         assert win._cfg.not_ridden_label == "unraced"
         assert not win.findChild(QCheckBox, "eliminator_small_final").isChecked()
+    finally:
+        win.deleteLater()
+
+
+def test_a_config_without_the_tags_does_not_inherit_the_last_meetings_scheme():
+    """The quiet reseeding the scheme setting exists to prevent.
+
+    A file that does not carry the scheme means the regulations' default, not what
+    the previous race left in the window -- nothing on screen would show that the
+    ladder had been reseeded.
+    """
+    win = MainWindow()
+    try:
+        win._cfg.eliminator_seeding = SEEDING_KEEP_ADJACENT
+        win._cfg.eliminator_small_final = False
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            win._save_race_info_to_path(str(path))
+            text = path.read_text(encoding="utf-8")
+            older, _, _ = text.partition("EliminatorSmallFinal\n")
+            path.write_text(older, encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.eliminator_seeding == SEEDING_SPLIT_ADJACENT
+        assert win._cfg.eliminator_small_final is True
+        assert (
+            win.findChild(QComboBox, "eliminator_seeding").currentText()
+            == SEEDING_SPLIT_ADJACENT
+        )
+    finally:
+        win.deleteLater()
+
+
+def test_a_key_value_config_without_the_tags_does_not_inherit_them_either():
+    win = MainWindow()
+    try:
+        win._cfg.eliminator_seeding = SEEDING_KEEP_ADJACENT
+        win._cfg.eliminator_small_final = False
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            path.write_text(KEY_VALUE_HEADER + "\nRaceName: Test\n", encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.eliminator_seeding == SEEDING_SPLIT_ADJACENT
+        assert win._cfg.eliminator_small_final is True
     finally:
         win.deleteLater()
 
