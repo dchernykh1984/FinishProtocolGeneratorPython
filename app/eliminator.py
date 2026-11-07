@@ -760,27 +760,6 @@ def _one_ladder_per_group(
     return brackets
 
 
-def unusable_starts(
-    groups: list[EliminatorGroup],
-    group_list: list[GroupStartElement],
-    log: list[str] | None = None,
-) -> list[str]:
-    """Heats with a recorded start that cannot be used, by name.
-
-    The same check the scoring itself makes, run on throwaway ladders so the caller
-    can refuse before anything is written: nothing can be scored around a start the
-    chronometer never took, and the protocol would come out blank or, worse, with an
-    earlier heat rewritten from the next one's marks.
-    """
-    # Through the same dedupe the scoring uses: a group with two ladder lines gets one
-    # bracket there, and building two here would make the second one's heats look like
-    # a pair of heats sharing a start and refuse the run for the wrong reason.
-    brackets = _one_ladder_per_group(groups, [])
-    return _open_windows(
-        brackets, _heat_starts(group_list), log if log is not None else []
-    )
-
-
 def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
     """When each heat started, last line winning.
 
@@ -882,12 +861,11 @@ def build_brackets(
                 f"outside the ladder of group {group_key(start.group_id)}"
             )
     starts = _heat_starts(group_list)
-    used: set[int] = set()
-    if _open_windows(brackets, starts, log):
-        # One unusable start is enough to spoil another heat's result, because its
-        # marks have no window of their own and fall into the heat before it. Score
-        # nothing rather than something wrong.
-        return brackets
+    # A start the chronometer never took is reported and then ignored, and the heat
+    # counts as not ridden. Scoring nothing because of it would hold up every other
+    # group in the meeting, which matters more now that the protocol is meant to be
+    # refreshed while the racing goes on.
+    _open_windows(brackets, starts, log)
     used = _score(brackets, marks, log)
     known = set(heat_names(brackets))
     for name in starts:

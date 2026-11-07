@@ -30,7 +30,6 @@ from app.eliminator import (
     parse_eliminator_groups,
     start_list_groups,
     tie_tolerance,
-    unusable_starts,
 )
 from app.models import (
     FinishCompetitorElement,
@@ -149,9 +148,11 @@ class TestMeetingsWithoutASmallFinal:
         _brackets, log = event.build(_no_small_final(), _starts(list(range(1, 9))))
         assert any("no heat of any ladder is called" in line for line in log)
 
-    def test_it_cannot_make_the_run_refuse(self) -> None:
-        starts = [GroupStartElement(group_id=SMALL, seconds=0.0)]
-        assert unusable_starts(_no_small_final(), starts) == []
+    def test_a_stale_start_line_for_it_does_not_hold_up_the_group(self) -> None:
+        event = _Event().start(SMALL, seconds=0.0).ride(SEMI1, ["101", "104"])
+        brackets, log = event.build(_no_small_final(), _starts([1, 4]))
+        assert brackets[0].stages[0][0].has_results
+        assert any("no heat of any ladder is called" in line for line in log)
 
     def test_the_setting_reaches_the_ladders_through_the_file(self) -> None:
         assert parse_eliminator_groups(["G#4#2#"], small_final=False) == [
@@ -538,13 +539,6 @@ class TestHeatsScoredFromTimes:
         assert semi.times[semi.numbers.index("101")] == pytest.approx(1.0)
         assert any("no heat of any ladder is called" in line for line in log)
 
-    def test_a_group_with_two_ladders_is_not_refused_for_the_wrong_reason(self) -> None:
-        # Both lines give the same heat names, so building a bracket per line would
-        # look like two heats sharing a start.
-        starts = [GroupStartElement(group_id=SEMI1, seconds=1000.0)]
-        doubled = [EliminatorGroup("G", 4, 2), EliminatorGroup("G", 4, 2)]
-        assert unusable_starts(doubled, starts) == []
-
     def test_a_heat_saved_without_a_start_is_an_error(self) -> None:
         # The chronometer's start-time field reads "0 00:00:00.000" until Start is
         # pressed, and Save group writes whatever the field holds.
@@ -552,41 +546,37 @@ class TestHeatsScoredFromTimes:
         _brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
         assert any("was saved with no start time" in line for line in log)
 
-    def test_nothing_is_scored_while_a_start_is_unusable(self) -> None:
-        # The heat with no start of its own was ridden and its marks are in the file.
-        # With no window to hold them they would fall into the heat before it and
-        # rewrite a result that was already right, so nothing is scored at all.
+    def test_an_unusable_start_does_not_hold_up_the_rest_of_the_meeting(self) -> None:
+        # One heat saved without pressing Start must not stop every other group: the
+        # protocol is meant to be refreshed while the racing goes on, so the heat is
+        # reported and then counts as not ridden.
         event = _Event()
         event.ride(SEMI1, ["101", "105", "104", "108"])
-        event.ride(SEMI2, ["102", "106", "103", "107"])
         event.start(FINAL, seconds=0.0)
-        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         semi = brackets[0].stages[0][0]
-        assert not semi.has_results
-        assert semi.numbers == ["101", "104", "105", "108"]
+        assert semi.has_results
+        assert brackets[0].finishing_places(semi) == [1, 2, 3, 4]
+        assert any(
+            line.startswith("ERROR:") and "was saved with no start time" in line
+            for line in log
+        )
+        assert not brackets[0].stages[1][0].was_started
 
-    def test_the_unusable_start_is_named_for_the_caller(self) -> None:
-        starts = [
-            GroupStartElement(group_id=SEMI1, seconds=0.0),
-            GroupStartElement(group_id=SEMI2, seconds=1000.0),
-            GroupStartElement(group_id="Men - Final", seconds=0.0),
-        ]
-        assert unusable_starts(_ladder(), starts) == [SEMI1]
-
-    def test_a_heat_restarted_properly_is_not_refused(self) -> None:
+    def test_a_heat_restarted_properly_is_not_reported(self) -> None:
         # The chronometer appends, so a heat saved without a start and then started
         # again has both lines; the later one is the real one.
-        starts = [
-            GroupStartElement(group_id=SEMI1, seconds=0.0),
-            GroupStartElement(group_id=SEMI1, seconds=1000.0),
-        ]
-        assert unusable_starts(_ladder(), starts) == []
+        event = _Event()
+        event.start(SEMI1, seconds=0.0)
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1001.0, "nextLap"))
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert not any("no start time" in line for line in log)
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
 
-    def test_a_dead_small_final_cannot_make_the_run_refuse(self) -> None:
+    def test_a_dead_small_final_cannot_hold_up_its_group(self) -> None:
         # A one-round ladder has no small final to ride, so a stale line naming one
         # must not be able to block scoring either.
-        starts = [GroupStartElement(group_id=SMALL, seconds=0.0)]
-        assert unusable_starts(_ladder(4, 1), starts) == []
         brackets, _log = (
             _Event()
             .start(SMALL, seconds=0.0)
@@ -594,12 +584,14 @@ class TestHeatsScoredFromTimes:
         )
         assert brackets[0].stages[0][0].taken == 4
 
-    def test_two_heats_on_one_start_are_refused_by_name(self) -> None:
-        starts = [
-            GroupStartElement(group_id=SEMI1, seconds=1000.0),
-            GroupStartElement(group_id=SEMI2, seconds=1000.0),
-        ]
-        assert sorted(unusable_starts(_ladder(), starts)) == sorted([SEMI1, SEMI2])
+    def test_two_heats_on_one_start_are_reported_by_name(self) -> None:
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.start(SEMI2, seconds=1000.0)
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        same = [line for line in log if "starting at the same time" in line]
+        assert same and same[0].startswith("ERROR:")
+        assert SEMI1 in same[0] and SEMI2 in same[0]
 
     def test_two_heats_sharing_a_start_time_are_reported_by_name(self) -> None:
         event = _Event()

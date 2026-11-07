@@ -62,7 +62,6 @@ from app.eliminator import (
     normalize_seeding,
     parse_eliminator_groups,
     tie_tolerance,
-    unusable_starts,
 )
 from app.eliminator_ladders_editor import EliminatorLaddersEditor
 from app.eliminator_output import (
@@ -696,8 +695,6 @@ class _GenerateWorker(QThread):
             group_list = []
         self.log_message.emit(f"  {len(group_list)} heat start(s) loaded")
 
-        unusable = unusable_starts(groups, group_list, log)
-
         self.log_message.emit("Reading finish marks...")
         try:
             marks = read_finish_times(cfg.finish_time_file)
@@ -709,18 +706,6 @@ class _GenerateWorker(QThread):
             # is not a crossing either, so for a ladder it means nothing at all.
             marks = [mark for mark in marks if not mark.is_dsq]
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
-
-        if unusable:
-            # A heat with no start of its own has nothing to bound its marks, so they
-            # fall into the window of the heat before it and rewrite a result that was
-            # already right. The log above says which heat and why.
-            self._refuse(
-                log,
-                "These heats have no usable start time: "
-                + ", ".join(unusable)
-                + ". Start each of them again in the chronometer, pressing Start "
-                "before Save group, then generate again.",
-            )
 
         brackets = build_brackets(
             groups,
