@@ -48,11 +48,6 @@ jobs:
             echo "::error::read $count platforms out of build.yml, expected the full matrix"
             exit 1
           fi
-          # TEMPORARY, removed in the next commit: ask after the retired
-          # macos-14 as well, to show that the verdict job turns a CANCELLED
-          # leg red. A leg that merely fails would prove nothing - a failure
-          # already reddens a run on its own.
-          matrix=$(jq -c '.include += [{"os":"macos-14","name":"retired"}]' <<<"$matrix")
           echo "probing $count labels"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
