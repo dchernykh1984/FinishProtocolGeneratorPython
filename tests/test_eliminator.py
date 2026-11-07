@@ -104,12 +104,59 @@ def _ladder(heat_size: int = 4, rounds: int = 2) -> list[EliminatorGroup]:
     return [EliminatorGroup("G", heat_size, rounds)]
 
 
+def _no_small_final(heat_size: int = 4, rounds: int = 2) -> list[EliminatorGroup]:
+    return [EliminatorGroup("G", heat_size, rounds, small_final=False)]
+
+
 class TestScorableHeats:
     def test_a_one_round_ladder_has_no_small_final_to_walk(self) -> None:
         assert [heat.is_small_final for heat in _bracket(4, 1).all_heats()] == [False]
 
     def test_a_deeper_ladder_keeps_it(self) -> None:
         assert sum(h.is_small_final for h in _bracket(4, 2).all_heats()) == 1
+
+
+class TestMeetingsWithoutASmallFinal:
+    """Many meetings ride only the final. Then the last round simply drops riders."""
+
+    def _bracket(self, rounds: int = 2) -> EliminatorBracket:
+        return EliminatorBracket(EliminatorGroup("G", 4, rounds, small_final=False))
+
+    def test_the_ladder_says_it_has_none(self) -> None:
+        assert not self._bracket().has_small_final
+        assert self._bracket(2).group.small_final is False
+
+    def test_it_is_not_walked_scored_or_offered(self) -> None:
+        bracket = self._bracket()
+        assert not any(heat.is_small_final for heat in bracket.all_heats())
+        assert not any(h.is_small_final for h in bracket.heats_in_stage(1))
+        assert heat_names([bracket]) == [SEMI1, SEMI2, FINAL]
+
+    def test_nobody_is_dropped_into_it(self) -> None:
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        bracket = event.build(_no_small_final(), _starts(list(range(1, 9))))[0][0]
+        assert bracket.stages[1][0].numbers == ["101", "105", "102", "106"]
+        assert bracket.small_final.taken == 0
+
+    def test_a_start_recorded_for_it_belongs_to_no_heat(self) -> None:
+        event = _Event().start(SMALL)
+        _brackets, log = event.build(_no_small_final(), _starts(list(range(1, 9))))
+        assert any("no heat of any ladder is called" in line for line in log)
+
+    def test_it_cannot_make_the_run_refuse(self) -> None:
+        starts = [GroupStartElement(group_id=SMALL, seconds=0.0)]
+        assert unusable_starts(_no_small_final(), starts) == []
+
+    def test_the_setting_reaches_the_ladders_through_the_file(self) -> None:
+        assert parse_eliminator_groups(["G#4#2#"], small_final=False) == [
+            EliminatorGroup("G", 4, 2, small_final=False)
+        ]
+        assert parse_eliminator_groups(["G#4#2#"]) == [EliminatorGroup("G", 4, 2)]
+
+    def test_turning_it_on_is_the_default(self) -> None:
+        assert EliminatorGroup("G", 4, 2).small_final is True
 
 
 class TestSeeding:

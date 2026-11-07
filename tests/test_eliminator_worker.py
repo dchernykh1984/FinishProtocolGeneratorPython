@@ -324,6 +324,24 @@ class TestProblemsAreReported:
         assert len(errors) == 1
 
 
+class TestTheSmallFinalSetting:
+    def test_off_leaves_it_out_of_everything(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path, eliminator_small_final=False)
+        _messages, errors = _run(cfg)
+        assert errors == []
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "Small final" not in page
+        listed = (tmp_path / "heats.txt").read_text(encoding="utf-8").splitlines()
+        assert listed == [_SEMI1, _SEMI2, _FINAL]
+
+    def test_on_is_the_default_and_keeps_it(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        assert cfg.eliminator_small_final
+        _run(cfg)
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "Small final" in page
+
+
 class TestDisqualification:
     def _with_dsq(self, tmp_path: Path, **kwargs) -> RaceConfig:
         """The first semi-final ridden, with its winner disqualified afterwards."""

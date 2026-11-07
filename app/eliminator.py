@@ -63,6 +63,9 @@ class EliminatorGroup:
     group_id: str
     heat_size: int
     rounds: int
+    #: Whether the meeting rides a small final for places behind the podium. Many do
+    #: not, and then the riders the last round dropped simply have no further heat.
+    small_final: bool = True
 
     @property
     def capacity(self) -> int:
@@ -182,25 +185,23 @@ class EliminatorBracket:
         return self.stages[stage][number]
 
     def heats_in_stage(self, stage: int) -> list[Heat]:
-        """Every heat of a stage, the small final included."""
+        """Every heat of a stage this ladder can hold riders in, small final and all.
+
+        The one place that decides whether the small final exists, so a heat offered
+        to the referee, a heat that is scored and a heat that is drawn are the same
+        set -- two of those disagreeing is what published a blank protocol once.
+        """
         heats = list(self.stages[stage])
-        if stage == self.group.rounds - 1:
+        if stage == self.group.rounds - 1 and self.has_small_final:
             heats.append(self.small_final)
         return heats
 
     def all_heats(self) -> list[Heat]:
-        """Every heat this ladder can actually hold riders in, first round first.
-
-        A one-round ladder's small final is left out: there is no round below to drop
-        anybody out of, so it can never be filled. Everything that walks the ladder
-        goes through here, so a heat that is offered to the referee and a heat that
-        is scored are the same set.
-        """
+        """Every heat of the ladder, first round first."""
         return [
             heat
             for stage in range(self.group.rounds)
             for heat in self.heats_in_stage(stage)
-            if self.has_small_final or not heat.is_small_final
         ]
 
     def is_big_final(self, heat: Heat) -> bool:
@@ -210,10 +211,20 @@ class EliminatorBracket:
     def has_small_final(self) -> bool:
         """Whether this ladder has a small final at all.
 
-        A one-round ladder is a single final: there is no round below it to drop
-        anybody out of, so its small final can never hold a rider.
+        Either the meeting does not ride one, or the ladder is a single final: there
+        is then no round below it to drop anybody out of, so its small final could
+        never hold a rider whatever the setting says.
         """
-        return self.group.rounds > 1
+        return self.group.rounds > 1 and self.group.small_final
+
+    def parent(self, heat: Heat) -> Heat | None:
+        """The heat this one sends its riders up to, or None for a final.
+
+        Public because the path a rider can still take through the ladder is fixed by
+        the shape alone, before any result -- which is what lets a finish mark be
+        bounded without knowing who won.
+        """
+        return self._parent(heat)
 
     def _parent(self, heat: Heat) -> Heat | None:
         if heat.is_small_final or heat.stage + 1 >= self.group.rounds:
@@ -367,7 +378,7 @@ class EliminatorBracket:
         parent = self._parent(heat)
         if parent is not None:
             _fill_free_seats(parent, going_on)
-        if heat.stage + 2 == self.group.rounds:
+        if heat.stage + 2 == self.group.rounds and self.has_small_final:
             dropped = [
                 heat.numbers[i]
                 for i in range(heat.advancing, size)
@@ -517,8 +528,14 @@ def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
     return names
 
 
-def parse_eliminator_groups(lines: list[str], sep: str = "#") -> list[EliminatorGroup]:
-    """Read the ladders out of the ladder file, skipping lines that describe none."""
+def parse_eliminator_groups(
+    lines: list[str], sep: str = "#", small_final: bool = True
+) -> list[EliminatorGroup]:
+    """Read the ladders out of the ladder file, skipping lines that describe none.
+
+    Whether a small final is ridden is one decision for the meeting, so it comes from
+    the settings rather than from the file: it is not part of a group's shape.
+    """
     groups: list[EliminatorGroup] = []
     for line in lines:
         group_id = get_field(line, 0, sep).strip()
@@ -528,7 +545,7 @@ def parse_eliminator_groups(lines: list[str], sep: str = "#") -> list[Eliminator
         rounds = _as_int(get_field(line, 2, sep))
         if heat_size not in HEAT_SIZES or rounds < 1:
             continue
-        groups.append(EliminatorGroup(group_id, heat_size, rounds))
+        groups.append(EliminatorGroup(group_id, heat_size, rounds, small_final))
     return groups
 
 

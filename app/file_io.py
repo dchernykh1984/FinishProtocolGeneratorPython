@@ -740,6 +740,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["not_ridden_label"] = v
+        tok = nxt()
+
+    if tok == "EliminatorSmallFinal":
+        v = nxt()
+        if v is not None:
+            result["eliminator_small_final"] = v
 
     return result
 

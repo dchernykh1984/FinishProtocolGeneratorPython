@@ -174,6 +174,10 @@ def _write_ladder(
                 continue
             number = row // span
             heat = bracket.heat(stage, number)
+            if heat.is_small_final and not bracket.has_small_final:
+                # No small final ridden: its cell in the last column stays empty
+                # rather than drawing a table nobody can be in.
+                continue
             align = "center"
             if rounds > 1 and stage == span_stage + 1:
                 align = "bottom" if number == 0 else "top"

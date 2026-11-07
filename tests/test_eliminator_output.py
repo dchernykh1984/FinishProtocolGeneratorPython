@@ -314,6 +314,52 @@ class TestDocument:
         assert not re.search(r"<[^>]+>", json.dumps(document, ensure_ascii=False))
 
 
+class TestWithoutASmallFinal:
+    def _brackets(self):
+        starts, marks = _timed(
+            [
+                (_SEMI1, ["101", "105", "104", "108"]),
+                (_SEMI2, ["102", "106", "103", "107"]),
+                (_FINAL, ["101", "102", "105", "106"]),
+            ]
+        )
+        log: list[str] = []
+        return build_brackets(
+            [EliminatorGroup("Men", 4, 2, small_final=False)],
+            _starts(),
+            starts,
+            marks,
+            log,
+        )
+
+    def test_the_page_does_not_draw_it(self) -> None:
+        page = _html(self._brackets(), _cfg())
+        assert "Small final" not in page
+        assert "1/2 final 1" in page and "Final" in page
+
+    def test_the_page_still_holds_every_other_heat(self) -> None:
+        page = _html(self._brackets(), _cfg())
+        # Four semi-finalists plus the four who rode the final.
+        for bib in range(101, 109):
+            assert str(bib) in page
+
+    def test_the_site_is_not_sent_it(self) -> None:
+        document = build_finals_document(self._brackets(), _starts(), _cfg())
+        titles = [section["title"] for section in document["sections"]]
+        assert not any("Small final" in title for title in titles)
+        assert len(titles) == 3
+
+    def test_the_heat_list_leaves_it_out(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "heats.txt")
+            write_heat_list(path, self._brackets())
+            assert Path(path).read_text(encoding="utf-8").splitlines() == [
+                _SEMI1,
+                _SEMI2,
+                _FINAL,
+            ]
+
+
 class TestGeneratedFiles:
     def test_the_heat_list_is_one_name_per_line(self) -> None:
         with tempfile.TemporaryDirectory() as td:
