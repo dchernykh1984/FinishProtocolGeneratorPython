@@ -374,8 +374,20 @@ class TestDocument:
             "result",
         ]
         for column in final["columns"]:
+            if column["id"] == "result":
+                continue  # a heat's time matters less than a timed race's
             role_and_priority = (column.get("role"), column.get("priority"))
             assert role_and_priority == declared[column["id"]], column["id"]
+
+    def test_on_a_narrow_screen_only_place_and_name_always_stay(self) -> None:
+        # A heat is decided by the order of crossing: its time is left out after the
+        # year, the city and the team, and before the number. The site keeps the
+        # columns without a priority of their own -- place and name -- in every width.
+        final = _heat(self._document(), "Final")
+        priority = {column["id"]: column.get("priority") for column in final["columns"]}
+        assert priority["place"] is None
+        assert priority["name"] is None
+        assert priority["team"] > priority["result"] > priority["bib"] > 1
 
     def test_a_rider_who_did_not_finish_is_marked(self) -> None:
         document = build_finals_document(

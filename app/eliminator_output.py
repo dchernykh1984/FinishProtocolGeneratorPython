@@ -241,6 +241,11 @@ def write_heat_list(path: str, brackets: list[EliminatorBracket]) -> None:
 
 # -- site document ------------------------------------------------------------
 
+#: A heat is decided by the order its riders cross the line, so on a narrow screen
+#: its time gives way after the minor columns, before the number; place and name,
+#: priority 1, always stay.
+_RESULT_PRIORITY = 4
+
 
 def _heat_row(
     bracket: EliminatorBracket,
@@ -285,7 +290,13 @@ def _heat_section(
     if cfg.show_finish_time:
         sub = [_plain(cfg.time_difference_label)] if cfg.show_time_difference else []
         columns.append(
-            _column("result", cfg.finish_time_label, role="result", sub_label=sub)
+            _column(
+                "result",
+                cfg.finish_time_label,
+                role="result",
+                sub_label=sub,
+                priority=_RESULT_PRIORITY,
+            )
         )
     rows = [
         _heat_row(bracket, heat, seat, riders, cfg)
