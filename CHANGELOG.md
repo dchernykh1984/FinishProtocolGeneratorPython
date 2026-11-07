@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.10.0...v0.11.0) (2026-11-07)
+
+
+### Features
+
+* **http:** publish protocols into a protocol section of the event on the site ([994b022](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/994b0229c422ca746698a3b4565f237df14e0053))
+
+
+### Bug Fixes
+
+* **ci:** restore the macos release asset, lost to a retired runner label ([d6a4b28](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d6a4b28b241c56276d5dcac975cd447b1e07e9f4))
+* **http:** a delete the site refuses says what the site answered ([83c5b61](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/83c5b61d216e187dc51e9c8f29ca0b858d41a19a))
+
 ## [0.10.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.9.0...v0.10.0) (2026-11-07)
 
 
