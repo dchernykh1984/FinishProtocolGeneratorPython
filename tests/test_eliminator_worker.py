@@ -137,7 +137,9 @@ class TestTheHeatListForTheChronometer:
         Path(cfg.eliminator_ladder_file).write_text("Men#4#1#\n", encoding="utf-8")
         _run(cfg)
         listed = (tmp_path / "heats.txt").read_text(encoding="utf-8").splitlines()
-        assert listed == [_SMALL, _FINAL]
+        # One round is a single final: no round below it to drop anybody out of, so
+        # there is no small final to offer.
+        assert listed == [_FINAL]
 
     def test_it_is_refused_rather_than_overwriting_an_input(
         self, tmp_path: Path
@@ -242,21 +244,37 @@ class TestProblemsAreReported:
         assert len(errors) == 1
         assert "No ladder for: Men" in errors[0]
 
-    def test_a_heat_saved_before_start_was_pressed_is_reported(
+    def test_a_heat_saved_before_start_was_pressed_stops_the_run(
         self, tmp_path: Path
     ) -> None:
-        # groups.txt copied from the qualification looks exactly like this, and so
-        # does a heat whose Save group came before its Start.
+        # Its marks have no window of their own, so they would fall into the heat
+        # before it and rewrite a result that was already right.
+        cfg = _cfg(tmp_path)
+        with Path(cfg.group_time_file).open("a", encoding="utf-8") as f:
+            f.write(f"{_FINAL}#{_NO_START}#\n")
+        messages, errors = _run(cfg)
+        assert any("was saved with no start time" in m for m in messages)
+        assert len(errors) == 1
+        assert "No start time recorded for" in errors[0]
+        assert not Path(cfg.group_protocol_file).exists()
+
+    def test_the_chronometer_files_need_not_exist_on_the_first_run(
+        self, tmp_path: Path
+    ) -> None:
+        # Nothing has been ridden yet, and this is the run that writes the heat list
+        # the chronometer needs in order to ride anything.
         cfg = _cfg(tmp_path, heats=[])
-        Path(cfg.group_time_file).write_text(
-            f"{_FINAL}#{_NO_START}#\n", encoding="utf-8"
-        )
+        Path(cfg.group_time_file).unlink()
+        Path(cfg.finish_time_file).unlink()
         messages, errors = _run(cfg)
         assert errors == []
-        assert any("saved with no start time" in m for m in messages)
-        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
-        # Eight full seats in the first round: nothing has been decided yet.
-        assert "DNF" not in page
+        assert any("cannot read" in m for m in messages)
+        assert (tmp_path / "heats.txt").read_text(encoding="utf-8").splitlines() == [
+            _SEMI1,
+            _SEMI2,
+            _SMALL,
+            _FINAL,
+        ]
 
     def test_a_mark_that_belongs_to_no_heat_is_logged(self, tmp_path: Path) -> None:
         cfg = _cfg(tmp_path)

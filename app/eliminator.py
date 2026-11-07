@@ -193,6 +193,15 @@ class EliminatorBracket:
     def is_big_final(self, heat: Heat) -> bool:
         return not heat.is_small_final and heat.stage == self.group.rounds - 1
 
+    @property
+    def has_small_final(self) -> bool:
+        """Whether this ladder has a small final at all.
+
+        A one-round ladder is a single final: there is no round below it to drop
+        anybody out of, so its small final can never hold a rider.
+        """
+        return self.group.rounds > 1
+
     def _parent(self, heat: Heat) -> Heat | None:
         if heat.is_small_final or heat.stage + 1 >= self.group.rounds:
             return None
@@ -357,14 +366,13 @@ class EliminatorBracket:
         """
         offset = 0
         if heat.is_small_final:
+            # Everyone who was in the big final placed ahead of this heat, whether
+            # they were classified there or not: a finalist who abandoned or was
+            # disqualified did not vacate a place for a rider who had already ridden
+            # for fifth. Falling back to the seat count matters because the small
+            # final is usually ridden first, when the big one holds nobody yet.
             big_final = self.stages[-1][0]
-            if big_final.has_results:
-                offset = sum(1 for taken in big_final.finished if taken)
-            else:
-                # The small final is usually ridden first. Counting the big final's
-                # finishers would be zero then, and its riders would be shown as
-                # first to fourth alongside the medals.
-                offset = big_final.taken or len(big_final.numbers)
+            offset = big_final.taken or len(big_final.numbers)
         return [
             offset + seat + 1 if heat.has_results and classified else None
             for seat, classified in enumerate(heat.finished)
@@ -464,9 +472,12 @@ def heat_names(brackets: list[EliminatorBracket]) -> list[str]:
     names: list[str] = []
     for bracket in brackets:
         for stage in range(bracket.group.rounds):
-            heats = sorted(
-                bracket.heats_in_stage(stage), key=lambda heat: not heat.is_small_final
-            )
+            heats = [
+                heat
+                for heat in bracket.heats_in_stage(stage)
+                if bracket.has_small_final or not heat.is_small_final
+            ]
+            heats.sort(key=lambda heat: not heat.is_small_final)
             names.extend(heat_name(bracket, heat) for heat in heats)
     return names
 
@@ -578,6 +589,21 @@ def _one_ladder_per_group(
     return brackets
 
 
+def unusable_starts(
+    groups: list[EliminatorGroup], group_list: list[GroupStartElement]
+) -> list[str]:
+    """Heats with a recorded start that cannot be used, by name.
+
+    Only midnight of day zero, which is what the chronometer writes when Save group
+    comes before Start. Nothing can be scored around it, so the caller refuses the
+    whole run rather than writing a protocol in which an earlier heat was rewritten.
+    """
+    named = set(heat_names([EliminatorBracket(group) for group in groups]))
+    return [
+        gs.group_id for gs in group_list if gs.group_id in named and gs.seconds <= 0
+    ]
+
+
 def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
     """When each heat started, last line winning.
 
@@ -589,8 +615,9 @@ def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
 
 def _open_windows(
     brackets: list[EliminatorBracket], starts: dict[str, float], log: list[str]
-) -> None:
-    """Give every started heat the span its own marks fall in.
+) -> list[str]:
+    """Give every started heat the span its own marks fall in, and name the heats
+    whose recorded start cannot be used.
 
     The span ends where the next heat starts, whichever ladder that heat belongs to:
     a rider rides several heats, so his bib carries several honest marks, and only
@@ -599,6 +626,7 @@ def _open_windows(
     could not be done anyway -- who rides the next heat is decided by this one.
     """
     started: list[Heat] = []
+    bad: list[str] = []
     for bracket in brackets:
         for heat in bracket.all_heats():
             name = heat_name(bracket, heat)
@@ -606,10 +634,15 @@ def _open_windows(
             if seconds is None:
                 continue
             if seconds <= 0:
+                # Not a warning: if that heat was ridden, its marks are still in the
+                # file, and with no start of its own to bound them they would fall
+                # into the window of the heat before it and rewrite a result that was
+                # already right. Nothing is written until the start time is fixed.
                 log.append(
-                    f"WARNING: {name} was saved with no start time, so it counts as "
-                    "not ridden; press Start before Save group"
+                    f"ERROR: {name} was saved with no start time; press Start before "
+                    "Save group, or remove its line from the heat start file"
                 )
+                bad.append(name)
                 continue
             heat.start_seconds = seconds
             started.append(heat)
@@ -622,6 +655,7 @@ def _open_windows(
                 "WARNING: two heats are recorded as starting at the same time; "
                 "one of them has no window of its own for finish marks"
             )
+    return bad
 
 
 def build_brackets(
@@ -645,7 +679,12 @@ def build_brackets(
                 f"outside the ladder of group {group_key(start.group_id)}"
             )
     starts = _heat_starts(group_list)
-    _open_windows(brackets, starts, log)
+    used: set[int] = set()
+    if _open_windows(brackets, starts, log):
+        # One unusable start is enough to spoil another heat's result, because its
+        # marks have no window of their own and fall into the heat before it. Score
+        # nothing rather than something wrong.
+        return brackets
     used = _score(brackets, marks, log)
     known = set(heat_names(brackets))
     for name in starts:
@@ -695,6 +734,14 @@ def _score(
                     used.update(id(m) for m in bracket.ride_timed(heat, marks, log))
                 elif bracket.is_bye(heat):
                     bracket.ride_unraced(heat)
+                    if heat.taken:
+                        # Worth saying out loud for the final: those are medals
+                        # handed out on qualification order, with no race behind it.
+                        level = "WARNING: " if bracket.is_big_final(heat) else ""
+                        log.append(
+                            f"{level}{heat_name(bracket, heat)} was not ridden; its "
+                            "riders go through in qualification order"
+                        )
                 else:
                     # Still to be ridden: leaving it empty is the whole point, so a
                     # protocol refreshed mid-event shows the final as pending rather
