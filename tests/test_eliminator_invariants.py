@@ -299,11 +299,12 @@ def _check_each_heat_is_in_crossing_order(
 
 
 def _check_a_result_has_a_reason(bracket: EliminatorBracket, where: str) -> None:
-    """A heat has a result because it was ridden, or because riding it was pointless.
+    """A heat has a result because it was ridden, or because riding it was pointless,
+    and it is over only when it has the right to be.
 
-    A heat closed with neither a time nor a disqualification is one whose riders are
-    still on the course: closing it prints the whole field as DNF, lets the round
-    above go through on a bye, and hands out medals in the middle of a race.
+    Over means every rider accounted for, or a later heat already started. Calling a
+    heat over early is what turns riders still on the course into DNF and lets the
+    round above go through on a bye.
     """
     for heat in bracket.all_heats():
         if not heat.has_results:
@@ -324,18 +325,65 @@ def _check_a_result_has_a_reason(bracket: EliminatorBracket, where: str) -> None
             assert all(time < 0 for time in heat.times), (
                 f"{where}: {heat_name(bracket, heat)} was not ridden yet has times"
             )
-        elif heat.taken:
-            accounted = sum(
-                1
-                for seat in range(len(heat.numbers))
-                if heat.numbers[seat]
-                and (heat.times[seat] >= 0 or heat.disqualified[seat])
+            assert heat.complete, (
+                f"{where}: {heat_name(bracket, heat)} went through unraced but is "
+                "not over, so its riders would show as neither placed nor DNF"
             )
-            assert accounted == heat.taken or heat.window_end != float("inf"), (
-                f"{where}: {heat_name(bracket, heat)} is sealed with "
-                f"{heat.taken - accounted} rider(s) unaccounted for and no later "
+        elif heat.complete:
+            assert heat.accounted >= heat.taken or heat.window_end != float("inf"), (
+                f"{where}: {heat_name(bracket, heat)} is over with "
+                f"{heat.taken - heat.accounted} rider(s) unaccounted for and no later "
                 "heat started, so they may still be on the course"
             )
+
+
+def _check_a_round_waits_for_the_one_below(
+    bracket: EliminatorBracket, where: str
+) -> None:
+    """Nothing is scored or waved through above a heat that is still being ridden.
+
+    Riders move up the moment they cross, so the heat above fills early on purpose.
+    What it must not do is be scored, or go through on a bye, while a rider who could
+    still join it is on the course.
+    """
+    for heat in bracket.all_heats():
+        if heat.stage == 0 or not heat.has_results:
+            continue
+        # The small final takes the riders the big final's own feeders dropped.
+        fed = bracket.stages[-1][0] if heat.is_small_final else heat
+        feeders = [
+            bracket.stages[fed.stage - 1][fed.number * 2 + side] for side in range(2)
+        ]
+        assert all(feeder.complete for feeder in feeders), (
+            f"{where}: {heat_name(bracket, heat)} has a result although a heat "
+            "feeding it is still being ridden"
+        )
+
+
+def _check_crossing_is_enough_to_be_placed(
+    bracket: EliminatorBracket, where: str
+) -> None:
+    """A rider who crossed is placed and sent on at once, without waiting for the
+    heat to end. His place cannot change: nobody still on the course can finish
+    ahead of somebody who has already finished.
+    """
+    for heat in bracket.all_heats():
+        if not heat.ridden:
+            continue
+        for seat, bib in enumerate(heat.numbers):
+            if not bib:
+                continue
+            crossed = heat.times[seat] >= 0
+            assert crossed == heat.finished[seat], (
+                f"{where}: {heat_name(bracket, heat)} seat {seat} has "
+                f"crossed={crossed} but classified={heat.finished[seat]}"
+            )
+            if crossed and seat < heat.advancing and bracket.parent(heat) is not None:
+                above = bracket.parent(heat)
+                assert above is not None and bib in above.numbers, (
+                    f"{where}: {bib} crossed {seat + 1} of {heat.advancing} going on "
+                    f"in {heat_name(bracket, heat)} but is not in the round above"
+                )
 
 
 def _check_only_seated_riders_and_once_each(
@@ -425,6 +473,8 @@ def _check(meeting: _Meeting, bracket: EliminatorBracket, case: int) -> None:
     _check_credits_come_from_the_heats_own_span(meeting, bracket, where)
     _check_each_heat_is_in_crossing_order(bracket, where)
     _check_a_result_has_a_reason(bracket, where)
+    _check_a_round_waits_for_the_one_below(bracket, where)
+    _check_crossing_is_enough_to_be_placed(bracket, where)
     _check_only_seated_riders_and_once_each(meeting, bracket, where)
     _check_the_heat_set_is_one_set(bracket, where)
     _check_unraced_heats_follow_qualification(bracket, where)

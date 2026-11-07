@@ -94,8 +94,9 @@ def _seat_values(
         place_text = "DSQ"
     elif place is not None:
         place_text = str(place)
-    elif bib and heat.has_results:
-        # Only a heat that has been ridden can leave somebody unclassified. The C++
+    elif bib and heat.complete:
+        # Only a heat that is over can leave somebody unclassified. While it is being
+        # ridden the seat stays blank: the rider is on the course, not beaten. The C++
         # version wrote DNF against every seeded rider from the moment the ladder was
         # drawn, which reads as though the whole field had abandoned.
         place_text = "DNF"

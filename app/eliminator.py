@@ -111,6 +111,11 @@ class Heat:
     #: Whether the rider in each seat was disqualified in this heat.
     disqualified: list[bool] = field(default_factory=list)
     has_results: bool = False
+    #: Whether the heat is over, so a rider without a crossing did not finish. A heat
+    #: can hold results without being complete: a rider's place is settled the moment
+    #: he crosses -- nobody still on the course can finish ahead of him -- while
+    #: whether the others are DNF or still riding is not settled until the heat ends.
+    complete: bool = False
     is_small_final: bool = False
     #: When this heat was started, -1 when no start was recorded for it.
     start_seconds: float = -1.0
@@ -128,6 +133,17 @@ class Heat:
     def advancing(self) -> int:
         """How many of its riders this heat sends on to the next round."""
         return len(self.numbers) // _FEEDERS
+
+    @property
+    def accounted(self) -> int:
+        """How many of its riders this heat knows the fate of: they crossed the line
+        or they were disqualified. The rest are still on the course, or did not
+        finish once the heat is over."""
+        return sum(
+            1
+            for seat, bib in enumerate(self.numbers)
+            if bib and (self.times[seat] >= 0 or self.disqualified[seat])
+        )
 
     @property
     def was_started(self) -> bool:
@@ -290,12 +306,19 @@ class EliminatorBracket:
         return False
 
     def ready(self, heat: Heat) -> bool:
-        """Whether the heats that feed this one have been ridden."""
+        """Whether the heats that feed this one are over.
+
+        Over, not merely scored. Riders move up the moment they cross, so a heat
+        below may already have sent somebody on while others are still riding; acting
+        on that would let this heat be scored, or go through on a bye, against a field
+        that is not final yet -- which is how a protocol refreshed every half minute
+        would hand out medals in the middle of a race.
+        """
         if heat.stage == 0:
             return True
         if heat.is_small_final:
-            return all(f.has_results for f in self._feeders(self.stages[-1][0]))
-        return all(feeder.has_results for feeder in self._feeders(heat))
+            return all(f.complete for f in self._feeders(self.stages[-1][0]))
+        return all(feeder.complete for feeder in self._feeders(heat))
 
     def is_bye(self, heat: Heat) -> bool:
         """Whether this heat cannot eliminate anybody, so riding it is pointless."""
@@ -314,37 +337,36 @@ class EliminatorBracket:
             (bib for bib in heat.numbers if bib),
             key=lambda bib: self.places.get(bib, unplaced),
         )
-        self._record(heat, order, len(order), {}, set(), ridden=False)
+        self._record(heat, order, len(order), {}, set(), ridden=False, complete=True)
 
     def ride_timed(
         self, heat: Heat, marks: list[FinishCompetitorElement], log: list[str]
-    ) -> list[FinishCompetitorElement] | None:
+    ) -> list[FinishCompetitorElement]:
         """Score a heat from the marks that fall inside its own start window, and say
         which marks it used, so a mark no heat claimed can be reported.
 
-        ``None`` while the heat is still being ridden, which is the case when some of
-        its riders are unaccounted for and no later heat has started yet. Sealing it
-        then prints the riders still on the course as DNF, lets the round above go
-        through on a bye and hands out places in the middle of a race -- which is
-        what a protocol refreshed every half minute would publish.
+        Everything known is written at once: a rider who has crossed gets his time
+        and his place there and then, and goes up to the next round if that place is
+        inside the two the heat sends on. Nobody still on the course can finish ahead
+        of him, so neither is going to change.
 
-        Once a later heat has started this one is over, and whoever has no crossing
-        did not finish, which is what the protocol should say. A heat left pending
-        because its last rider crashed is settled by stamping them DSQ, the way the
-        jury would record it anyway.
+        The heat is over once every one of its riders is accounted for, or once a
+        later heat has started. Until then the riders without a crossing are shown
+        with nothing against them rather than as DNF.
         """
         times, dsq, used = _heat_marks(heat, marks)
         accounted = len(set(times) | dsq)
-        if heat.taken and accounted < heat.taken and heat.window_end == _OPEN:
-            return None
-        if heat.taken and not accounted:
+        complete = accounted >= heat.taken or heat.window_end != _OPEN
+        order = sorted(times, key=lambda bib: times[bib])
+        log.extend(self._tie_problems(heat, order, times))
+        if complete and heat.taken and not accounted:
             log.append(
                 f"ERROR: {heat_name(self, heat)} was ridden but has no finish marks "
                 "at all; every rider in it is shown as DNF"
             )
-        order = sorted(times, key=lambda bib: times[bib])
-        log.extend(self._tie_problems(heat, order, times))
-        self._record(heat, order, len(order), times, dsq, ridden=True)
+        self._record(
+            heat, order, len(order), times, dsq, ridden=True, complete=complete
+        )
         return used
 
     def _tie_problems(
@@ -383,14 +405,16 @@ class EliminatorBracket:
         dsq: set[str],
         *,
         ridden: bool,
+        complete: bool,
     ) -> None:
-        """Write a finishing order into a heat and move its riders onward.
+        """Write what is known of a heat into it and move its riders onward.
 
-        A result may list only the riders who went through; the seats left over keep
-        the heat's other riders, marked as not advancing, which is how they come out
-        as DNF in the protocol. A disqualified rider is never one of them, whatever
-        the clock said, so he sits past the classified seats like a rider who never
-        finished.
+        Only the riders who have crossed are classified; the seats left over keep the
+        heat's other riders unclassified. Whether that reads as DNF or as a rider
+        still on the course is what ``complete`` decides -- the places themselves do
+        not wait for it, because a rider who has crossed cannot be overtaken by one
+        who has not. A disqualified rider is never classified, whatever the clock
+        said, so he sits past the classified seats like a rider who never finished.
         """
         rest = [number for number in heat.numbers if number and number not in order]
         filled = order + rest
@@ -403,6 +427,7 @@ class EliminatorBracket:
         heat.disqualified = [number in dsq for number in heat.numbers]
         heat.has_results = True
         heat.ridden = ridden
+        heat.complete = complete
         if heat.is_small_final:
             return
         going_on = [
@@ -880,10 +905,9 @@ def _score(
                 if heat.has_results or not bracket.ready(heat):
                     continue
                 if heat.was_started:
-                    claimed = bracket.ride_timed(heat, marks, log)
-                    if claimed is None:
-                        continue
-                    used.update(id(mark) for mark in claimed)
+                    used.update(
+                        id(mark) for mark in bracket.ride_timed(heat, marks, log)
+                    )
                 elif bracket.is_bye(heat):
                     bracket.ride_unraced(heat)
                     if heat.taken:
@@ -912,8 +936,9 @@ def _still_riding(brackets: list[EliminatorBracket]) -> list[str]:
     several passes and would otherwise repeat itself on each of them.
     """
     return [
-        f"{heat_name(bracket, heat)} has started; waiting for its finish marks"
+        f"{heat_name(bracket, heat)} is being ridden; "
+        f"{heat.taken - heat.accounted} of its rider(s) have no crossing yet"
         for bracket in brackets
         for heat in bracket.all_heats()
-        if heat.was_started and not heat.has_results
+        if heat.was_started and not heat.complete
     ]
