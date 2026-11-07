@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import tempfile
 import urllib.error
@@ -400,6 +401,16 @@ class TestDeleteProtocol:
     def test_returns_minus1_on_connection_error(self) -> None:
         with patch("urllib.request.urlopen", side_effect=OSError("refused")):
             assert delete_protocol("https://s", "tok", "group") == -1
+
+    def test_a_refusal_says_what_the_site_answered(self) -> None:
+        body = io.BytesIO(b'{"detail": "The event has no protocol section 7"}')
+        exc = urllib.error.HTTPError(
+            "u", 400, "Bad Request", http.client.HTTPMessage(), body
+        )
+        errors: list[str] = []
+        with patch("urllib.request.urlopen", side_effect=exc):
+            assert delete_protocol("https://s", "tok", "group", errors, section=7) == -1
+        assert "no protocol section 7" in errors[0]
 
 
 class TestUploadLiveStats:
