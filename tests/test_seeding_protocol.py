@@ -298,6 +298,22 @@ class TestItNeverOverwritesARaceFile:
         cfg = self._cfg(tmp_path)
         assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == ""
 
+    def test_the_absolute_path_a_file_picker_gives_back_is_caught(self) -> None:
+        # The pickers hand back absolute paths while the shipped settings are
+        # relative, so this is the pair a referee is most likely to produce.
+        from app.paths import app_path
+
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = "data/start.txt"
+        cfg.seeding_protocol_file = str(app_path("data/start.txt"))
+        assert cfg.seeding_protocol_conflict("data/gr.html") == "start protocol"
+
+    def test_a_path_that_doubles_back_is_caught(self) -> None:
+        cfg = RaceConfig(write_seeding_protocol=True)
+        cfg.start_protocol_file = "data/../data/start.txt"
+        cfg.seeding_protocol_file = "data/start.txt"
+        assert cfg.seeding_protocol_conflict("data/gr.html") == "start protocol"
+
     def test_the_same_file_written_two_ways_is_still_caught(
         self, tmp_path: Path
     ) -> None:
