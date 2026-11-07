@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.12.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.11.0...v0.12.0) (2026-11-07)
+
+
+### Features
+
+* **eliminator:** let a meeting turn the small final off ([1b2a787](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1b2a78742ec05799238d3ba640ef7c98583ff0c4))
+* **eliminator:** time the finals heats and move the ladders to their own file ([c6619d2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c6619d2c90bfdb4a52a005b3cca4471e7e7065cc))
+
+
+### Bug Fixes
+
+* **eliminator:** a heat is over only once a later one has started ([780fb0a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/780fb0a9b06c55d78fbca393ea698c679420cfb4))
+* **eliminator:** a heat saved with no start time is not a ridden heat ([6609aa8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6609aa8fa3101d8e7e0dfc9943ec2ce6cf9f570b))
+* **eliminator:** a heat with no marks yet is in progress, not a heat everyone lost ([113a6de](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/113a6def24095ef37f195b677d026f3201178828))
+* **eliminator:** guard the ladder file, order unraced heats by qualification place ([72c3359](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/72c3359c6f2f294cc17e034855375a6ae91c61fb))
+* **eliminator:** refuse a heat start of midnight and keep the small final's places ([6f351e4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6f351e4d423f8ae8f72b0d212b76d7f1a4ed37fe))
+* **eliminator:** refuse two heats on one start and keep a dead small final out ([adb8a10](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/adb8a102bef1e942ed339dd146e90c4770b6a400))
+
 ## [0.11.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.10.0...v0.11.0) (2026-11-07)
 
 
