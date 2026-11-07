@@ -137,6 +137,41 @@ class TestEditing:
         assert "Cannot write" in editor.status.text()
 
 
+class TestItRefusesToShredAnotherFile:
+    """The table saves on every keystroke, so a wrong path is not a typo, it is loss."""
+
+    def test_nothing_is_written_while_the_path_clashes(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\n")
+        editor.conflict = lambda: "start protocol"
+        _name(editor, 0).setText("Juniors")
+        assert _saved(tmp_path) == ["Men#4#2#"]
+
+    def test_the_clash_is_named(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\n")
+        editor.conflict = lambda: "start protocol"
+        _name(editor, 0).setText("Juniors")
+        assert "also the start protocol" in editor.status.text()
+
+    def test_it_is_said_on_load_before_anything_is_typed(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\n")
+        editor.conflict = lambda: "group times"
+        editor.reload()
+        assert "also the group times" in editor.status.text()
+
+    def test_adding_groups_is_refused_too(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\n")
+        editor.conflict = lambda: "start protocol"
+        editor.add_missing_groups()
+        assert _saved(tmp_path) == ["Men#4#2#"]
+        assert "also the start protocol" in editor.status.text()
+
+    def test_a_clear_path_saves_as_usual(self, tmp_path: Path) -> None:
+        editor = _editor(tmp_path, "Men#4#2#\n")
+        _name(editor, 0).setText("Juniors")
+        assert _saved(tmp_path) == ["Juniors#4#2#"]
+        assert editor.status.text() == ""
+
+
 class TestGroupsFromTheStartProtocol:
     def test_every_group_is_offered_once(self, tmp_path: Path) -> None:
         editor = _editor(tmp_path)

@@ -229,6 +229,15 @@ class TestProblemsAreReported:
         assert "No ladder for: Men" in errors[0]
         assert not Path(cfg.group_protocol_file).exists()
 
+    def test_a_ladder_file_that_is_not_there_says_what_to_do(
+        self, tmp_path: Path
+    ) -> None:
+        cfg = _cfg(tmp_path)
+        Path(cfg.eliminator_ladder_file).unlink()
+        _messages, errors = _run(cfg)
+        assert len(errors) == 1
+        assert "No ladder for: Men" in errors[0]
+
     def test_a_mark_that_belongs_to_no_heat_is_logged(self, tmp_path: Path) -> None:
         cfg = _cfg(tmp_path)
         with Path(cfg.finish_time_file).open("a", encoding="utf-8") as f:
@@ -252,6 +261,32 @@ class TestProblemsAreReported:
         cfg.group_protocol_file = str(tmp_path / "nowhere" / "group.html")
         _messages, errors = _run(cfg)
         assert len(errors) == 1
+
+
+class TestDisqualification:
+    def _with_dsq(self, tmp_path: Path, **kwargs) -> RaceConfig:
+        """The first semi-final ridden, with its winner disqualified afterwards."""
+        cfg = _cfg(tmp_path, heats=[(_SEMI1, ["101", "105", "104", "108"])], **kwargs)
+        with Path(cfg.finish_time_file).open("a", encoding="utf-8") as f:
+            f.write("101#0 10:00:30.000#DSQ: cut in#\n")
+        return cfg
+
+    def test_a_disqualified_rider_does_not_go_on(self, tmp_path: Path) -> None:
+        cfg = self._with_dsq(tmp_path)
+        _run(cfg)
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "DSQ" in page
+
+    def test_disable_dsq_leaves_the_rider_in_the_heat(self, tmp_path: Path) -> None:
+        # The setting means a disqualification mark does not disqualify, and such a
+        # mark is not a crossing either, so for a ladder it means nothing at all.
+        cfg = self._with_dsq(tmp_path, disable_dsq=True)
+        messages, errors = _run(cfg)
+        assert errors == []
+        # Four crossings plus the disqualification mark, which is dropped.
+        assert "  4 finish mark(s) loaded" in messages
+        page = Path(cfg.group_protocol_file).read_text(encoding="utf-8")
+        assert "DSQ" not in page
 
 
 class TestSiteDocument:
