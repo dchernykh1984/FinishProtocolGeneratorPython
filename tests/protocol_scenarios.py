@@ -17,7 +17,6 @@ from app.attempt_rules import AttemptRule, rules_json
 from app.calculator import calculate_protocol, generate_sorted_protocol
 from app.config import (
     RACE_TYPE_CUSTOM_START,
-    RACE_TYPE_ELIMINATOR_QUALIFICATION,
     RACE_TYPE_MASS_SPLITTED,
     RACE_TYPE_NUMBER_OF_TRIES,
     RACE_TYPE_SPIRIDONOV,
@@ -287,9 +286,7 @@ SCENARIOS: dict[str, Callable[[], Race]] = {
     ),
     "tries_disable_dnf": lambda: _tries(_ASC, disable_dnf=True, show_time_shift=True),
     # the others (P2)
-    "eliminator_qualification": lambda: _example(
-        race_type=RACE_TYPE_ELIMINATOR_QUALIFICATION
-    ),
+    "eliminator_qualification": lambda: _example(write_seeding_protocol=True),
     "spiridonov": lambda: _example(race_type=RACE_TYPE_SPIRIDONOV),
 }
 

@@ -8,7 +8,6 @@ from pathlib import Path
 from app.calculator import calculate_protocol, generate_sorted_protocol
 from app.config import (
     RACE_TYPE_CUSTOM_START,
-    RACE_TYPE_ELIMINATOR_QUALIFICATION,
     RaceConfig,
 )
 from app.html_writer import (
@@ -752,7 +751,7 @@ class TestHtmlWriterEdgeCases:
         group_list = [GroupStartElement.from_line("G#15921 1:0:0.000#")]
         finish_list = [FinishCompetitorElement.from_line("1#15921 1:5:0.000#finish#")]
         cfg = RaceConfig()
-        cfg.race_type = RACE_TYPE_ELIMINATOR_QUALIFICATION
+        cfg.write_seeding_protocol = True
         log: list[str] = []
         protocol = calculate_protocol(
             start_list, group_list, finish_list, [], [], cfg, log
@@ -781,7 +780,7 @@ class TestHtmlWriterEdgeCases:
             FinishCompetitorElement.from_line("3#15921 1:4:0.000#DSQ#"),
         ]
         cfg = RaceConfig()
-        cfg.race_type = RACE_TYPE_ELIMINATOR_QUALIFICATION
+        cfg.write_seeding_protocol = True
         cfg.print_dnf = True
         cfg.print_dsq = True
         cfg.print_dns = True

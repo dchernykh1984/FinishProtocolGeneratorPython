@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 RACE_TYPE_MASS_SPLITTED = "Mass/Splitted"
-RACE_TYPE_ELIMINATOR_QUALIFICATION = "Eliminator Qualification"
+#: No longer a race type: qualifying is an ordinary race, and the seeding export it
+#: used to carry is now a setting of its own. Kept so an old config can be migrated.
+LEGACY_RACE_TYPE_QUALIFICATION = "Eliminator Qualification"
 RACE_TYPE_ELIMINATOR_FINALS = "Eliminator Finals"
 RACE_TYPE_CUSTOM_START = "Custom Start"
 RACE_TYPE_NUMBER_OF_TRIES = "Number of Tries"
@@ -14,7 +16,6 @@ RACE_TYPE_SPIRIDONOV = "Mass/Splitted (Spiridonov)"
 ALL_RACE_TYPES = [
     RACE_TYPE_MASS_SPLITTED,
     RACE_TYPE_CUSTOM_START,
-    RACE_TYPE_ELIMINATOR_QUALIFICATION,
     RACE_TYPE_ELIMINATOR_FINALS,
     RACE_TYPE_NUMBER_OF_TRIES,
     RACE_TYPE_SPIRIDONOV,
@@ -93,6 +94,11 @@ class HtmlStyles:
 class RaceConfig:
     race_type: str = RACE_TYPE_MASS_SPLITTED
     attempt_rules_json: str = "[]"
+    #: Write the finishing order as a start protocol seeded by place, for the ladder
+    #: of an Eliminator Finals round to read. Independent of how the race is scored.
+    write_seeding_protocol: bool = False
+    #: Where that file goes. Empty keeps the old place, beside the group protocol.
+    seeding_protocol_file: str = ""
 
     start_protocol_file: str = "start.txt"
     group_time_file: str = "groups.txt"
@@ -224,7 +230,20 @@ class RaceConfig:
         return self.race_type == RACE_TYPE_SPIRIDONOV
 
     def generate_text_protocol_effective(self) -> bool:
-        return self.race_type == RACE_TYPE_ELIMINATOR_QUALIFICATION
+        """Whether this run writes a seeding protocol for the finals.
+
+        A finals round has no places of its own to seed from, so the setting is
+        ignored there however it was left.
+        """
+        return self.write_seeding_protocol and not self.is_eliminator_finals()
+
+    def seeding_protocol_path(self, group_protocol_file: str) -> str:
+        """Where the seeding protocol goes.
+
+        Empty keeps where the C++ generator put it -- beside the group protocol with
+        a .txt suffix -- so a setup that predates the path field is unaffected.
+        """
+        return self.seeding_protocol_file or group_protocol_file + ".txt"
 
     def skip_first_lap_effective(self) -> bool:
         return self.is_number_of_tries() or self.race_type == RACE_TYPE_CUSTOM_START
