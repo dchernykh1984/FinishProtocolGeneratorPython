@@ -307,7 +307,8 @@ class TestHeatsScoredFromTimes:
         assert bracket.small_final.numbers == ["104", "108", "103", "107"]
 
     def test_a_rider_with_no_mark_of_his_own_is_dnf(self) -> None:
-        event = _Event().ride(SEMI1, ["101", "105"])
+        # The next heat has started, so this one is over and they did not finish.
+        event = _Event().ride(SEMI1, ["101", "105"]).start(SEMI2)
         bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
         heat = bracket.stages[0][0]
         assert bracket.finishing_places(heat) == [1, 2, None, None]
@@ -350,8 +351,59 @@ class TestHeatsScoredFromTimes:
         event.start(SEMI1, seconds=1000.0)
         event.start(SEMI1, seconds=2000.0)
         event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
+        event.start(SEMI2, seconds=3000.0)
         bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
         assert bracket.stages[0][0].times[0] == pytest.approx(1.0)
+
+    def test_a_heat_part_way_through_is_not_sealed(self) -> None:
+        # One of four across and no later heat started: the other three are on the
+        # course. Sealing it prints them DNF and lets the round above take a bye.
+        event = _Event().ride(SEMI1, ["101"])
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi = brackets[0].stages[0][0]
+        assert not semi.has_results
+        assert any("waiting for its finish marks" in line for line in log)
+        assert brackets[0].stages[1][0].taken == 0
+
+    def test_the_next_heat_starting_closes_the_one_before_it(self) -> None:
+        event = _Event().ride(SEMI1, ["101"]).start(SEMI2)
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        semi = bracket.stages[0][0]
+        assert semi.has_results
+        assert bracket.finishing_places(semi) == [1, None, None, None]
+
+    def test_a_heat_whose_field_all_crossed_is_sealed_at_once(self) -> None:
+        # Nothing after it, but there is nobody left to wait for.
+        event = _Event().ride(SEMI1, ["101", "105", "104", "108"])
+        bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
+        assert bracket.stages[0][0].has_results
+
+    def test_a_closed_heat_with_no_marks_at_all_is_an_error(self) -> None:
+        event = _Event().start(SEMI1, seconds=1000.0).start(SEMI2, seconds=2000.0)
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert brackets[0].stages[0][0].has_results
+        assert any("has no finish marks at all" in line for line in log)
+
+    def test_a_start_naming_no_heat_still_closes_the_window(self) -> None:
+        # The meeting rides no small final, but somebody started one anyway. Its
+        # marks must not fall back into the semi-final before it.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.start(SMALL, seconds=event.starts[0].seconds + 120.0)
+        event.marks.append(
+            FinishCompetitorElement("101", event.starts[0].seconds + 150.0, "finish")
+        )
+        brackets, log = event.build(_no_small_final(), _starts(list(range(1, 9))))
+        semi = brackets[0].stages[0][0]
+        assert semi.times[semi.numbers.index("101")] == pytest.approx(1.0)
+        assert any("no heat of any ladder is called" in line for line in log)
+
+    def test_a_group_with_two_ladders_is_not_refused_for_the_wrong_reason(self) -> None:
+        # Both lines give the same heat names, so building a bracket per line would
+        # look like two heats sharing a start.
+        starts = [GroupStartElement(group_id=SEMI1, seconds=1000.0)]
+        doubled = [EliminatorGroup("G", 4, 2), EliminatorGroup("G", 4, 2)]
+        assert unusable_starts(doubled, starts) == []
 
     def test_a_heat_saved_without_a_start_is_an_error(self) -> None:
         # The chronometer's start-time field reads "0 00:00:00.000" until Start is
@@ -590,6 +642,7 @@ class TestUnraced:
         event = _Event()
         event.ride(SEMI1, ["108"])
         event.ride(SEMI2, ["107"])
+        event.start(SMALL)
         bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
         final = bracket.stages[1][0]
         assert not final.ridden

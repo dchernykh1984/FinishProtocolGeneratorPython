@@ -323,9 +323,16 @@ def _check_a_result_has_a_reason(bracket: EliminatorBracket, where: str) -> None
                 f"{where}: {heat_name(bracket, heat)} was not ridden yet has times"
             )
         elif heat.taken:
-            assert any(time >= 0 for time in heat.times) or any(heat.disqualified), (
-                f"{where}: {heat_name(bracket, heat)} is closed with neither a time "
-                "nor a disqualification, so its riders are still on the course"
+            accounted = sum(
+                1
+                for seat in range(len(heat.numbers))
+                if heat.numbers[seat]
+                and (heat.times[seat] >= 0 or heat.disqualified[seat])
+            )
+            assert accounted == heat.taken or heat.window_end != float("inf"), (
+                f"{where}: {heat_name(bracket, heat)} is sealed with "
+                f"{heat.taken - accounted} rider(s) unaccounted for and no later "
+                "heat started, so they may still be on the course"
             )
 
 
