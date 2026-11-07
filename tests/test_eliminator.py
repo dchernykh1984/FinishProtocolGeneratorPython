@@ -25,6 +25,7 @@ from app.eliminator import (
     missing_ladders,
     parse_eliminator_groups,
     start_list_groups,
+    unusable_starts,
 )
 from app.models import (
     FinishCompetitorElement,
@@ -198,8 +199,12 @@ class TestHeatNames:
         # The small final goes before the big one, as a meeting runs them.
         assert heat_names([_bracket(4, 2)]) == [SEMI1, SEMI2, SMALL, FINAL]
 
-    def test_a_one_round_ladder_is_just_the_two_finals(self) -> None:
-        assert heat_names([_bracket(4, 1)]) == [SMALL, FINAL]
+    def test_a_one_round_ladder_is_just_the_final(self) -> None:
+        # No round below it to drop anybody out of, so its small final can never
+        # hold a rider and must not be offered as a heat to start.
+        assert heat_names([_bracket(4, 1)]) == [FINAL]
+        assert not _bracket(4, 1).has_small_final
+        assert _bracket(4, 2).has_small_final
 
     def test_the_title_leaves_the_group_out(self) -> None:
         bracket = _bracket(4, 3)
@@ -277,26 +282,33 @@ class TestHeatsScoredFromTimes:
         bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
         assert bracket.stages[0][0].times[0] == pytest.approx(1.0)
 
-    def test_a_heat_saved_without_a_start_is_not_treated_as_ridden(self) -> None:
+    def test_a_heat_saved_without_a_start_is_an_error(self) -> None:
         # The chronometer's start-time field reads "0 00:00:00.000" until Start is
-        # pressed, and Save group writes whatever the field holds. A window opening
-        # at midnight of day zero would swallow the whole morning's marks.
+        # pressed, and Save group writes whatever the field holds.
+        event = _Event().start(SEMI1, seconds=0.0)
+        _brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert any("was saved with no start time" in line for line in log)
+
+    def test_nothing_is_scored_while_a_start_is_unusable(self) -> None:
+        # The heat with no start of its own was ridden and its marks are in the file.
+        # With no window to hold them they would fall into the heat before it and
+        # rewrite a result that was already right, so nothing is scored at all.
         event = _Event()
-        event.marks.append(FinishCompetitorElement("101", 500.0, "nextLap"))
-        event.marks.append(FinishCompetitorElement("104", 501.0, "nextLap"))
-        event.start(SEMI1, seconds=0.0)
-        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(FINAL, seconds=0.0)
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
         semi = brackets[0].stages[0][0]
         assert not semi.has_results
-        assert any("saved with no start time" in line for line in log)
+        assert semi.numbers == ["101", "104", "105", "108"]
 
-    def test_a_heat_saved_without_a_start_can_still_go_through_unraced(self) -> None:
-        event = _Event().start(SEMI1, seconds=0.0)
-        brackets, log = event.build(_ladder(), _starts([1, 4]))
-        semi = brackets[0].stages[0][0]
-        assert semi.has_results
-        assert not semi.ridden
-        assert any("saved with no start time" in line for line in log)
+    def test_the_unusable_start_is_named_for_the_caller(self) -> None:
+        starts = [
+            GroupStartElement(group_id=SEMI1, seconds=0.0),
+            GroupStartElement(group_id=SEMI2, seconds=1000.0),
+            GroupStartElement(group_id="Men - Final", seconds=0.0),
+        ]
+        assert unusable_starts(_ladder(), starts) == [SEMI1]
 
     def test_two_heats_sharing_a_start_time_are_reported(self) -> None:
         event = _Event()
@@ -374,7 +386,8 @@ class TestGroupNamesWithStrayWhitespace:
         ]
         brackets, log = _Event().build(_ladder(), start_list)
         assert brackets[0].stages[0][0].taken == 2
-        assert log == []
+        # Nothing about the group being unknown or its riders having no seat.
+        assert not [line for line in log if "ladder" in line]
 
     def test_the_key_is_just_the_trimmed_name(self) -> None:
         assert group_key("  G  ") == "G"
@@ -462,12 +475,26 @@ class TestUnraced:
         assert final.numbers[:2] == ["102", "101"]
 
     def test_a_final_nobody_started_falls_back_to_qualification_order(self) -> None:
-        bracket = _Event().build(_ladder(), _starts([1, 2]))[0][0]
-        final = bracket.stages[1][0]
+        brackets, log = _Event().build(_ladder(), _starts([1, 2]))
+        final = brackets[0].stages[1][0]
         assert final.has_results
         assert not final.ridden
         assert final.numbers[:2] == ["101", "102"]
-        assert bracket.finishing_places(final)[:2] == [1, 2]
+        assert brackets[0].finishing_places(final)[:2] == [1, 2]
+        # Medals handed out on qualification order deserve to be said out loud.
+        assert any(
+            line.startswith("WARNING:") and "was not ridden" in line for line in log
+        )
+
+    def test_an_unraced_round_below_the_final_is_only_noted(self) -> None:
+        _brackets, log = _Event().build(_ladder(), _starts([1, 4]))
+        notes = [line for line in log if "was not ridden" in line]
+        assert notes
+        assert not any(line.startswith("WARNING:") for line in notes[:1])
+
+    def test_an_empty_heat_is_not_announced(self) -> None:
+        _brackets, log = _Event().build(_ladder(), _starts([], group="Other"))
+        assert not any("was not ridden" in line for line in log)
 
     def test_a_bye_does_not_reach_past_a_heat_still_to_be_ridden(self) -> None:
         bracket = _Event().build(_ladder(), _starts(list(range(1, 9))))[0][0]
@@ -552,6 +579,22 @@ class TestPlaces:
         event.ride(FINAL, ["101", "102", "105", "106"])
         bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
         assert bracket.finishing_places(bracket.stages[1][0]) == [1, 2, 3, 4]
+        assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
+
+    def test_a_disqualified_finalist_does_not_move_the_small_final_up(self) -> None:
+        # The small final was ridden for fifth to eighth. A finalist losing his
+        # classification does not vacate a place for riders who already rode.
+        event = self._full_event()
+        event.ride(SMALL, ["104", "103", "108", "107"])
+        event.ride(FINAL, ["102", "105", "106"], dsq=("101",))
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
+
+    def test_a_finalist_who_did_not_finish_does_not_either(self) -> None:
+        event = self._full_event()
+        event.ride(SMALL, ["104", "103", "108", "107"])
+        event.ride(FINAL, ["101", "102", "105"])
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
         assert bracket.finishing_places(bracket.small_final) == [5, 6, 7, 8]
 
     def test_an_empty_seat_has_no_place(self) -> None:

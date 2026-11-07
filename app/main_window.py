@@ -59,6 +59,7 @@ from app.eliminator import (
     group_problems,
     missing_ladders,
     parse_eliminator_groups,
+    unusable_starts,
 )
 from app.eliminator_ladders_editor import EliminatorLaddersEditor
 from app.eliminator_output import (
@@ -602,6 +603,15 @@ class _GenerateWorker(QThread):
             self.log_message.emit(f"  WARNING: protocol data not built: {exc}")
             return {}
 
+    def _refuse(self, log: list[str], message: str) -> None:
+        """Stop before anything is written, with the log saying why.
+
+        A finals protocol that is merely wrong is worse than none: it looks finished.
+        """
+        for msg in log:
+            self.log_message.emit(msg)
+        raise ValueError(message)
+
     def _write_heat_list(self, cfg: RaceConfig, brackets, log: list[str]) -> None:
         """Save the heat names for the chronometer's group list.
 
@@ -658,28 +668,53 @@ class _GenerateWorker(QThread):
         if unknown:
             for name in unknown:
                 log.append(f"ERROR: group {name} has qualifiers but no ladder")
-            for msg in log:
-                self.log_message.emit(msg)
-            # Stopping beats writing: a group without a ladder comes out as a heading
-            # with nothing under it, which reads like a group that did not race.
-            raise ValueError(
+            # A group without a ladder comes out as a heading with nothing under it,
+            # which reads like a group that did not race.
+            self._refuse(
+                log,
                 "No ladder for: "
                 + ", ".join(unknown)
                 + ". Set riders per heat and rounds for each of them in the "
-                "Eliminator ladders table, then generate again."
+                "Eliminator ladders table, then generate again.",
             )
 
         self.log_message.emit("Reading heat starts...")
-        group_list = read_group_times(cfg.group_time_file)
+        # Neither file exists before the first heat has been ridden, and that first
+        # run is the one that writes the heat list the chronometer needs.
+        try:
+            group_list = read_group_times(cfg.group_time_file)
+        except OSError as exc:
+            log.append(f"ERROR: cannot read {cfg.group_time_file}: {exc}")
+            group_list = []
         self.log_message.emit(f"  {len(group_list)} heat start(s) loaded")
 
+        unusable = unusable_starts(groups, group_list)
+
         self.log_message.emit("Reading finish marks...")
-        marks = read_finish_times(cfg.finish_time_file)
+        try:
+            marks = read_finish_times(cfg.finish_time_file)
+        except OSError as exc:
+            log.append(f"ERROR: cannot read {cfg.finish_time_file}: {exc}")
+            marks = []
         if cfg.disable_dsq:
             # Disable DSQ means a disqualification mark does not disqualify, and it
             # is not a crossing either, so for a ladder it means nothing at all.
             marks = [mark for mark in marks if not mark.is_dsq]
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
+
+        if unusable:
+            for name in unusable:
+                log.append(f"ERROR: {name} was saved with no start time")
+            # A heat with no start of its own has nothing to bound its marks, so they
+            # fall into the window of the heat before it and rewrite a result that was
+            # already right. Nothing is written until the start time is fixed.
+            self._refuse(
+                log,
+                "No start time recorded for: "
+                + ", ".join(unusable)
+                + ". Press Start before Save group in the chronometer, or remove "
+                "those lines from the heat start file, then generate again.",
+            )
 
         brackets = build_brackets(groups, start_list, group_list, marks, log)
 
