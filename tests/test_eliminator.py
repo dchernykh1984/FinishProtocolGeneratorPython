@@ -784,6 +784,31 @@ class TestHeatsScoredFromTimes:
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         assert [line for line in log if "crossed the line more often" in line]
 
+    def test_a_start_saved_twice_still_closes_another_heats_window(self) -> None:
+        # A heat saved again late in the day proves the heats before it are over, so
+        # a rider of the final who abandoned is DNF rather than left on the course
+        # for ever.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.ride(FINAL, ["101", "102", "105"])
+        event.starts.append(GroupStartElement(group_id=SEMI1, seconds=9000.0))
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        final = brackets[0].stages[1][0]
+        assert final.complete
+        assert brackets[0].finishing_places(final) == [1, 2, 3, None]
+
+    def test_a_heats_own_repeat_line_does_not_cut_its_window(self) -> None:
+        # The other reading of a second line: a heat restarted after a false start.
+        # Its own later line must not bound the ride it is the record of.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.start(SEMI1, seconds=2000.0)
+        event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
+        event.start(SEMI2, seconds=3000.0)
+        brackets, _log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1001.0)
+
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
         event.ride(SEMI2, ["102", "106", "103", "107"])
