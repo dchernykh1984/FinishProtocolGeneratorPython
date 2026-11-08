@@ -195,6 +195,40 @@ class TestHtml:
         page = _html(_brackets([]), _cfg())
         assert "DNF" not in page
 
+    def test_a_heat_nobody_started_reads_dns(self) -> None:
+        # The small final of a group that was sent home after the big one: its riders
+        # never went to the gate, which is DNS, the same as a rider whose group never
+        # went off in a timed race. An empty cell said nothing at all.
+        heats = [h for h in _FULL if h[0] != _SMALL]
+        table = _table(_html(_brackets(heats), _cfg()), "Small final")
+        assert [_row(table, bib)[0] for bib in ("103", "104", "107", "108")] == [
+            "DNS"
+        ] * 4
+
+    def test_a_heat_still_to_be_ridden_reads_dns_too(self) -> None:
+        # Mid-meeting: the semi-finals are in, the final has not gone off. Its riders
+        # have not started it, so the protocol says so rather than leaving a gap.
+        table = _table(_html(_brackets(_FULL[:2]), _cfg()), "Final")
+        assert [_row(table, bib)[0] for bib in ("101", "102", "105", "106")] == [
+            "DNS"
+        ] * 4
+
+    def test_a_heat_holding_another_heats_start_reads_dns_too(self) -> None:
+        # Saved without pressing Start, so the time in its line belongs to the heat
+        # before it. The group file holds no start of this heat, which is what the
+        # cell goes by, and the error tells the referee to repair the line.
+        starts, marks = _timed(_FULL[:2])
+        starts.append(GroupStartElement(group_id=_FINAL, seconds=starts[-1].seconds))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        table = _table(_html(brackets, _cfg()), "Final")
+        assert [_row(table, bib)[0] for bib in ("101", "102", "105", "106")] == [
+            "DNS"
+        ] * 4
+        assert any("starting at the same time" in line for line in log)
+
     def test_the_bracket_spans_rows_so_rounds_line_up(self) -> None:
         page = _html(_brackets(rounds=3), _cfg())
         # The last column carries the final above the small final, so it spans the
@@ -510,6 +544,15 @@ class TestDocument:
             row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
         assert "dnf" in statuses
+
+    def test_a_rider_in_a_heat_nobody_started_is_marked_dns(self) -> None:
+        heats = [h for h in _FULL if h[0] != _SMALL]
+        document = build_finals_document(_brackets(heats), _starts(), _cfg())
+        small = _heat(document, "Small final")
+        assert {row.get("status") for row in small["rows"]} == {"dns"}
+        assert {row["cells"]["place"] for row in small["rows"]} == {"DNS"}
+        check_document_rules(document)
+        jsonschema.validate(document, SCHEMA)
 
     def test_a_disqualified_rider_is_marked(self) -> None:
         starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
