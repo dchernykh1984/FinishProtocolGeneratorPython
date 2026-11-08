@@ -219,6 +219,23 @@ class TestHtml:
             "DNS"
         ] * 4
 
+    def test_a_heat_that_cannot_be_scored_yet_says_nothing(self) -> None:
+        # The final went off and two riders crossed, but a semi-final feeding it was
+        # never saved, so the field is not settled and the heat cannot be scored.
+        # Saying DNF there would publish it against riders who did finish.
+        starts, marks = _timed([(_SEMI1, ["101", "105", "104", "108"])])
+        clock = starts[-1].seconds + 120.0
+        starts.append(GroupStartElement(group_id=_FINAL, seconds=clock))
+        for index, bib in enumerate(["101", "105"], start=1):
+            marks.append(FinishCompetitorElement(bib, clock + index, "finish"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        table = _table(_html(brackets, _cfg()), "Final")
+        assert [_row(table, bib)[0] for bib in ("101", "105")] == ["", ""]
+        assert any("not settled" in line for line in log)
+
     def test_a_heat_holding_another_heats_start_reads_dns_too(self) -> None:
         # Saved without pressing Start, so the time in its line belongs to the heat
         # before it. The group file holds no start of this heat, which is what the
