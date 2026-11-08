@@ -19,6 +19,12 @@ CROSSING_ACTIONS = ("finish", "nextLap")
 #: The digits the chronometer records: its marks are written to the millisecond, so
 #: two results equal at this precision are one result and not a rounding of two.
 RECORDED_SIGNS = 3
+#: How near a whole millisecond a time has to be, in milliseconds, to be taken for
+#: one the chronometer recorded. A result is the difference of two times of day a few
+#: hours into the day, so it carries a rounding error of a couple of ten-thousandths
+#: of a millisecond: this is forty times that, and still a hundredth of the
+#: millisecond itself.
+_RECORDED_GRID = 0.01
 
 
 def printed_ticks(t: float, n_signs: int) -> int:
@@ -28,11 +34,33 @@ def printed_ticks(t: float, n_signs: int) -> int:
     honest test of whether a result can be told from another one: a difference the
     protocol cannot show is one nobody can defend when the result is protested.
 
+    A time that is a recorded one is rounded from the millisecond the chronometer
+    wrote rather than from the float the subtraction left. The two differ: a result
+    of 37.245 is held as 37.244999999999997 or as 37.245000000000003 depending on
+    the time of day it was ridden, and asked for two digits the one printed 37.24
+    and the other 37.25 -- the same ride, printed two ways, and next to a shared
+    place a plain contradiction. The rounding rule itself is untouched: the C++
+    generator rounded with ``Math::Round``, which takes a half to the nearest even
+    digit exactly as Python's ``round`` does, so the same recorded time still comes
+    out as the same text it always did.
+
+    A time that is not within a rounding error of a whole millisecond was not
+    recorded but worked out -- a Spiridonov coefficient, a penalty -- and its digits
+    past the millisecond are real, so it is rounded as it stands.
+
     Clamped to the digits a protocol can actually print. A setting below zero is
     only reachable by hand in ``fpg_info.txt``, and taken at its word it would scale
     every time down instead of up and call whole seconds equal.
     """
-    return round(abs(t) * 10 ** printed_signs(n_signs))
+    signs = printed_signs(n_signs)
+    scaled = abs(t) * 10**RECORDED_SIGNS
+    recorded = round(scaled)
+    if abs(scaled - recorded) >= _RECORDED_GRID:
+        return round(abs(t) * 10**signs)
+    if signs >= RECORDED_SIGNS:
+        return recorded * 10 ** (signs - RECORDED_SIGNS)
+    # An exact half divides exactly, so round() sees the tie the C++ saw.
+    return round(recorded / 10 ** (RECORDED_SIGNS - signs))
 
 
 def printed_signs(n_signs: int) -> int:
