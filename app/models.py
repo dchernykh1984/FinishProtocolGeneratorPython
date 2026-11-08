@@ -11,6 +11,11 @@ from app.attempt_rules import AttemptRule
 INF: float = math.inf
 
 
+#: The actions that mean the rider crossed the timing line. The results file also
+#: carries records that do not -- a stage change, a disqualification -- and counting
+#: one of those as a crossing invents a lap.
+CROSSING_ACTIONS = ("finish", "nextLap")
+
 #: The digits the chronometer records: its marks are written to the millisecond, so
 #: two results equal at this precision are one result and not a rounding of two.
 RECORDED_SIGNS = 3

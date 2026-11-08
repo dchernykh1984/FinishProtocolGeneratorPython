@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.models import (
+    CROSSING_ACTIONS,
     RECORDED_SIGNS,
     FinishCompetitorElement,
     GroupStartElement,
@@ -52,7 +53,7 @@ _FEEDERS = 2
 _SIGNS = 1
 #: What the chronometers write for a line crossing. They also write "nextStage", and
 #: a penalty record carries its own action, and neither is a rider finishing a heat.
-_CROSSINGS = ("finish", "nextLap")
+_CROSSINGS = CROSSING_ACTIONS
 #: A window with nothing after it: this heat is the last one started, so it may still
 #: be being ridden.
 _OPEN = float("inf")

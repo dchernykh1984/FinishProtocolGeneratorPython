@@ -9,6 +9,7 @@ from app.attempt_calculator import calculate_attempts
 from app.attempt_rules import parse_attempt_rules
 from app.config import RaceConfig
 from app.models import (
+    CROSSING_ACTIONS,
     INF,
     FinishCompetitorElement,
     FinishProtocolElement,
@@ -441,10 +442,14 @@ def report_double_marks(
 
     Reported here rather than guessed at: which device to believe is the referee's
     decision, and "Minimal time for lap" is the setting that drops the copy.
+
+    Only crossings are compared. The same file carries a stage change next to a
+    finish and a disqualification stamped seconds after one, and neither is a second
+    reading of the line.
     """
     by_bib: dict[str, list[float]] = {}
     for mark in finish_list:
-        if not mark.is_dsq:
+        if mark.action in CROSSING_ACTIONS:
             by_bib.setdefault(mark.competitor_id, []).append(mark.seconds)
     doubled = []
     for bib, seconds in by_bib.items():

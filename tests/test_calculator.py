@@ -615,6 +615,22 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "are all printed as" in m]
 
+    def test_a_stage_change_beside_a_finish_is_not_a_double_mark(self) -> None:
+        # The results file carries records that are not readings of the line, and the
+        # finals are handed the file as it stands.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("1", start_t + 100.2, "nextStage"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "one crossing recorded twice" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]
