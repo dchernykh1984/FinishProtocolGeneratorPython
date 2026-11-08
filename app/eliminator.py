@@ -30,7 +30,9 @@ final shares that last stage, as heat number 1.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 
 from app.models import (
     CROSSING_ACTIONS,
@@ -57,6 +59,9 @@ _CROSSINGS = CROSSING_ACTIONS
 #: A window with nothing after it: this heat is the last one started, so it may still
 #: be being ridden.
 _OPEN = float("inf")
+#: No disqualification needs placing by hand: either the first pass has not run yet
+#: or it found a heat for every one of them.
+_NO_STRAYS: Mapping[int, float] = MappingProxyType({})
 #: Places that get a medal in the big final, so a tie between them is not a detail.
 _PODIUM = 3
 
@@ -354,7 +359,7 @@ class EliminatorBracket:
         heat: Heat,
         marks: list[FinishCompetitorElement],
         log: list[str],
-        strays: frozenset[int] = frozenset(),
+        strays: Mapping[int, float] = _NO_STRAYS,
     ) -> list[FinishCompetitorElement]:
         """Score a heat from the marks that fall inside its own start window, and say
         which marks it used, so a mark no heat claimed can be reported.
@@ -557,7 +562,7 @@ def _claimed_dsq(
     heat: Heat,
     bib: str,
     marks: list[FinishCompetitorElement],
-    strays: frozenset[int],
+    strays: Mapping[int, float],
 ) -> tuple[list[FinishCompetitorElement], bool]:
     """This rider's disqualification marks that belong to this heat, and whether one
     of them was stamped while he was still racing.
@@ -565,15 +570,15 @@ def _claimed_dsq(
     A mark inside the heat's own window belongs to it: that is the rider pulled off
     the course while the heat was being ridden.
 
-    ``strays`` are the marks the previous pass found no heat for at all. The
-    chronometer stamps a disqualification when the jury decides, after the rider has
-    crossed and often after the next heat has gone off, so a decision taken on a
-    video or a protest fell outside every window and was lost. Such a mark goes to
-    the heat whose finish he crossed last before it.
+    ``strays`` are the marks the previous pass found no heat for at all, each with
+    the start of the heat it belongs to. The chronometer stamps a disqualification
+    when the jury decides, after the rider has crossed and often after the next heat
+    has gone off, so a decision taken on a video or a protest fell outside every
+    window and was lost.
 
-    A stray with a crossing of his after it still belongs to the heat he had last
-    finished -- that is where he was when the jury decided -- but he then rode a heat
-    he was no longer entitled to, which is worth saying out loud.
+    A stray with a crossing of his after it belongs to the heat he was in when the
+    jury decided all the same, but he then rode a heat he was no longer entitled to,
+    which is worth saying out loud.
     """
     claimed: list[FinishCompetitorElement] = []
     unclear = False
@@ -581,11 +586,7 @@ def _claimed_dsq(
     for mark in marks:
         if mark.competitor_id != bib or not mark.is_dsq:
             continue
-        anchor = mark.seconds
-        if id(mark) in strays:
-            before = [when for when in crossed if when < mark.seconds]
-            if before:
-                anchor = before[-1]
+        anchor = strays.get(id(mark), mark.seconds)
         if heat.start_seconds <= anchor < heat.window_end:
             claimed.append(mark)
             if id(mark) in strays and any(when > mark.seconds for when in crossed):
@@ -597,7 +598,7 @@ def _heat_marks(
     heat: Heat,
     marks: list[FinishCompetitorElement],
     laps: int = 1,
-    strays: frozenset[int] = frozenset(),
+    strays: Mapping[int, float] = _NO_STRAYS,
     minimal: float = 0.0,
 ) -> tuple[
     dict[str, float],
@@ -1006,7 +1007,7 @@ def _seat_and_score(
     marks: list[FinishCompetitorElement],
     log: list[str],
     n_signs: int,
-    strays: frozenset[int],
+    strays: Mapping[int, float],
     minimal_lap: float,
 ) -> tuple[list[EliminatorBracket], set[int], dict[str, float]]:
     """One whole pass: ladders, qualifiers in their seats, heats scored from marks."""
@@ -1034,9 +1035,39 @@ def _seat_and_score(
     return brackets, _score(brackets, marks, log, strays), starts
 
 
-def _stray_dsq(marks: list[FinishCompetitorElement], used: set[int]) -> frozenset[int]:
-    """The disqualification marks no heat took, by identity."""
-    return frozenset(id(mark) for mark in marks if mark.is_dsq and id(mark) not in used)
+def _stray_anchors(
+    brackets: list[EliminatorBracket],
+    marks: list[FinishCompetitorElement],
+    used: set[int],
+) -> dict[int, float]:
+    """The disqualification marks no heat took, each against the start of the heat it
+    belongs to: the last heat of that rider's that had been started when the jury
+    stamped it.
+
+    Which is where the rider was at that moment, whether or not he crossed the line
+    there. Anchoring the mark to his last crossing instead moved a disqualification
+    back to a heat he had finished, taking away a place he had ridden for and sending
+    the wrong rider up the ladder, whenever he crashed or pulled out of the heat he
+    was actually in.
+    """
+    begun: dict[str, list[float]] = {}
+    for bracket in brackets:
+        for heat in bracket.all_heats():
+            if not heat.was_started:
+                continue
+            for bib in heat.numbers:
+                if bib:
+                    begun.setdefault(bib, []).append(heat.start_seconds)
+    anchors: dict[int, float] = {}
+    for mark in marks:
+        if not mark.is_dsq or id(mark) in used:
+            continue
+        started = [
+            when for when in begun.get(mark.competitor_id, []) if when <= mark.seconds
+        ]
+        if started:
+            anchors[id(mark)] = max(started)
+    return anchors
 
 
 def build_brackets(
@@ -1056,16 +1087,19 @@ def build_brackets(
     Scored again when the first pass left a disqualification unclaimed. Such a mark
     is a jury decision stamped after the rider's heat had closed -- the chronometer
     stamps it when the jury decides, not when the rider crossed -- and the second
-    pass gives it to the heat whose finish he crossed last before it. A heat that
-    took its own disqualification keeps it, so a rider pulled off the course in the
-    middle of a heat is still disqualified in that heat and not in the one he won
-    before it. The first pass's messages are thrown away, so nothing is said twice.
+    pass gives it to the last heat of his that had started by then, which is the one
+    he was in when they decided. It takes the first pass to know which heats those
+    are, because a rider is only seated in the next round once the heat below is
+    scored. A heat that took its own disqualification keeps it, so a rider pulled off
+    the course in the middle of a heat is still disqualified in that heat and not in
+    the one he won before it. The first pass's messages are thrown away, so nothing
+    is said twice.
     """
     first: list[str] = []
     brackets, used, starts = _seat_and_score(
-        groups, start_list, group_list, marks, first, n_signs, frozenset(), minimal_lap
+        groups, start_list, group_list, marks, first, n_signs, _NO_STRAYS, minimal_lap
     )
-    strays = _stray_dsq(marks, used)
+    strays = _stray_anchors(brackets, marks, used)
     if strays:
         first = []
         brackets, used, starts = _seat_and_score(
@@ -1109,7 +1143,7 @@ def _score(
     brackets: list[EliminatorBracket],
     marks: list[FinishCompetitorElement],
     log: list[str],
-    strays: frozenset[int] = frozenset(),
+    strays: Mapping[int, float] = _NO_STRAYS,
 ) -> set[int]:
     """Score what can be scored, over and over until nothing moves.
 

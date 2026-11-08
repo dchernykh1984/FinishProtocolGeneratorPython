@@ -725,6 +725,49 @@ class TestHeatsScoredFromTimes:
         assert "103" in brackets[0].stages[1][0].numbers
         assert not any("belongs to no heat" in line for line in log)
 
+    def test_a_late_disqualification_reaches_the_heat_he_crashed_in(self) -> None:
+        # He won his semi-final, started the final and crashed, so there is no
+        # crossing of his in it; the jury stamps him while the small final is being
+        # ridden. The final is where he was, and going by his last crossing instead
+        # moved the decision back to the semi-final he had won -- which sent the
+        # wrong rider up and rewrote the small final as well.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.ride(FINAL, ["101", "102", "105"])
+        event.ride(SMALL, ["104", "103", "108", "107"])
+        event.marks.append(
+            FinishCompetitorElement("106", event.starts[-1].seconds + 10.0, "DSQ: jury")
+        )
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi2 = brackets[0].stages[0][1]
+        final = brackets[0].stages[1][0]
+        assert not semi2.disqualified[semi2.numbers.index("106")]
+        assert brackets[0].finishing_places(semi2) == [1, 2, 3, 4]
+        assert final.disqualified[final.numbers.index("106")]
+        assert brackets[0].finishing_places(brackets[0].small_final) == [5, 6, 7, 8]
+        assert not any("belongs to no heat" in line for line in log)
+
+    def test_a_late_disqualification_does_not_undo_a_heat_he_finished(self) -> None:
+        # Fourth in his semi-final, he crashed in the small final and the jury
+        # stamped him while the big final ran. The small final is his last started
+        # heat; taking his semi-final place away instead was a result he had ridden
+        # for, wiped by a decision taken two heats later.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "107", "103"])
+        event.ride(SMALL, ["104", "108", "107"])
+        event.ride(FINAL, ["101", "102", "105", "106"])
+        event.marks.append(
+            FinishCompetitorElement("103", event.starts[-1].seconds + 10.0, "DSQ: jury")
+        )
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi2 = brackets[0].stages[0][1]
+        small = brackets[0].small_final
+        assert not semi2.disqualified[semi2.numbers.index("103")]
+        assert brackets[0].finishing_places(semi2)[semi2.numbers.index("103")] == 4
+        assert small.disqualified[small.numbers.index("103")]
+
     def test_a_rider_pulled_during_a_heat_is_disqualified_in_that_heat(self) -> None:
         # He won his semi-final and was taken off the course during the final. The
         # final's own window holds the mark, so the decision stays in the final and
