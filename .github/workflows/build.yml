@@ -180,6 +180,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job has no checkout, so gh cannot read the repository off a git
+          # remote and dies before it looks at the release at all.
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ inputs.release_tag }}
           MATRIX: ${{ needs.targets.outputs.matrix }}
           BUILDS: ${{ needs.build.result }}
