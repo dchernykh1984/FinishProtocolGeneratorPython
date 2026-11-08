@@ -760,18 +760,34 @@ def _one_ladder_per_group(
     return brackets
 
 
-def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
-    """When each heat started, last line winning.
+def _heat_starts(
+    group_list: list[GroupStartElement], log: list[str]
+) -> dict[str, float]:
+    """When each heat started, the first start recorded for it winning.
 
-    The chronometer appends a line per start and never rewrites, so a heat started
-    again after a false start has two lines and the later one is the real one -- and
-    a heat first saved without a start and then properly started is fine.
+    The chronometer appends a line per start and never rewrites, and after a restart
+    it offers every heat again -- the ones already ridden among them, with the first
+    of those selected. A heat can therefore pick up a second start hours after it was
+    raced. Taking the later line then scored it from a span holding none of its
+    marks, which wiped its result and the result of every heat above it, so the first
+    start stands and the repeat is reported for the referee to take out of the file.
+
+    A line without a start time is not a start: a heat saved before Start was pressed
+    and then started properly is the one case where the later line is the real one.
     """
-    return {
-        group_key(gs.group_id): gs.seconds
-        for gs in group_list
-        if group_key(gs.group_id)
-    }
+    starts: dict[str, float] = {}
+    for gs in group_list:
+        name = group_key(gs.group_id)
+        if not name:
+            continue
+        if starts.get(name, 0.0) > 0:
+            log.append(
+                f"ERROR: {name} has more than one start recorded; the first one is "
+                "used. Take the line that does not belong out of the group file"
+            )
+            continue
+        starts[name] = gs.seconds
+    return starts
 
 
 def _shared_starts(
@@ -878,7 +894,7 @@ def build_brackets(
                 f"WARNING: {start.competitor_id} has qualification place {place}, "
                 f"outside the ladder of group {group_key(start.group_id)}"
             )
-    starts = _heat_starts(group_list)
+    starts = _heat_starts(group_list, log)
     # A start the chronometer never took is reported and then ignored, and the heat
     # counts as not ridden. Scoring nothing because of it would hold up every other
     # group in the meeting, which matters more now that the protocol is meant to be

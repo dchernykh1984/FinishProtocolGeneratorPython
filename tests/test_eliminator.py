@@ -445,16 +445,55 @@ class TestHeatsScoredFromTimes:
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         assert any("no heat of any ladder is called" in line for line in log)
 
-    def test_the_later_start_of_a_restarted_heat_wins(self) -> None:
-        # The chronometer appends a line per start and never rewrites, so a heat
-        # started again after a false start has two lines.
+    def test_the_first_start_of_a_heat_saved_twice_wins(self) -> None:
+        # The two cases that give a heat a second start line are the same bytes in
+        # the file: a heat restarted after a false start, and a heat already ridden
+        # saved again off the top of a restarted chronometer's list. The first start
+        # is the one kept, because its damage is the smaller of the two -- the heat
+        # keeps its finishing order and only its times are measured from too early,
+        # where taking the later line wiped the heat and every heat above it. The
+        # repeat is reported either way, for the referee to take the wrong line out.
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         event.start(SEMI1, seconds=2000.0)
         event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
         event.start(SEMI2, seconds=3000.0)
-        bracket = event.build(_ladder(), _starts([1, 4, 5, 8]))[0][0]
-        assert bracket.stages[0][0].times[0] == pytest.approx(1.0)
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1001.0)
+        assert any(
+            line.startswith("ERROR:") and "more than one start recorded" in line
+            for line in log
+        )
+
+    def test_a_heat_saved_again_hours_later_keeps_its_result(self) -> None:
+        # After a chronometer restart every heat is offered again and the ridden one
+        # is selected, so Save group gives it a start from the middle of the
+        # afternoon. Taking that one wiped the heat, the final above it and the small
+        # final with it, and said nothing at ERROR level about any of it.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.starts.append(GroupStartElement(group_id=SEMI1, seconds=9000.0))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi = brackets[0].stages[0][0]
+        assert semi.has_results and semi.complete
+        assert brackets[0].finishing_places(semi) == [1, 2, 3, 4]
+        assert any("more than one start recorded" in line for line in log)
+
+    def test_a_heat_saved_without_a_start_and_then_started_is_not_reported(
+        self,
+    ) -> None:
+        # A line with no start time is not a start, so the heat's real start is the
+        # later line and there is nothing to report.
+        event = _Event()
+        event.start(SEMI1, seconds=0.0)
+        event.start(SEMI1, seconds=2000.0)
+        event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
+        event.start(SEMI2, seconds=3000.0)
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
+        assert not any("more than one start recorded" in line for line in log)
+        assert not any("no start time" in line for line in log)
 
     def test_a_rider_is_placed_and_sent_on_the_moment_he_crosses(self) -> None:
         # One of four across, the other three still on the course. His place cannot
