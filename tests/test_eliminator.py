@@ -710,17 +710,19 @@ class TestHeatsScoredFromTimes:
     def test_a_rider_who_rode_on_after_a_late_disqualification_is_reported(
         self,
     ) -> None:
-        # The jury decided between his heats and he rode the next one anyway, so
-        # which heat the decision is about is not something the file can settle.
+        # The jury decided between his heats and he rode the next one anyway. The
+        # decision belongs to the heat he had last finished, which is where he was
+        # when it was taken, and the heat he was not entitled to is worth a word.
         event = _Event()
         event.ride(SEMI1, ["101", "105", "104", "108"])
         event.ride(SEMI2, ["102", "106", "103", "107"])
         event.marks.append(FinishCompetitorElement("101", 1070.0, "DSQ: cut in"))
         event.ride(FINAL, ["101", "102", "105", "106"])
-        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi1 = brackets[0].stages[0][0]
+        assert semi1.disqualified[semi1.numbers.index("101")]
         assert any(
-            line.startswith("ERROR:")
-            and "crossed the line again after being disqualified" in line
+            line.startswith("WARNING:") and "rode on after being disqualified" in line
             for line in log
         )
 
