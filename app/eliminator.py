@@ -928,8 +928,12 @@ def _shared_starts(
             log.append(
                 "ERROR: these heats are recorded as starting at the same time: "
                 + ", ".join(names)
-                + f". Only {names[0]} is scored from it; press Start before Save "
-                "group and save the others again"
+                + f". Only {names[0]} is scored from it. Saving one of the others "
+                "again does not help, because the first line of a heat is the one "
+                "used: take the line holding the copied time out of the group file "
+                "by hand, then press Start before Save group for a heat still to "
+                "be ridden, or write the real start time into the line for one "
+                "already ridden"
             )
             refused.update(names[1:])
     return refused

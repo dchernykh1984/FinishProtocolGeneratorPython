@@ -632,6 +632,18 @@ class TestHeatsScoredFromTimes:
         assert same and same[0].startswith("ERROR:")
         assert SEMI1 in same[0] and SEMI2 in same[0]
 
+    def test_two_heats_on_one_start_ask_for_the_repair_that_works(self) -> None:
+        # Pressing Start and saving the heat again only appends a line that the
+        # first-line rule passes over, so the advice has to be the repair the
+        # referee can actually carry out: take the copied line out of the file.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.start(SEMI2, seconds=1000.0)
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        same = next(line for line in log if "starting at the same time" in line)
+        assert "out of the group file" in same
+        assert "Saving one of the others again does not help" in same
+
     def test_the_heat_that_copied_a_start_time_is_not_scored(self) -> None:
         # Semi-final 2 was saved without pressing Start, so it carries semi-final 1's
         # time and would have its own times measured from it -- three minutes out.
