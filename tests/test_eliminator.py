@@ -593,14 +593,39 @@ class TestHeatsScoredFromTimes:
         assert same and same[0].startswith("ERROR:")
         assert SEMI1 in same[0] and SEMI2 in same[0]
 
-    def test_two_heats_sharing_a_start_time_are_reported_by_name(self) -> None:
+    def test_heats_sharing_a_start_are_not_scored(self) -> None:
+        # Both would be scored from the same span, so the one that really went off
+        # later would have its times measured from the other one's start. Nothing is
+        # written for either until the referee fixes the group file.
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
+        for gap, bib in enumerate(["101", "105", "104", "108"]):
+            event.marks.append(FinishCompetitorElement(bib, 1038.0 + gap, "finish"))
         event.start(SEMI2, seconds=1000.0)
-        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
-        same = [line for line in log if "starting at the same time" in line]
-        assert same and same[0].startswith("ERROR:")
-        assert SEMI1 in same[0] and SEMI2 in same[0]
+        for gap, bib in enumerate(["102", "106", "103", "107"]):
+            event.marks.append(FinishCompetitorElement(bib, 1218.0 + gap, "finish"))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi1, semi2 = brackets[0].stages[0]
+        assert not semi1.was_started and not semi2.was_started
+        assert not semi1.has_results and not semi2.has_results
+        assert any("starting at the same time" in line for line in log)
+
+    def test_a_final_sharing_a_semi_finals_start_is_not_scored(self) -> None:
+        # The chronometer keeps the start time in its field after Save group, so the
+        # final saved without pressing Start again carries the semi-final's. Scoring
+        # it from that span gave the final the semi-final's times and left the riders
+        # of the other semi-final as DNF.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(FINAL, seconds=event.starts[0].seconds)
+        for gap, bib in enumerate(["101", "102", "105", "106"]):
+            event.marks.append(FinishCompetitorElement(bib, 2000.0 + gap, "finish"))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        final = brackets[0].stages[1][0]
+        assert not final.was_started
+        assert not final.has_results
+        assert any("starting at the same time" in line for line in log)
 
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
