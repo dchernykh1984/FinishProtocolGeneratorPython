@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.16.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.15.0...v0.16.0) (2026-11-08)
+
+
+### Features
+
+* **finals:** show each rider's qualification place in the heat tables ([b89f93c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b89f93cd42da3c452c526e726306ea6e60b04105))
+* **protocol:** give two riders with the same recorded result the same place ([8c84fab](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8c84fabf6deafa3ad72270a9c82e455deaf8e9d7))
+* **protocol:** share a place in Number of Tries when attempts and time both match ([93d7c4d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/93d7c4d61624237c991fd148188f21fe2edfd59d))
+
+
+### Bug Fixes
+
+* **eliminator:** a repeat start closes other heats windows but not its own ([b70a9db](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b70a9dbe646df8fa4172b9e372374da4e0fdf2d5))
+* **eliminator:** a rider who rode on after a disqualification is a warning, not an error ([2a9732d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2a9732df78518b34beaf9a0b34a1874869b94118))
+* **eliminator:** a shared start stays with the heat the chronometer offers first ([6917ed5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6917ed51e1e976bf5b15c290cd8f7a20ba21efd8))
+* **eliminator:** a shared start time only refuses the heats that copied it ([c9c2fc4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c9c2fc4e3c0f70a38aa1bcf3da43412cc65b8516))
+* **eliminator:** an empty repeat start line is not a second start ([079e58b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/079e58b420b5a7088ed1a950e05a4cb59e71dbba))
+* **eliminator:** give a late disqualification to the heat the rider last finished ([038e2ee](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/038e2ee2e207137cf5f5912d1bf6084f787cbedf))
+* **eliminator:** ignore a heat's second start line entirely, boundary included ([c2eac09](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c2eac0921f965f78ade91929f515d9c307746402))
+* **eliminator:** keep the first start recorded for a heat and report the repeat ([d6e4d19](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d6e4d19a2c2b78dae9dc8f50360b23a355dbea39))
+* **eliminator:** leave a heat unscored when its recorded start cannot be used ([9ca8e5d](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9ca8e5da2bacd1113d7b9e1706b2a6182e945755))
+* **eliminator:** say which crossing the minimal lap time dropped ([29cd91b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/29cd91be3f759627fb6b2024864dcd53e801d0c7))
+* **finals:** a late disqualification lands in the rider's last started heat ([163c16f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/163c16ff5b81664c4b6b1e0304d6dc2bdf6b7a11))
+* **finals:** crossings from a heat with no start are not a laps setting ([f7ba456](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f7ba456714ace06450cfe4a59f24782901b6e39a))
+* **finals:** the heat recorded first keeps a start time two heats share ([25eea38](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/25eea387c3d356221441f81885145ee719c82b94))
+* **finals:** the shared-start error asks for the repair that works ([97c6d31](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/97c6d3150462f8e1c3a98b0529a129280cf9766a))
+* **protocol:** a dead heat needs the same laps as well as the same time ([ec13946](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/ec139469c1334b8d79580513e4ac9899ebb49a79))
+* **protocol:** call two times tied when the protocol prints them the same ([ec3a6c8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/ec3a6c886990ad6d03cf91c48ad76a79569fb41f))
+* **protocol:** clamp the printed precision so a bad setting cannot scale a time down ([39cdbef](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/39cdbeffebaae1b6fdc5219c66e9f5fbbe78ef87))
+* **protocol:** do not call a shared total time unreadable in Number of Tries ([a7bc04a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a7bc04a78b10de33ad1230f99c738996937738aa))
+* **protocol:** report a shared printed time only when the riders did not tie ([eb8253e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/eb8253ecacfad97fb1511f2f40716412c1acce9e))
+* **timing:** a recorded result prints the same from any time of day ([31c185f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/31c185f374a7ae7645746c8d03772599a4a971fa))
+* **timing:** compare only crossings when looking for one recorded twice ([4d38918](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4d389180bec3bbc40ef934d92ee1f0f21ba20ee5))
+* **timing:** Number of Tries marks are never one crossing recorded twice ([b71981c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b71981c9842a6c8d0cd46437614c45e929fc621b))
+* **timing:** report one crossing recorded twice and drop it by the minimal lap time ([fbe1e52](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/fbe1e52babd96882b02f333f5bb62599feaea5d5))
+* **timing:** results equal to the millisecond are ordered by number ([7de907a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7de907ad466143042064b7f0ea6f6b36e913186b))
+* **timing:** take the minimal time for lap as what makes two crossings one ([38cd0a9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/38cd0a9628aba7c28a31fdecf35d014f1148d780))
+
+
+### Documentation
+
+* **readme:** the double-mark report is the minimal time for lap too ([6fe397f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/6fe397fc8cd7c3be3168d3e975862aeda3f319ea))
+
 ## [0.15.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.14.1...v0.15.0) (2026-11-07)
 
 
