@@ -936,10 +936,7 @@ def _shared_starts(
 
 
 def _open_windows(
-    brackets: list[EliminatorBracket],
-    starts: dict[str, float],
-    boundaries: list[tuple[float, str]],
-    log: list[str],
+    brackets: list[EliminatorBracket], starts: dict[str, float], log: list[str]
 ) -> None:
     """Give every started heat the span its own marks fall in, and take the start
     back off a heat whose recorded one cannot be used.
@@ -981,23 +978,15 @@ def _open_windows(
             heat.start_seconds = -1.0
         else:
             usable.append((bracket, heat))
-    # Every recorded start closes a window, including one that names no heat of any
-    # ladder and one this run did not take as a heat's start. Such a line is a heat
-    # that was ridden -- the small final of a meeting that turned them off, a group
-    # spelled differently, a heat saved a second time -- and its marks are in the
-    # file. Ignoring it as a boundary lets them fall into the heat before it and
-    # rewrite a result that was already right.
-    #
-    # A heat's own name is the exception. A second line for one heat is that heat
-    # saved twice, not another heat going off, and cutting its window there would
-    # throw away the ride it is the record of.
-    for bracket, heat in usable:
-        name = heat_name(bracket, heat)
-        after = [
-            when
-            for when, whose in boundaries
-            if when > heat.start_seconds and whose != name
-        ]
+    # Every start this run took closes a window, including one that names no heat of
+    # any ladder. Such a line is a heat that was ridden -- the small final of a
+    # meeting that turned them off, a group spelled differently -- and its marks are
+    # in the file. Ignoring it as a boundary lets them fall into the heat before it
+    # and rewrite a result that was already right. A heat's second line is not among
+    # them: it is not a start at all, so it bounds nothing.
+    boundaries = sorted({when for when in starts.values() if when > 0})
+    for _bracket, heat in usable:
+        after = [when for when in boundaries if when > heat.start_seconds]
         heat.window_end = after[0] if after else _OPEN
 
 
@@ -1032,10 +1021,7 @@ def _seat_and_score(
     # counts as not ridden. Scoring nothing because of it would hold up every other
     # group in the meeting, which matters more now that the protocol is meant to be
     # refreshed while the racing goes on.
-    boundaries = sorted(
-        {(gs.seconds, group_key(gs.group_id)) for gs in group_list if gs.seconds > 0}
-    )
-    _open_windows(brackets, starts, boundaries, log)
+    _open_windows(brackets, starts, log)
     return brackets, _score(brackets, marks, log, strays), starts
 
 

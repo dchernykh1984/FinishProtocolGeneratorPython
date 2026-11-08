@@ -445,20 +445,19 @@ class TestHeatsScoredFromTimes:
         assert any("no heat of any ladder is called" in line for line in log)
 
     def test_the_first_start_of_a_heat_saved_twice_wins(self) -> None:
-        # The two cases that give a heat a second start line are the same bytes in
-        # the file: a heat restarted after a false start, and a heat already ridden
-        # saved again off the top of a restarted chronometer's list. The first start
-        # is the one kept, because its damage is the smaller of the two -- the heat
-        # keeps its finishing order and only its times are measured from too early,
-        # where taking the later line wiped the heat and every heat above it. The
-        # repeat is reported either way, for the referee to take the wrong line out.
+        # Save group is pressed once the referee has seen the heat go, so a second
+        # line for one heat is never a heat going off again: it is the heat saved
+        # once more off the top of the list a reopened chronometer offers. The ride
+        # belongs to the first line, and the second is reported for the referee to
+        # take out of the file.
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
-        event.start(SEMI1, seconds=2000.0)
-        event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
-        event.start(SEMI2, seconds=3000.0)
+        event.marks.append(FinishCompetitorElement("101", 1001.0, "finish"))
+        event.start(SEMI2, seconds=2000.0)
+        event.starts.append(GroupStartElement(group_id=SEMI1, seconds=9000.0))
         brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
-        assert brackets[0].stages[0][0].times[0] == pytest.approx(1001.0)
+        # The stray line is not a start, so it is not a boundary either.
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
         assert any(
             line.startswith("ERROR:") and "more than one start recorded" in line
             for line in log
@@ -488,21 +487,6 @@ class TestHeatsScoredFromTimes:
         event.start(SEMI1, seconds=1000.0)
         event.marks.append(FinishCompetitorElement("101", 1001.0, "finish"))
         event.starts.append(GroupStartElement(group_id=SEMI1, seconds=0.0))
-        event.start(SEMI2, seconds=3000.0)
-        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
-        assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
-        assert not any("more than one start recorded" in line for line in log)
-        assert not any("no start time" in line for line in log)
-
-    def test_a_heat_saved_without_a_start_and_then_started_is_not_reported(
-        self,
-    ) -> None:
-        # A line with no start time is not a start, so the heat's real start is the
-        # later line and there is nothing to report.
-        event = _Event()
-        event.start(SEMI1, seconds=0.0)
-        event.start(SEMI1, seconds=2000.0)
-        event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
         event.start(SEMI2, seconds=3000.0)
         brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
         assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
@@ -616,15 +600,17 @@ class TestHeatsScoredFromTimes:
         )
         assert not brackets[0].stages[1][0].was_started
 
-    def test_a_heat_restarted_properly_is_not_reported(self) -> None:
-        # The chronometer appends, so a heat saved without a start and then started
-        # again has both lines; the later one is the real one.
+    def test_a_heat_saved_before_start_and_then_started_is_not_reported(self) -> None:
+        # Save group pressed too early writes the empty field, and the heat is saved
+        # again once it has gone. A line with no start time is not a start, so this
+        # is not a heat recorded twice and the later line is the real one.
         event = _Event()
         event.start(SEMI1, seconds=0.0)
         event.start(SEMI1, seconds=1000.0)
         event.marks.append(FinishCompetitorElement("101", 1001.0, "nextLap"))
         brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
         assert not any("no start time" in line for line in log)
+        assert not any("more than one start recorded" in line for line in log)
         assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
 
     def test_a_dead_small_final_cannot_hold_up_its_group(self) -> None:
@@ -783,31 +769,6 @@ class TestHeatsScoredFromTimes:
         event.marks.append(FinishCompetitorElement("101", 1001.2, "finish"))
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         assert [line for line in log if "crossed the line more often" in line]
-
-    def test_a_start_saved_twice_still_closes_another_heats_window(self) -> None:
-        # A heat saved again late in the day proves the heats before it are over, so
-        # a rider of the final who abandoned is DNF rather than left on the course
-        # for ever.
-        event = _Event()
-        event.ride(SEMI1, ["101", "105", "104", "108"])
-        event.ride(SEMI2, ["102", "106", "103", "107"])
-        event.ride(FINAL, ["101", "102", "105"])
-        event.starts.append(GroupStartElement(group_id=SEMI1, seconds=9000.0))
-        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
-        final = brackets[0].stages[1][0]
-        assert final.complete
-        assert brackets[0].finishing_places(final) == [1, 2, 3, None]
-
-    def test_a_heats_own_repeat_line_does_not_cut_its_window(self) -> None:
-        # The other reading of a second line: a heat restarted after a false start.
-        # Its own later line must not bound the ride it is the record of.
-        event = _Event()
-        event.start(SEMI1, seconds=1000.0)
-        event.start(SEMI1, seconds=2000.0)
-        event.marks.append(FinishCompetitorElement("101", 2001.0, "finish"))
-        event.start(SEMI2, seconds=3000.0)
-        brackets, _log = event.build(_ladder(), _starts([1, 4, 5, 8]))
-        assert brackets[0].stages[0][0].times[0] == pytest.approx(1001.0)
 
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
