@@ -63,6 +63,19 @@ def printed_ticks(t: float, n_signs: int) -> int:
     return round(recorded / 10 ** (RECORDED_SIGNS - signs))
 
 
+def recorded_ms(t: float) -> int:
+    """A time in the milliseconds the chronometers write, the sign kept.
+
+    Two results are the same result when these agree. Comparing the floats instead
+    let the rounding error of subtracting two times of day -- a couple of
+    ten-thousandths of a millisecond, and of either sign -- stand in for a real
+    difference: of two riders who rode the very same millisecond, the one whose
+    start happened to fall where the error went the other way was placed first,
+    ahead of the rule that a tie goes to the lower number.
+    """
+    return round(t * 10**RECORDED_SIGNS)
+
+
 def printed_signs(n_signs: int) -> int:
     """How many digits after the point a protocol prints, within what it can show."""
     return min(max(n_signs, 0), 4)

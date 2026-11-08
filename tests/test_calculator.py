@@ -17,6 +17,7 @@ from app.models import (
     FinishProtocolElement,
     GroupStartElement,
     StartProtocolElement,
+    parse_time_string,
 )
 
 # ---------------------------------------------------------------------------
@@ -915,6 +916,31 @@ class TestNumberTieBreak:
         )
         sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
         assert [fp.competitor_id for fp in sorted_proto] == ["3", "10", "30"]
+
+    def test_results_equal_to_the_millisecond_go_by_number(self) -> None:
+        # Custom Start: a result is the difference of the rider's own two marks, so
+        # two riders who rode the very same 39.363 hold floats 2.4e-7 apart
+        # according to the time of day they went off. That noise decided which of
+        # them was placed first -- and in the seeding file, which half of the finals
+        # ladder he was sent to -- instead of the rule that a tie goes by number.
+        def stamp(ms: int) -> str:
+            seconds, frac = divmod(ms, 1000)
+            return f"20765 00:00:{seconds:02d}.{frac:03d}"
+
+        start_list = [_start(c, "G", n_laps=1) for c in ("5", "3")]
+        finish_list = [
+            _finish(cid, parse_time_string(stamp(ms)), "nextLap")
+            for cid, begin in (("5", 0), ("3", 662))
+            for ms in (begin, begin + 39363)
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
+        protocol = calculate_protocol(
+            start_list, [_group("G", 0.0)], finish_list, [], [], cfg, []
+        )
+        # The two floats really are different, and the faster one is the higher bib.
+        assert protocol[0].finish_lap_times[0] < protocol[1].finish_lap_times[0]
+        ordered = generate_sorted_protocol(protocol, cfg, 0)
+        assert [fp.competitor_id for fp in ordered] == ["3", "5"]
 
     def test_equal_finishers_non_numeric_ids_sorted_as_string(self) -> None:
         start_t = BASE_T + 3600
