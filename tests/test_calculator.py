@@ -563,6 +563,38 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "are all printed as" in m]
 
+    def test_one_crossing_recorded_twice_is_reported(self) -> None:
+        # A second timekeeper on the same finish line: the site merges every device's
+        # stream of the competition, so each crossing arrives twice.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("1", start_t + 100.2, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        doubled = [m for m in log if "one crossing recorded twice" in m]
+        assert doubled and doubled[0].startswith("ERROR:")
+        assert "1" in doubled[0]
+
+    def test_honest_laps_are_not_reported_as_doubled(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "nextLap"),
+            _finish("1", start_t + 200.0, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "one crossing recorded twice" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]

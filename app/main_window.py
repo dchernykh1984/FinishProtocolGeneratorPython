@@ -31,6 +31,7 @@ from app.calculator import (
     calculate_protocol,
     check_start_protocol,
     generate_sorted_protocol,
+    report_double_marks,
 )
 from app.config import (
     ALL_RACE_TYPES,
@@ -706,6 +707,7 @@ class _GenerateWorker(QThread):
             marks = [mark for mark in marks if not mark.is_dsq]
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
 
+        report_double_marks(marks, log)
         brackets = build_brackets(
             groups,
             start_list,
@@ -713,6 +715,7 @@ class _GenerateWorker(QThread):
             marks,
             log,
             cfg.n_signs_after_point,
+            cfg.minimal_time_for_lap,
         )
 
         self.log_message.emit("Writing finals protocol...")

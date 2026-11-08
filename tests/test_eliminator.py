@@ -726,6 +726,40 @@ class TestHeatsScoredFromTimes:
             for line in log
         )
 
+    def test_a_crossing_recorded_twice_is_dropped_by_the_minimal_lap_time(
+        self,
+    ) -> None:
+        # Two timekeepers on the finish line, so every crossing is in the file twice.
+        # Every other race type has dropped the copy all along.
+        event = _Event().ride(SEMI1, ["101", "105", "104", "108"])
+        for bib, when in (
+            ("101", 1001.2),
+            ("105", 1002.2),
+            ("104", 1003.2),
+            ("108", 1004.2),
+        ):
+            event.marks.append(FinishCompetitorElement(bib, when, "finish"))
+        log: list[str] = []
+        brackets = build_brackets(
+            _ladder(),
+            _starts(list(range(1, 9))),
+            event.starts,
+            event.marks,
+            log,
+            1,
+            10.0,
+        )
+        semi = brackets[0].stages[0][0]
+        assert semi.times[0] == pytest.approx(1.0)
+        assert not [line for line in log if "crossed the line more often" in line]
+
+    def test_without_the_setting_the_copy_is_still_counted(self) -> None:
+        # The filter is off by default, so the ladder says what it sees.
+        event = _Event().ride(SEMI1, ["101", "105", "104", "108"])
+        event.marks.append(FinishCompetitorElement("101", 1001.2, "finish"))
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert [line for line in log if "crossed the line more often" in line]
+
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
         event.ride(SEMI2, ["102", "106", "103", "107"])
