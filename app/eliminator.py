@@ -345,7 +345,11 @@ class EliminatorBracket:
         self._record(heat, order, len(order), {}, set(), ridden=False, complete=True)
 
     def ride_timed(
-        self, heat: Heat, marks: list[FinishCompetitorElement], log: list[str]
+        self,
+        heat: Heat,
+        marks: list[FinishCompetitorElement],
+        log: list[str],
+        strays: frozenset[int] = frozenset(),
     ) -> list[FinishCompetitorElement]:
         """Score a heat from the marks that fall inside its own start window, and say
         which marks it used, so a mark no heat claimed can be reported.
@@ -359,12 +363,20 @@ class EliminatorBracket:
         later heat has started. Until then the riders without a crossing are shown
         with nothing against them rather than as DNF.
         """
-        times, dsq, used, over = _heat_marks(heat, marks, self.group.laps)
+        times, dsq, used, over, unsure = _heat_marks(
+            heat, marks, self.group.laps, strays
+        )
         if over:
             log.append(
                 f"WARNING: {', '.join(over)} crossed the line more often than the "
                 f"{self.group.laps} lap(s) of {heat_name(self, heat)}; check the "
                 "laps per heat setting"
+            )
+        if unsure:
+            log.append(
+                f"ERROR: {', '.join(unsure)} crossed the line again after being "
+                "disqualified, so which heat the jury decided about is not settled; "
+                f"it was taken as {heat_name(self, heat)}"
             )
         accounted = len(set(times) | dsq)
         complete = accounted >= heat.taken or heat.window_end != _OPEN
@@ -518,20 +530,66 @@ def _fill_free_seats(heat: Heat, bibs: list[str]) -> None:
                 break
 
 
-def _heat_marks(
-    heat: Heat, marks: list[FinishCompetitorElement], laps: int = 1
-) -> tuple[dict[str, float], set[str], list[FinishCompetitorElement], list[str]]:
-    """The time each rider of this heat rode, who was disqualified in it, which marks
-    the heat accounted for, and who crossed the line more often than it has laps.
+def _claimed_dsq(
+    heat: Heat,
+    bib: str,
+    marks: list[FinishCompetitorElement],
+    strays: frozenset[int],
+) -> tuple[list[FinishCompetitorElement], bool]:
+    """This rider's disqualification marks that belong to this heat, and whether one
+    of them was stamped while he was still racing.
 
-    A disqualification wins over a finish mark however they are ordered: the
-    chronometer stamps it when the jury decides, which is usually after the rider
-    has already crossed.
+    A mark inside the heat's own window belongs to it: that is the rider pulled off
+    the course while the heat was being ridden.
+
+    ``strays`` are the marks the previous pass found no heat for at all. The
+    chronometer stamps a disqualification when the jury decides, after the rider has
+    crossed and often after the next heat has gone off, so a decision taken on a
+    video or a protest fell outside every window and was lost. Such a mark goes to
+    the heat whose finish he crossed last before it.
+
+    A stray with a crossing of his after it means he rode on after the jury decided,
+    and then which heat the decision is about is not something the file can settle:
+    it is reported rather than guessed at quietly.
+    """
+    claimed: list[FinishCompetitorElement] = []
+    unclear = False
+    crossed = crossings([mark for mark in marks if mark.competitor_id == bib])
+    for mark in marks:
+        if mark.competitor_id != bib or not mark.is_dsq:
+            continue
+        anchor = mark.seconds
+        if id(mark) in strays:
+            before = [when for when in crossed if when < mark.seconds]
+            if before:
+                anchor = before[-1]
+        if heat.start_seconds <= anchor < heat.window_end:
+            claimed.append(mark)
+            if id(mark) in strays and any(when > mark.seconds for when in crossed):
+                unclear = True
+    return claimed, unclear
+
+
+def _heat_marks(
+    heat: Heat,
+    marks: list[FinishCompetitorElement],
+    laps: int = 1,
+    strays: frozenset[int] = frozenset(),
+) -> tuple[
+    dict[str, float], set[str], list[FinishCompetitorElement], list[str], list[str]
+]:
+    """The time each rider of this heat rode, who was disqualified in it, which marks
+    the heat accounted for, who crossed the line more often than it has laps, and
+    whose disqualification could belong to another heat.
+
+    A disqualification wins over a finish mark however they are ordered, and it is
+    matched to its heat by ``_claimed_dsq`` rather than by this heat's window.
     """
     times: dict[str, float] = {}
     dsq: set[str] = set()
     used: list[FinishCompetitorElement] = []
     over: list[str] = []
+    unsure: list[str] = []
     for bib in heat.numbers:
         if not bib:
             continue
@@ -546,11 +604,15 @@ def _heat_marks(
         if extra > 0:
             over.append(bib)
         crossing = finish_crossing(seen, laps)
-        if any(mark.is_dsq for mark in seen):
+        claimed, unclear = _claimed_dsq(heat, bib, marks, strays)
+        used.extend(claimed)
+        if unclear:
+            unsure.append(bib)
+        if claimed:
             dsq.add(bib)
         elif crossing is not None:
             times[bib] = crossing - heat.start_seconds
-    return times, dsq, used, over
+    return times, dsq, used, over, unsure
 
 
 def crossings(marks: list[FinishCompetitorElement]) -> list[float]:
@@ -867,19 +929,16 @@ def _open_windows(
         heat.window_end = after[0] if after else _OPEN
 
 
-def build_brackets(
+def _seat_and_score(
     groups: list[EliminatorGroup],
     start_list: list[StartProtocolElement],
     group_list: list[GroupStartElement],
     marks: list[FinishCompetitorElement],
     log: list[str],
-    tolerance: float = _TIE,
-) -> list[EliminatorBracket]:
-    """Build every ladder, seat the qualifiers and ride the heats through it.
-
-    ``tolerance`` is the gap below which two times count as equal; pass
-    :func:`tie_tolerance` of the protocol's own precision.
-    """
+    tolerance: float,
+    strays: frozenset[int],
+) -> tuple[list[EliminatorBracket], set[int], dict[str, float]]:
+    """One whole pass: ladders, qualifiers in their seats, heats scored from marks."""
     brackets = _one_ladder_per_group(groups, log)
     for built in brackets:
         built.tie_tolerance = tolerance
@@ -900,15 +959,63 @@ def build_brackets(
     # group in the meeting, which matters more now that the protocol is meant to be
     # refreshed while the racing goes on.
     _open_windows(brackets, starts, log)
-    used = _score(brackets, marks, log)
+    return brackets, _score(brackets, marks, log, strays), starts
+
+
+def _stray_dsq(marks: list[FinishCompetitorElement], used: set[int]) -> frozenset[int]:
+    """The disqualification marks no heat took, by identity."""
+    return frozenset(id(mark) for mark in marks if mark.is_dsq and id(mark) not in used)
+
+
+def build_brackets(
+    groups: list[EliminatorGroup],
+    start_list: list[StartProtocolElement],
+    group_list: list[GroupStartElement],
+    marks: list[FinishCompetitorElement],
+    log: list[str],
+    tolerance: float = _TIE,
+) -> list[EliminatorBracket]:
+    """Build every ladder, seat the qualifiers and ride the heats through it.
+
+    ``tolerance`` is the gap below which two times count as equal; pass
+    :func:`tie_tolerance` of the protocol's own precision.
+
+    Scored again when the first pass left a disqualification unclaimed. Such a mark
+    is a jury decision stamped after the rider's heat had closed -- the chronometer
+    stamps it when the jury decides, not when the rider crossed -- and the second
+    pass gives it to the heat whose finish he crossed last before it. A heat that
+    took its own disqualification keeps it, so a rider pulled off the course in the
+    middle of a heat is still disqualified in that heat and not in the one he won
+    before it. The first pass's messages are thrown away, so nothing is said twice.
+    """
+    first: list[str] = []
+    brackets, used, starts = _seat_and_score(
+        groups, start_list, group_list, marks, first, tolerance, frozenset()
+    )
+    strays = _stray_dsq(marks, used)
+    if strays:
+        first = []
+        brackets, used, starts = _seat_and_score(
+            groups, start_list, group_list, marks, first, tolerance, strays
+        )
+    log.extend(first)
     known = set(heat_names(brackets))
     for name in starts:
         if name not in known:
             log.append(f"WARNING: no heat of any ladder is called {name}")
+    adrift = {
+        mark.competitor_id for mark in marks if mark.is_dsq and id(mark) not in used
+    }
     for bib in _unclaimed(marks, used):
-        log.append(
-            f"WARNING: the finish mark for {bib} belongs to no heat that was ridden"
-        )
+        if bib in adrift:
+            log.append(
+                f"ERROR: the disqualification of {bib} belongs to no heat that was "
+                "ridden, so it was not applied anywhere"
+            )
+        else:
+            log.append(
+                f"WARNING: the finish mark for {bib} belongs to no heat that was ridden"
+            )
     return brackets
 
 
@@ -929,6 +1036,7 @@ def _score(
     brackets: list[EliminatorBracket],
     marks: list[FinishCompetitorElement],
     log: list[str],
+    strays: frozenset[int] = frozenset(),
 ) -> set[int]:
     """Score what can be scored, over and over until nothing moves.
 
@@ -947,7 +1055,8 @@ def _score(
                     continue
                 if heat.was_started:
                     used.update(
-                        id(mark) for mark in bracket.ride_timed(heat, marks, log)
+                        id(mark)
+                        for mark in bracket.ride_timed(heat, marks, log, strays)
                     )
                 elif bracket.is_bye(heat):
                     bracket.ride_unraced(heat)

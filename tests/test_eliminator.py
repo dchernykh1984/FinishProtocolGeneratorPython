@@ -666,6 +666,65 @@ class TestHeatsScoredFromTimes:
         assert not final.has_results
         assert any("starting at the same time" in line for line in log)
 
+    def test_a_late_disqualification_reaches_the_heat_the_rider_won(self) -> None:
+        # The chronometer stamps a disqualification when the jury decides, which on a
+        # video or a protest is after the next heat has gone off. The mark then fell
+        # outside every window and the rider kept the heat he should have lost.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(SMALL, seconds=1120.0)
+        event.marks.append(FinishCompetitorElement("106", 1130.0, "DSQ: cut in"))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi2 = brackets[0].stages[0][1]
+        assert semi2.disqualified[semi2.numbers.index("106")]
+        assert "106" not in brackets[0].stages[1][0].numbers
+        assert "103" in brackets[0].stages[1][0].numbers
+        assert not any("belongs to no heat" in line for line in log)
+
+    def test_a_rider_pulled_during_a_heat_is_disqualified_in_that_heat(self) -> None:
+        # He won his semi-final and was taken off the course during the final. The
+        # final's own window holds the mark, so the decision stays in the final and
+        # the semi-final he won is untouched.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.ride(FINAL, ["102", "105", "106"], dsq=("101",))
+        brackets, _log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi1 = brackets[0].stages[0][0]
+        final = brackets[0].stages[1][0]
+        assert not semi1.disqualified[semi1.numbers.index("101")]
+        assert final.disqualified[final.numbers.index("101")]
+
+    def test_a_disqualification_that_belongs_to_no_heat_is_an_error(self) -> None:
+        # A bib nobody rides: the mark is a typo, and it used to be reported as a
+        # finish mark, which told the referee to look in the wrong place.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.marks.append(FinishCompetitorElement("999", 1005.0, "DSQ: wrong bib"))
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert any(
+            line.startswith("ERROR:") and "the disqualification of 999" in line
+            for line in log
+        )
+
+    def test_a_rider_who_rode_on_after_a_late_disqualification_is_reported(
+        self,
+    ) -> None:
+        # The jury decided between his heats and he rode the next one anyway, so
+        # which heat the decision is about is not something the file can settle.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.marks.append(FinishCompetitorElement("101", 1070.0, "DSQ: cut in"))
+        event.ride(FINAL, ["101", "102", "105", "106"])
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        assert any(
+            line.startswith("ERROR:")
+            and "crossed the line again after being disqualified" in line
+            for line in log
+        )
+
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
         event.ride(SEMI2, ["102", "106", "103", "107"])
