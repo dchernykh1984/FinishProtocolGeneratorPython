@@ -201,6 +201,10 @@ class RaceConfig:
     show_time_difference: bool = True
     time_difference_label: str = "(gap)"
     show_additional_info: bool = False
+    #: Eliminator Finals only: the rider's qualification place in his group, in
+    #: every heat table. It is what the ladder seated him by, so the protocol can be
+    #: read against the qualification without holding both pages side by side.
+    show_qualification_place: bool = True
     show_time_shift: bool = False
     show_n_finished_laps: bool = False
     n_finished_laps_label: str = "(laps)"
@@ -268,6 +272,7 @@ class RaceConfig:
     additional_info_label: str = "Additional info"
     #: Said against an Eliminator Finals heat whose riders went through unraced.
     not_ridden_label: str = "not ridden"
+    qualification_place_label: str = "Qualification place"
 
     styles: HtmlStyles = field(default_factory=HtmlStyles)
 

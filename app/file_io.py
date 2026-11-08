@@ -758,6 +758,18 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["eliminator_laps"] = v
+        tok = nxt()
+
+    if tok == "ShowQualificationPlace":
+        v = nxt()
+        if v is not None:
+            result["show_qualification_place"] = v
+        tok = nxt()
+
+    if tok == "QualificationPlaceLabel":
+        v = nxt()
+        if v is not None:
+            result["qualification_place_label"] = v
 
     return result
 

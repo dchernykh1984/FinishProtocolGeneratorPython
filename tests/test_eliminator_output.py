@@ -96,6 +96,23 @@ def _html(brackets, cfg: RaceConfig) -> str:
         return Path(path).read_text(encoding="utf-8")
 
 
+def _table(page: str, title: str) -> list[list[str]]:
+    """One heat's table off the page, as rows of plain cells."""
+    head = page.find(f"<CENTER>{title}</CENTER>")
+    block = page[head : page.find("</table>", head)]
+    return [
+        [
+            re.sub(r"<[^>]+>", "", cell).strip()
+            for cell in re.findall(r"<td.*?</td>", row, re.S)
+        ]
+        for row in re.findall(r"<tr.*?</tr>", block, re.S)
+    ]
+
+
+def _row(table: list[list[str]], bib: str) -> list[str]:
+    return next(row for row in table if bib in row)
+
+
 def _heats(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Every heat's table, ladder by ladder, stage by stage in the order ridden."""
     return [
@@ -126,6 +143,37 @@ class TestHtml:
             assert title in page
         for bib in range(101, 109):
             assert str(bib) in page
+
+    def test_the_qualification_place_is_a_column_of_every_heat(self) -> None:
+        # The place the ladder seated him by, so a heat can be read against the
+        # qualification without the other page beside it.
+        page = _html(_brackets(), _cfg(qualification_place_label="Qual."))
+        assert page.count("Qual.") == 4
+        final = _table(page, "Final")
+        assert final[0][6] == "Qual."
+        # 101 and 102 won their semi-finals from qualification places 1 and 2; 105
+        # and 106 came second from places 5 and 6.
+        assert [_row(final, bib)[6] for bib in ("101", "102", "105", "106")] == [
+            "1",
+            "2",
+            "5",
+            "6",
+        ]
+
+    def test_the_qualification_place_can_be_turned_off(self) -> None:
+        page = _html(
+            _brackets(),
+            _cfg(show_qualification_place=False, qualification_place_label="Qual."),
+        )
+        assert "Qual." not in page
+
+    def test_a_rider_with_no_qualification_place_shows_none(self) -> None:
+        # A bib the start protocol does not carry has no place to show, and a zero
+        # in the column would read as a place of its own.
+        brackets = _brackets()
+        brackets[0].stages[0][0].numbers[0] = "999"
+        page = _html(brackets, _cfg(qualification_place_label="Qual."))
+        assert _row(_table(page, "1/2 final 1"), "999")[6] == ""
 
     def test_the_group_is_named_once_per_ladder(self) -> None:
         cfg = _cfg(group_label="Group")
@@ -260,6 +308,13 @@ class TestDocument:
     def _document(self, **kwargs: Any) -> dict[str, Any]:
         return build_finals_document(_brackets(), _starts(), _cfg(**kwargs))
 
+    def test_the_qualification_place_is_a_cell_of_its_own(self) -> None:
+        final = _heat(self._document(qualification_place_label="Qual."), "Final")
+        assert ("qual", "Qual.") in [
+            (column["id"], column["label"]) for column in final["columns"]
+        ]
+        assert [row["cells"]["qual"] for row in final["rows"]] == ["1", "2", "5", "6"]
+
     def test_it_is_a_schema_one_document(self) -> None:
         document = self._document()
         assert document["schema"] == 1
@@ -371,11 +426,15 @@ class TestDocument:
             "team",
             "city",
             "extra",
+            "qual",
             "result",
         ]
         for column in final["columns"]:
-            if column["id"] == "result":
-                continue  # a heat's time matters less than a timed race's
+            if column["id"] in ("qual", "result"):
+                # The two the finals do not share: a timed protocol has no
+                # qualification place at all, and a heat's time matters less than a
+                # timed race's.
+                continue
             role_and_priority = (column.get("role"), column.get("priority"))
             assert role_and_priority == declared[column["id"]], column["id"]
 
