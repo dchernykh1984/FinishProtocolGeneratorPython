@@ -672,6 +672,31 @@ class TestHeatsScoredFromTimes:
         assert brackets[0].finishing_places(semi1) == [1, 2, 3, 4]
         assert any("starting at the same time" in line for line in log)
 
+    def test_the_heat_that_was_started_keeps_the_time_whatever_the_ladder_says(
+        self,
+    ) -> None:
+        # The final went off before the small final, which was then saved without
+        # pressing Start and so carries the final's time. The ladder puts the small
+        # final first, but the line written first belongs to the heat that was
+        # started: the field holds the time of the last press, so the copy can only
+        # be written after it. Going by the ladder scored the small final from the
+        # final's start -- three minutes out -- and left the final unscored.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.ride(FINAL, ["101", "102", "105", "106"])
+        event.start(SMALL, seconds=event.starts[-1].seconds)
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        final = brackets[0].stages[1][0]
+        places = brackets[0].finishing_places(final)
+        assert final.has_results
+        assert sorted(place for place in places if place) == [1, 2, 3, 4]
+        assert final.numbers[places.index(1)] == "101"
+        assert final.times[places.index(1)] == pytest.approx(1.0)
+        small = brackets[0].small_final
+        assert not small.was_started and not small.has_results
+        assert any(f"Only {FINAL} is scored" in line for line in log)
+
     def test_a_late_disqualification_reaches_the_heat_the_rider_won(self) -> None:
         # The chronometer stamps a disqualification when the jury decides, which on a
         # video or a protest is after the next heat has gone off. The mark then fell
