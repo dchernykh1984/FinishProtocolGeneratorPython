@@ -115,8 +115,8 @@ class Heat:
     seeds: tuple[int, ...] = ()
     #: Bibs by finishing order once the result is in, "" for a seat nobody filled.
     numbers: list[str] = field(default_factory=list)
-    #: Whether the rider in each seat has crossed the line. False reads as DNF once
-    #: the heat is complete, and as a rider still on the course before that.
+    #: Whether the rider in each seat has crossed the line. False reads as DNF from
+    #: the moment a start of this heat is recorded, and as DNS until then.
     finished: list[bool] = field(default_factory=list)
     #: Time ridden per seat, -1 where there is none.
     times: list[float] = field(default_factory=list)
@@ -379,9 +379,11 @@ class EliminatorBracket:
         inside the two the heat sends on. Nobody still on the course can finish ahead
         of him, so neither is going to change.
 
-        The heat is over once every one of its riders is accounted for, or once a
-        later heat has started. Until then the riders without a crossing are shown
-        with nothing against them rather than as DNF.
+        The heat is over -- ``complete`` -- once every one of its riders is accounted
+        for, or once a later heat has started. That gates the heats above it, which
+        must not be scored against a field that is not final yet; what the protocol
+        says about a rider who has not crossed does not wait for it, because the
+        start of his heat is enough to tell DNS from DNF.
         """
         times, dsq, used, over, unsure, dropped = _heat_marks(
             heat, marks, self.group.laps, strays, self.minimal_lap
@@ -1210,9 +1212,10 @@ def _score(
                             "riders go through in qualification order"
                         )
                 else:
-                    # Still to be ridden: leaving it empty is the whole point, so a
-                    # protocol refreshed mid-event shows the final as pending rather
-                    # than handing out its medals on qualification order.
+                    # Still to be ridden: giving it no result is the whole point, so
+                    # a protocol refreshed mid-event shows the final as pending --
+                    # its riders DNS, with no start of it recorded -- rather than
+                    # handing out its medals on qualification order.
                     continue
                 moved = True
     log.extend(_still_riding(brackets))
