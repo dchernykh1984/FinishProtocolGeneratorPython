@@ -61,7 +61,6 @@ from app.eliminator import (
     missing_ladders,
     normalize_seeding,
     parse_eliminator_groups,
-    tie_tolerance,
 )
 from app.eliminator_ladders_editor import EliminatorLaddersEditor
 from app.eliminator_output import (
@@ -713,7 +712,7 @@ class _GenerateWorker(QThread):
             group_list,
             marks,
             log,
-            tie_tolerance(cfg.n_signs_after_point),
+            cfg.n_signs_after_point,
         )
 
         self.log_message.emit("Writing finals protocol...")

@@ -13,7 +13,12 @@ import calendar
 from dataclasses import dataclass, field
 
 from app.config import RaceConfig
-from app.models import INF, FinishProtocolElement, GroupStartElement
+from app.models import (
+    INF,
+    FinishProtocolElement,
+    GroupStartElement,
+    printed_ticks,
+)
 
 
 def format_time(t: float, n_signs: int, write_date: bool = False) -> str:
@@ -26,7 +31,7 @@ def format_time(t: float, n_signs: int, write_date: bool = False) -> str:
 
     n_signs = min(n_signs, 4)
     factor = 10**n_signs
-    t_rounded = round(t * factor)
+    t_rounded = printed_ticks(t, n_signs)
     frac = int(t_rounded % factor)
     t_int = int(t_rounded // factor)
     seconds = t_int % 60
@@ -131,6 +136,21 @@ class ResultParts:
     count: str = ""
 
 
+def result_seconds(fp: FinishProtocolElement, cfg: RaceConfig) -> float:
+    """The number of seconds the protocol prints as this finisher's result, or 0.
+
+    Pulled out of ``result_parts`` so that whatever else needs to know what a rider's
+    printed result is -- the check that looks for two of them coming out the same --
+    asks the same question of the same data.
+    """
+    if not (fp.finished and not fp.disqualified):
+        return 0.0
+    if cfg.is_number_of_tries():
+        return fp.get_total_time()
+    n = fp.n_laps_finished
+    return fp.finish_lap_times[n - 1] if n > 0 else 0.0
+
+
 def result_parts(
     fp: FinishProtocolElement,
     leader: FinishProtocolElement | None,
@@ -141,12 +161,11 @@ def result_parts(
     if not (fp.finished and not fp.disqualified) or leader is None:
         return parts
     tries = cfg.is_number_of_tries()
+    last_t = result_seconds(fp, cfg)
     if tries:
-        last_t = fp.get_total_time()
         last_leader_t = leader.get_total_time()
     else:
         n = fp.n_laps_finished
-        last_t = fp.finish_lap_times[n - 1] if n > 0 else 0.0
         last_leader_t = (
             leader.finish_lap_times[n - 1] if 0 < n <= leader.n_laps_finished else 0.0
         )

@@ -515,6 +515,54 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert any("duplicate" in m.lower() for m in log)
 
+    def test_two_finishers_printed_the_same_are_reported(self) -> None:
+        # One digit after the point: 100.06 s and 100.14 s both come out as the same
+        # tenth, so the protocol shows one time and two places, and those places are
+        # what the finals are seeded from.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1), _start("2", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.06, "finish"),
+            _finish("2", start_t + 100.14, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        shared = [m for m in log if "are all printed as" in m]
+        assert shared and shared[0].startswith("WARNING:")
+        assert "1" in shared[0] and "2" in shared[0]
+
+    def test_finishers_the_protocol_tells_apart_are_not_reported(self) -> None:
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1), _start("2", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.04, "finish"),
+            _finish("2", start_t + 100.26, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "are all printed as" in m]
+
+    def test_two_groups_on_one_time_are_not_a_tie(self) -> None:
+        # Different groups ride different races; only places inside one are compared.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1), _start("2", "H", n_laps=1)]
+        group_list = [_group("G", start_t), _group("H", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("2", start_t + 100.0, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "are all printed as" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]

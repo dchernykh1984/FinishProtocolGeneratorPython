@@ -11,6 +11,16 @@ from app.attempt_rules import AttemptRule
 INF: float = math.inf
 
 
+def printed_ticks(t: float, n_signs: int) -> int:
+    """A time in units of the last digit a protocol prints, rounded as it rounds.
+
+    Two times with the same ticks come out as the same text, which is the only
+    honest test of whether a result can be told from another one: a difference the
+    protocol cannot show is one nobody can defend when the result is protested.
+    """
+    return round(abs(t) * 10 ** min(n_signs, 4))
+
+
 def parse_time_string(s: str) -> float:
     """Parse 'D H:M:S.fff' time string to float seconds since epoch."""
     s = s.strip()

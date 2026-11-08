@@ -29,7 +29,6 @@ from app.eliminator import (
     normalize_seeding,
     parse_eliminator_groups,
     start_list_groups,
-    tie_tolerance,
 )
 from app.models import (
     FinishCompetitorElement,
@@ -1058,10 +1057,23 @@ class TestTies:
         tie = [line for line in log if "share a time" in line]
         assert tie and tie[0].startswith("ERROR:")
 
-    def test_the_tolerance_follows_the_printed_precision(self) -> None:
-        assert tie_tolerance(1) == pytest.approx(0.05)
-        assert tie_tolerance(3) == pytest.approx(0.0005)
-        assert tie_tolerance(0) == pytest.approx(0.5)
+    def test_a_gap_over_half_a_bucket_that_still_prints_the_same_is_a_tie(
+        self,
+    ) -> None:
+        # 2.06 and 2.14 are 0.08 apart, more than half of the tenth the protocol
+        # prints, and both come out as 00:00:02.1. The old rule looked for a gap
+        # under half a tenth and let the other half of every bucket through
+        # unreported -- on the line that sends riders on, here.
+        log = self._tie(SEMI1, ["101", "105", "104", "108"], [1.0, 2.06, 2.14, 4.0])
+        tie = [line for line in log if "share a time" in line]
+        assert tie and tie[0].startswith("ERROR:")
+        assert "decides who goes on" in tie[0]
+
+    def test_a_gap_the_protocol_does_print_is_no_tie(self) -> None:
+        # 2.04 and 2.06 are 0.02 apart, which the old rule called a tie, but they
+        # print as 00:00:02.0 and 00:00:02.1 and the page tells them apart.
+        log = self._tie(SEMI1, ["101", "105", "104", "108"], [1.0, 2.04, 2.06, 4.0])
+        assert not [line for line in log if "share a time" in line]
 
     def test_a_finer_protocol_tells_the_two_apart(self) -> None:
         event = _Event().ride(
@@ -1074,7 +1086,7 @@ class TestTies:
             event.starts,
             event.marks,
             log,
-            tie_tolerance(3),
+            3,
         )
         assert not [line for line in log if "share a time" in line]
 
