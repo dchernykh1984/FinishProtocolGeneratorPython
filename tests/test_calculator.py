@@ -573,7 +573,7 @@ class TestCheckStartProtocol:
             _finish("1", start_t + 100.0, "finish"),
             _finish("1", start_t + 100.2, "finish"),
         ]
-        cfg = _cfg()
+        cfg = _cfg(minimal_time_for_lap=10)
         protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
         log: list[str] = []
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
@@ -589,7 +589,7 @@ class TestCheckStartProtocol:
             _finish("1", start_t + 100.0, "nextLap"),
             _finish("1", start_t + 200.0, "finish"),
         ]
-        cfg = _cfg()
+        cfg = _cfg(minimal_time_for_lap=10)
         protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
         log: list[str] = []
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
@@ -625,7 +625,7 @@ class TestCheckStartProtocol:
             _finish("1", start_t + 100.0, "finish"),
             _finish("1", start_t + 100.2, "nextStage"),
         ]
-        cfg = _cfg()
+        cfg = _cfg(minimal_time_for_lap=10)
         protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
         log: list[str] = []
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
@@ -662,6 +662,22 @@ class TestCheckStartProtocol:
         log: list[str] = []
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "are all printed as" in m]
+
+    def test_without_the_minimal_lap_time_nothing_is_called_a_double(self) -> None:
+        # The setting is what says how close two crossings have to be to be the same
+        # crossing; left at nothing it asks nothing.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("1", start_t + 100.2, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "one crossing recorded twice" in m]
 
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
