@@ -184,6 +184,11 @@ class EliminatorBracket:
         #: "Minimal time for lap": below this, a second crossing is the first one
         #: recorded twice rather than a lap.
         self.minimal_lap = 0.0
+        #: Whether a heat of the meeting was ridden without a start time this run
+        #: can use. Its marks then have no window to fall in and land in another
+        #: heat's, so a rider crossing more often than the heat has laps says
+        #: nothing about the laps per heat setting.
+        self.unbounded = False
         size = group.heat_size
         # stages[0] is the first round ridden; the last stage holds the final.
         self.stages: list[list[Heat]] = []
@@ -384,10 +389,15 @@ class EliminatorBracket:
                 "for lap against the length of a lap here"
             )
         if over:
+            cause = (
+                "a heat was ridden without a start time this run can use, so its "
+                "marks have no window of their own and fall in this one"
+                if self.unbounded
+                else "check the laps per heat setting"
+            )
             log.append(
                 f"WARNING: {', '.join(over)} crossed the line more often than the "
-                f"{self.group.laps} lap(s) of {heat_name(self, heat)}; check the "
-                "laps per heat setting"
+                f"{self.group.laps} lap(s) of {heat_name(self, heat)}; {cause}"
             )
         if unsure:
             log.append(
@@ -957,6 +967,7 @@ def _open_windows(
     fixed -- the way a heat saved before Start was pressed already does.
     """
     started: list[tuple[EliminatorBracket, Heat]] = []
+    lost = False
     for bracket in brackets:
         for heat in bracket.all_heats():
             name = heat_name(bracket, heat)
@@ -964,6 +975,7 @@ def _open_windows(
             if seconds is None:
                 continue
             if seconds <= 0:
+                lost = True
                 # Not a warning: if that heat was ridden, its marks are still in the
                 # file, and with no start of its own to bound them they would fall
                 # into the window of the heat before it and rewrite a result that was
@@ -982,6 +994,11 @@ def _open_windows(
     order = {name: index for index, name in enumerate(starts)}
     started.sort(key=lambda pair: (pair[1].start_seconds, order[heat_name(*pair)]))
     refused = _shared_starts(started, log)
+    for bracket in brackets:
+        # One flag for the meeting: a window is closed by the next start whichever
+        # ladder it belongs to, so a heat that lost its start leaks its marks into
+        # another group's heat just as readily as into its own group's.
+        bracket.unbounded = lost or bool(refused)
     usable: list[tuple[EliminatorBracket, Heat]] = []
     for bracket, heat in started:
         if heat_name(bracket, heat) in refused:

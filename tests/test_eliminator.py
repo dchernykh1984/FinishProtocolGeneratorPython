@@ -813,6 +813,26 @@ class TestHeatsScoredFromTimes:
             for line in log
         )
 
+    def test_a_heat_left_without_a_start_is_not_a_laps_per_heat_mistake(self) -> None:
+        # The final saved without pressing Start carries the semi-final's time and
+        # is refused, so it closes no window and its marks fall into the
+        # semi-final's: the two riders who rode both look as though they crossed
+        # twice. Sending the referee to the laps per heat setting for that is a
+        # second wrong trail beside the error that says what really happened.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.starts.append(
+            GroupStartElement(group_id=FINAL, seconds=event.starts[-1].seconds)
+        )
+        for gap, bib in enumerate(["101", "102", "105", "106"]):
+            event.marks.append(FinishCompetitorElement(bib, 3000.0 + gap, "finish"))
+        _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        over = [line for line in log if "crossed the line more often" in line]
+        assert over
+        assert "check the laps per heat setting" not in over[0]
+        assert "without a start time this run can use" in over[0]
+
     def test_a_crossing_recorded_twice_is_dropped_by_the_minimal_lap_time(
         self,
     ) -> None:
