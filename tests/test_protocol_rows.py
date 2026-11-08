@@ -146,3 +146,23 @@ def test_a_group_place_starts_where_its_start_line_says_and_shares_a_dead_heat()
     prepare_statuses(sorted_protocol, cfg)
     places = group_places(sorted_protocol, [group], cfg)
     assert [places[id(fp)] for fp in sorted_protocol] == [5, 6, 6]
+
+
+def test_a_lapped_rider_crossing_with_the_leader_does_not_share_his_place():
+    # Same millisecond over a different number of laps is not a dead heat.
+    cfg = RaceConfig()
+    starts = [
+        StartProtocolElement.from_line("1#Leader#A#2#1####"),
+        StartProtocolElement.from_line("2#Lapped#A#1#1####"),
+    ]
+    groups = [GroupStartElement("A", 100.0)]
+    marks = [
+        FinishCompetitorElement("1", 150.0, "nextLap"),
+        FinishCompetitorElement("1", 200.0, "nextLap"),
+        FinishCompetitorElement("2", 200.0, "nextLap"),
+    ]
+    protocol = calculate_protocol(starts, groups, marks, [], [], cfg, [])
+    sorted_protocol = generate_sorted_protocol(protocol, cfg, 0)
+    prepare_statuses(sorted_protocol, cfg)
+    places = shared_places([fp for fp in sorted_protocol if is_printed(fp, cfg)], cfg)
+    assert sorted(places.values()) == [1, 2]
