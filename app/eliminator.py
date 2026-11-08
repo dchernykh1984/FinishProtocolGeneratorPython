@@ -889,11 +889,14 @@ def _heat_starts(
 def _shared_starts(
     started: list[tuple[EliminatorBracket, Heat]], log: list[str]
 ) -> set[str]:
-    """The heats recorded as starting at the very same instant.
+    """The heats that hold a start time another heat was recorded with first.
 
     The chronometer keeps the start time in its field after Save group, so saving the
-    next heat without pressing Start again gives it the same one. Neither heat then
-    has a span of its own to hold its marks.
+    next heat without pressing Start again gives it the same one. The heat that comes
+    first in the ladder keeps the time: that is the one the referee started, because
+    he picks heats off the top of the chronometer's list as the day runs, and taking
+    its result away would punish the heat that was recorded correctly. The ones
+    behind it only copied the field and have no span of their own.
     """
     by_start: dict[float, list[str]] = {}
     for bracket, heat in started:
@@ -902,10 +905,12 @@ def _shared_starts(
     for names in by_start.values():
         if len(names) > 1:
             log.append(
-                "ERROR: these heats are recorded as starting at the same time, so "
-                "neither has a window of its own for finish marks: " + ", ".join(names)
+                "ERROR: these heats are recorded as starting at the same time: "
+                + ", ".join(names)
+                + f". Only {names[0]} is scored from it; press Start before Save "
+                "group and save the others again"
             )
-            refused.update(names)
+            refused.update(names[1:])
     return refused
 
 
