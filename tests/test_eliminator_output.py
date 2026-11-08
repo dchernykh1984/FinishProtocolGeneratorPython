@@ -183,6 +183,14 @@ class TestHtml:
         page = _html(_brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _cfg())
         assert "DNF" in page
 
+    def test_the_last_heat_of_the_day_still_reads_dnf(self) -> None:
+        # Nothing starts after the final, so its window never closes. Waiting for
+        # that left the rider who pulled out of it with an empty cell for good.
+        heats = _FULL[:3]
+        heats[2] = (_FINAL, ["101", "102", "105"])
+        page = _html(_brackets(heats), _cfg())
+        assert _row(_table(page, "Final"), "106")[0] == "DNF"
+
     def test_a_ladder_nobody_has_ridden_has_no_places(self) -> None:
         page = _html(_brackets([]), _cfg())
         assert "DNF" not in page
@@ -220,34 +228,40 @@ class TestHtml:
         assert page.count("width=100%") == 1 + 4
 
 
-class TestAHeatStillBeingRidden:
-    """What the protocol says while riders are on the course."""
+class TestAHeatThatHasGoneOff:
+    """What the protocol says about a rider whose heat has started.
+
+    The same as every other race type says about a rider whose group has gone off
+    and whose finish has not been seen: DNF until his time comes in. The ladder used
+    to leave the cell blank until a later heat closed this one's window, which read
+    as nothing at all on a protocol that was otherwise finished.
+    """
 
     def _page(self, cfg: RaceConfig | None = None) -> str:
-        # Two of four across, nothing started after: the other two are still riding.
+        # Two of four across, nothing started after.
         return _html(_brackets([(_SEMI1, ["101", "105"])]), cfg or _cfg())
 
     def test_those_who_crossed_have_their_place_and_time(self) -> None:
         page = self._page()
         assert "00:00:01.0" in page and "00:00:02.0" in page
 
-    def test_those_still_riding_are_not_marked_dnf(self) -> None:
-        # The rider is on the course, not beaten. DNF here is a wrong result, not a
-        # cosmetic one: it is what a protocol refreshed mid-heat would publish.
-        assert "DNF" not in self._page()
+    def test_those_without_a_time_yet_read_dnf(self) -> None:
+        table = _table(self._page(), "1/2 final 1")
+        assert [_row(table, bib)[0] for bib in ("101", "105")] == ["1", "2"]
+        assert [_row(table, bib)[0] for bib in ("104", "108")] == ["DNF", "DNF"]
 
-    def test_they_are_marked_dnf_once_the_heat_is_over(self) -> None:
+    def test_they_are_still_dnf_once_the_heat_is_over(self) -> None:
         page = _html(_brackets([(_SEMI1, ["101", "105"]), (_SEMI2, [])]), _cfg())
         assert "DNF" in page
 
-    def test_the_site_is_not_told_they_did_not_finish(self) -> None:
+    def test_the_site_is_told_they_have_not_finished(self) -> None:
         document = build_finals_document(
             _brackets([(_SEMI1, ["101", "105"])]), _starts(), _cfg()
         )
         statuses = [
             row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
-        assert "dnf" not in statuses
+        assert "dnf" in statuses
 
     def test_whoever_crossed_in_a_going_on_place_is_already_above(self) -> None:
         document = build_finals_document(
