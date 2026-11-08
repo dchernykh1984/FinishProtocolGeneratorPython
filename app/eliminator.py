@@ -368,9 +368,16 @@ class EliminatorBracket:
         later heat has started. Until then the riders without a crossing are shown
         with nothing against them rather than as DNF.
         """
-        times, dsq, used, over, unsure = _heat_marks(
+        times, dsq, used, over, unsure, dropped = _heat_marks(
             heat, marks, self.group.laps, strays, self.minimal_lap
         )
+        if dropped:
+            log.append(
+                f"WARNING: a crossing of {', '.join(dropped)} in "
+                f"{heat_name(self, heat)} came less than {self.minimal_lap:g} s "
+                "after the one before it and was dropped; check the minimal time "
+                "for lap against the length of a lap here"
+            )
         if over:
             log.append(
                 f"WARNING: {', '.join(over)} crossed the line more often than the "
@@ -593,11 +600,17 @@ def _heat_marks(
     strays: frozenset[int] = frozenset(),
     minimal: float = 0.0,
 ) -> tuple[
-    dict[str, float], set[str], list[FinishCompetitorElement], list[str], list[str]
+    dict[str, float],
+    set[str],
+    list[FinishCompetitorElement],
+    list[str],
+    list[str],
+    list[str],
 ]:
     """The time each rider of this heat rode, who was disqualified in it, which marks
-    the heat accounted for, who crossed the line more often than it has laps, and
-    whose disqualification could belong to another heat.
+    the heat accounted for, who crossed the line more often than it has laps, whose
+    disqualification could belong to another heat, and whose crossing the minimal lap
+    time threw away.
 
     A disqualification wins over a finish mark however they are ordered, and it is
     matched to its heat by ``_claimed_dsq`` rather than by this heat's window.
@@ -607,6 +620,7 @@ def _heat_marks(
     used: list[FinishCompetitorElement] = []
     over: list[str] = []
     unsure: list[str] = []
+    dropped: list[str] = []
     for bib in heat.numbers:
         if not bib:
             continue
@@ -617,8 +631,10 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
-        extra = len(crossings(seen, minimal)) - laps
-        if extra > 0:
+        kept = crossings(seen, minimal)
+        if len(kept) < len(crossings(seen)):
+            dropped.append(bib)
+        if len(kept) - laps > 0:
             over.append(bib)
         crossing = finish_crossing(seen, laps, minimal)
         claimed, unclear = _claimed_dsq(heat, bib, marks, strays)
@@ -629,7 +645,7 @@ def _heat_marks(
             dsq.add(bib)
         elif crossing is not None:
             times[bib] = crossing - heat.start_seconds
-    return times, dsq, used, over, unsure
+    return times, dsq, used, over, unsure, dropped
 
 
 def crossings(
