@@ -121,15 +121,20 @@ def _seat_values(
         place_text = "DSQ"
     elif place is not None:
         place_text = str(place)
-    elif bib and heat.was_started:
+    elif bib and heat.was_started and heat.has_results:
         # A heat that has gone off says DNF against a rider until his time comes in,
         # which is what every other race type says about a rider whose group has
         # started and whose finish has not been seen. Waiting for the heat to be
         # over instead left the cell blank, and a heat is only over once a later one
         # starts -- so a rider who pulled out of the last heat of the day read as
         # nothing at all, on a protocol that was otherwise finished.
+        #
+        # A started heat that could not be scored at all is the exception, and it
+        # keeps the blank cell: that happens when a heat feeding it was never saved,
+        # so its seats hold whoever has come up so far and nothing in it can be
+        # read yet -- a rider who did cross would be published as DNF.
         place_text = "DNF"
-    elif bib:
+    elif bib and not heat.was_started:
         # No start of this heat's own was recorded, so its riders are DNS -- the same
         # as a rider whose group never went off in a timed race. What the heat has in
         # the group file is what decides it, not what the riders did: a heat with no
