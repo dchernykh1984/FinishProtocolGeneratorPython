@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.16.0...v0.16.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **ci:** let the release verify job read the release it checks ([35efbd7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/35efbd7fb0407c2ba950c0000da2620d09b028e9))
+
 ## [0.16.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.15.0...v0.16.0) (2026-11-08)
 
 
