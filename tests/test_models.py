@@ -265,3 +265,15 @@ class TestFinishProtocolElement:
         fp = FinishProtocolElement(start, disable_dnf=False, n_points=0)
         fp.n_laps_finished = 1
         assert fp.get_n_successful_tries() == 0
+
+
+def test_printed_ticks_never_scales_a_time_down():
+    # Only a hand-edited fpg_info.txt can ask for fewer than no digits; taken at its
+    # word it would make every time within five seconds compare equal.
+    from app.models import printed_signs, printed_ticks
+
+    assert printed_signs(-1) == 0
+    assert printed_signs(9) == 4
+    assert printed_ticks(100.4, -1) == printed_ticks(100.4, 0) == 100
+    assert printed_ticks(100.4, -1) != printed_ticks(104.0, -1)
+    assert printed_ticks(1.23456, 9) == printed_ticks(1.23456, 4) == 12346
