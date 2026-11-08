@@ -774,20 +774,46 @@ def _heat_starts(group_list: list[GroupStartElement]) -> dict[str, float]:
     }
 
 
+def _shared_starts(
+    started: list[tuple[EliminatorBracket, Heat]], log: list[str]
+) -> set[str]:
+    """The heats recorded as starting at the very same instant.
+
+    The chronometer keeps the start time in its field after Save group, so saving the
+    next heat without pressing Start again gives it the same one. Neither heat then
+    has a span of its own to hold its marks.
+    """
+    by_start: dict[float, list[str]] = {}
+    for bracket, heat in started:
+        by_start.setdefault(heat.start_seconds, []).append(heat_name(bracket, heat))
+    refused: set[str] = set()
+    for names in by_start.values():
+        if len(names) > 1:
+            log.append(
+                "ERROR: these heats are recorded as starting at the same time, so "
+                "neither has a window of its own for finish marks: " + ", ".join(names)
+            )
+            refused.update(names)
+    return refused
+
+
 def _open_windows(
     brackets: list[EliminatorBracket], starts: dict[str, float], log: list[str]
-) -> list[str]:
-    """Give every started heat the span its own marks fall in, and name the heats
-    whose recorded start cannot be used.
+) -> None:
+    """Give every started heat the span its own marks fall in, and take the start
+    back off a heat whose recorded one cannot be used.
 
     The span ends where the next heat starts, whichever ladder that heat belongs to:
     a rider rides several heats, so his bib carries several honest marks, and only
     the span keeps the one that belongs to this heat. Ordering the heats by their
     start time is what makes this work without looking ahead in the ladder, which
     could not be done anyway -- who rides the next heat is decided by this one.
+
+    A heat left without a usable start is scored from nothing rather than from marks
+    that belong to another heat, so it counts as not ridden until the start time is
+    fixed -- the way a heat saved before Start was pressed already does.
     """
     started: list[tuple[EliminatorBracket, Heat]] = []
-    bad: list[str] = []
     for bracket in brackets:
         for heat in bracket.all_heats():
             name = heat_name(bracket, heat)
@@ -803,34 +829,26 @@ def _open_windows(
                     f"ERROR: {name} was saved with no start time; press Start before "
                     "Save group, then save that heat again"
                 )
-                bad.append(name)
                 continue
             heat.start_seconds = seconds
             started.append((bracket, heat))
     started.sort(key=lambda pair: pair[1].start_seconds)
-    by_start: dict[float, list[str]] = {}
+    refused = _shared_starts(started, log)
+    usable: list[tuple[EliminatorBracket, Heat]] = []
     for bracket, heat in started:
-        by_start.setdefault(heat.start_seconds, []).append(heat_name(bracket, heat))
-    for names in by_start.values():
-        if len(names) > 1:
-            # The chronometer keeps the start time in its field after Save group, so
-            # saving the next heat without pressing Start again gives it the same
-            # one. Neither heat then has a span of its own to hold its marks.
-            log.append(
-                "ERROR: these heats are recorded as starting at the same time, so "
-                "neither has a window of its own for finish marks: " + ", ".join(names)
-            )
-            bad.extend(names)
+        if heat_name(bracket, heat) in refused:
+            heat.start_seconds = -1.0
+        else:
+            usable.append((bracket, heat))
     # Every recorded start closes a window, including one that names no heat of any
     # ladder. Such a line is a heat that was ridden -- the small final of a meeting
     # that turned them off, a group spelled differently -- and its marks are in the
     # file. Ignoring it as a boundary lets them fall into the heat before it and
     # rewrite a result that was already right.
     boundaries = sorted({when for when in starts.values() if when > 0})
-    for _bracket, heat in started:
+    for _bracket, heat in usable:
         after = [when for when in boundaries if when > heat.start_seconds]
         heat.window_end = after[0] if after else _OPEN
-    return bad
 
 
 def build_brackets(
