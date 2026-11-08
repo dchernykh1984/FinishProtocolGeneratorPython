@@ -1092,6 +1092,23 @@ class TestTies:
         )
         assert not [line for line in log if "share a time" in line]
 
+    def test_an_exact_dead_heat_in_a_heat_shares_a_place(self) -> None:
+        # Both rode the same millisecond and both keep their own line.
+        event = _Event().ride(
+            SEMI1, ["101", "105", "104", "108"], offsets=[1.0, 2.0, 2.0, 4.0]
+        )
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        assert bracket.finishing_places(bracket.stages[0][0]) == [1, 2, 2, 4]
+
+    def test_times_that_only_print_the_same_keep_their_own_places(self) -> None:
+        # 2.06 and 2.14 come out as the same tenth and are reported as such, but the
+        # riders did not ride the same time and the ladder does not say they did.
+        event = _Event().ride(
+            SEMI1, ["101", "105", "104", "108"], offsets=[1.0, 2.06, 2.14, 4.0]
+        )
+        bracket = event.build(_ladder(), _starts(list(range(1, 9))))[0][0]
+        assert bracket.finishing_places(bracket.stages[0][0]) == [1, 2, 3, 4]
+
     def test_three_riders_on_one_time_are_reported_once(self) -> None:
         log = self._tie(SEMI1, ["101", "105", "104", "108"], [1.0, 1.0, 1.0, 4.0])
         assert len([line for line in log if "share a time" in line]) == 1

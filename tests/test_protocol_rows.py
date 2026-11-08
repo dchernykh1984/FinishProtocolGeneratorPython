@@ -9,7 +9,13 @@ from app.config import RACE_TYPE_MASS_SPLITTED, RaceConfig
 from app.html_writer import write_absolute_protocol, write_group_protocol
 from app.live_stats import build_live_stats
 from app.models import FinishCompetitorElement, GroupStartElement, StartProtocolElement
-from app.protocol_rows import group_places, is_printed, place_status, prepare_statuses
+from app.protocol_rows import (
+    group_places,
+    is_printed,
+    place_status,
+    prepare_statuses,
+    shared_places,
+)
 
 
 def _two_finishers():
@@ -89,3 +95,54 @@ def test_group_places_count_printed_finishers_and_do_not_change_the_groups():
     )
     assert w30 == [1, 2]
     assert all(is_printed(fp, race.cfg) for fp in race.protocol if id(fp) in places)
+
+
+def _group_of_four(offsets):
+    """One group of four, each with a single finish mark at the given second."""
+    cfg = RaceConfig()
+    starts = [
+        StartProtocolElement.from_line(f"{i}#Rider {i}#A#1#1####") for i in range(1, 5)
+    ]
+    groups = [GroupStartElement("A", 100.0)]
+    marks = [
+        FinishCompetitorElement(str(i), 100.0 + offset, "nextLap")
+        for i, offset in enumerate(offsets, start=1)
+    ]
+    protocol = calculate_protocol(starts, groups, marks, [], [], cfg, [])
+    return generate_sorted_protocol(protocol, cfg, 0), cfg
+
+
+def test_an_exact_dead_heat_shares_a_place_and_keeps_both_rows():
+    protocol, cfg = _group_of_four([10.0, 11.0, 11.0, 12.0])
+    prepare_statuses(protocol, cfg)
+    places = shared_places([fp for fp in protocol if is_printed(fp, cfg)], cfg)
+    assert [places[id(fp)] for fp in protocol] == [1, 2, 2, 4]
+    assert len(protocol) == 4
+
+
+def test_results_that_only_print_the_same_keep_their_own_places():
+    # 11.06 and 11.14 both come out as the same tenth, but they are not one time:
+    # printing a dead heat there would invent one that never happened.
+    protocol, cfg = _group_of_four([10.0, 11.06, 11.14, 12.0])
+    prepare_statuses(protocol, cfg)
+    places = shared_places([fp for fp in protocol if is_printed(fp, cfg)], cfg)
+    assert [places[id(fp)] for fp in protocol] == [1, 2, 3, 4]
+
+
+def test_a_group_place_starts_where_its_start_line_says_and_shares_a_dead_heat():
+    cfg = RaceConfig()
+    starts = [
+        StartProtocolElement.from_line(f"{i}#Rider {i}#A#1#1####") for i in range(1, 4)
+    ]
+    group = GroupStartElement("A", 100.0)
+    group.place = 5
+    marks = [
+        FinishCompetitorElement("1", 110.0, "nextLap"),
+        FinishCompetitorElement("2", 111.0, "nextLap"),
+        FinishCompetitorElement("3", 111.0, "nextLap"),
+    ]
+    protocol = calculate_protocol(starts, [group], marks, [], [], cfg, [])
+    sorted_protocol = generate_sorted_protocol(protocol, cfg, 0)
+    prepare_statuses(sorted_protocol, cfg)
+    places = group_places(sorted_protocol, [group], cfg)
+    assert [places[id(fp)] for fp in sorted_protocol] == [5, 6, 6]

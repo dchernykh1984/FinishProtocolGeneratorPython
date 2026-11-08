@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from app.config import RaceConfig
 from app.models import (
     INF,
+    RECORDED_SIGNS,
     FinishProtocolElement,
     GroupStartElement,
     printed_ticks,
@@ -110,20 +111,72 @@ def place_status(
     return str(place), "ok"
 
 
+def shared_places(
+    rows: list[FinishProtocolElement], cfg: RaceConfig, first: int = 1
+) -> dict[int, int]:
+    """The place to print against each row of one table, by id().
+
+    Two rows with the same result to the recorded millisecond share the first of
+    their places, both keeping their own row: that is a dead heat, and the rider
+    behind them still takes the number his position gives him -- 1, 2, 2, 4.
+
+    Equal to the millisecond, not equal once printed. Two riders 0.08 s apart come
+    out as the same tenth on the page, but they did not ride the same time and
+    handing them one place would put a dead heat in the protocol that never
+    happened; that case is reported instead, so the referee can print more digits.
+    Equal to the millisecond is also the only comparison the arithmetic survives: a
+    result is the difference of two times carried as seconds since 1970, and two
+    riders who rode the same 125.555 come out of it 1e-7 apart.
+
+    ``rows`` are one table's printed rows in the order they are printed, and
+    ``first`` is the number the first of them takes.
+
+    Number of Tries is left alone: there the result is a count of attempts scored by
+    the rules and the time only separates equal counts, so two riders can honestly
+    share a total time and still be ranked apart.
+    """
+    if cfg.is_number_of_tries():
+        return {id(fp): first + offset for offset, fp in enumerate(rows)}
+    places: dict[int, int] = {}
+    previous = -1
+    shown = first
+    for offset, fp in enumerate(rows):
+        seconds = result_seconds(fp, cfg)
+        ticks = printed_ticks(seconds, RECORDED_SIGNS) if seconds > 0 else -1
+        if ticks < 0 or ticks != previous:
+            shown = first + offset
+        places[id(fp)] = shown
+        previous = ticks
+    return places
+
+
 def group_places(
     protocol: list[FinishProtocolElement],
     group_list: list[GroupStartElement],
     cfg: RaceConfig,
 ) -> dict[int, int]:
-    """Each printed finisher's place within their group, in protocol order (by id())."""
-    counters = {g.group_id: g.place for g in reversed(group_list)}
+    """Each printed finisher's place within their group, in protocol order (by id()).
+
+    A group's first place is the one its start line gives it, and two finishers the
+    protocol prints the same time against share a place.
+    """
+    firsts = {g.group_id: g.place for g in reversed(group_list)}
     places: dict[int, int] = {}
-    for fp in protocol:
-        if not is_printed(fp, cfg) or fp.group_id not in counters:
-            continue
-        if not fp.disqualified and fp.finished:
-            places[id(fp)] = counters[fp.group_id]
-            counters[fp.group_id] += 1
+    for group_id, first in firsts.items():
+        places.update(
+            shared_places(
+                [
+                    fp
+                    for fp in protocol
+                    if fp.group_id == group_id
+                    and is_printed(fp, cfg)
+                    and fp.finished
+                    and not fp.disqualified
+                ],
+                cfg,
+                first,
+            )
+        )
     return places
 
 

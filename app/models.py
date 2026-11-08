@@ -11,6 +11,11 @@ from app.attempt_rules import AttemptRule
 INF: float = math.inf
 
 
+#: The digits the chronometer records: its marks are written to the millisecond, so
+#: two results equal at this precision are one result and not a rounding of two.
+RECORDED_SIGNS = 3
+
+
 def printed_ticks(t: float, n_signs: int) -> int:
     """A time in units of the last digit a protocol prints, rounded as it rounds.
 

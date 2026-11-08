@@ -30,6 +30,7 @@ from app.protocol_rows import (
     place_status,
     prepare_statuses,
     result_parts,
+    shared_places,
     split_text,
     time_shift_text,
 )
@@ -310,16 +311,15 @@ def _table(
     shown_laps = n_laps if cfg.show_lap_times and multi_lap else 0
     rows = []
     leader: FinishProtocolElement | None = None
-    place = 0
+    shown = shared_places([fp for fp in members if is_printed(fp, cfg)], cfg)
     for fp in members:
         if not is_printed(fp, cfg):
             continue
-        place += 1
         if fp.finished and not fp.disqualified and leader is None:
             leader = fp
         row = _row(
             fp,
-            place,
+            shown[id(fp)],
             leader,
             members,
             cfg,
