@@ -116,9 +116,10 @@ def shared_places(
 ) -> dict[int, int]:
     """The place to print against each row of one table, by id().
 
-    Two rows with the same result to the recorded millisecond share the first of
-    their places, both keeping their own row: that is a dead heat, and the rider
-    behind them still takes the number his position gives him -- 1, 2, 2, 4.
+    Two rows with the same result to the recorded millisecond, over the same number
+    of laps, share the first of their places, both keeping their own row: that is a
+    dead heat, and the rider behind them still takes the number his position gives
+    him -- 1, 2, 2, 4.
 
     Equal to the millisecond, not equal once printed. Two riders 0.08 s apart come
     out as the same tenth on the page, but they did not ride the same time and
@@ -138,15 +139,18 @@ def shared_places(
     if cfg.is_number_of_tries():
         return {id(fp): first + offset for offset, fp in enumerate(rows)}
     places: dict[int, int] = {}
-    previous = -1
+    previous = (-1, -1)
     shown = first
     for offset, fp in enumerate(rows):
         seconds = result_seconds(fp, cfg)
         ticks = printed_ticks(seconds, RECORDED_SIGNS) if seconds > 0 else -1
-        if ticks < 0 or ticks != previous:
+        # The laps count as much as the clock: a leader lapping a backmarker crosses
+        # with him on the same millisecond and is nowhere near sharing his place.
+        current = (ticks, fp.n_laps_finished)
+        if ticks < 0 or current != previous:
             shown = first + offset
         places[id(fp)] = shown
-        previous = ticks
+        previous = current
     return places
 
 
