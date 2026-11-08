@@ -27,8 +27,17 @@ def printed_ticks(t: float, n_signs: int) -> int:
     Two times with the same ticks come out as the same text, which is the only
     honest test of whether a result can be told from another one: a difference the
     protocol cannot show is one nobody can defend when the result is protested.
+
+    Clamped to the digits a protocol can actually print. A setting below zero is
+    only reachable by hand in ``fpg_info.txt``, and taken at its word it would scale
+    every time down instead of up and call whole seconds equal.
     """
-    return round(abs(t) * 10 ** min(n_signs, 4))
+    return round(abs(t) * 10 ** printed_signs(n_signs))
+
+
+def printed_signs(n_signs: int) -> int:
+    """How many digits after the point a protocol prints, within what it can show."""
+    return min(max(n_signs, 0), 4)
 
 
 def parse_time_string(s: str) -> float:

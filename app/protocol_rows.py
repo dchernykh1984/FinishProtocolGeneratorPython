@@ -18,6 +18,7 @@ from app.models import (
     RECORDED_SIGNS,
     FinishProtocolElement,
     GroupStartElement,
+    printed_signs,
     printed_ticks,
 )
 
@@ -30,7 +31,7 @@ def format_time(t: float, n_signs: int, write_date: bool = False) -> str:
     if neg:
         t = -t
 
-    n_signs = min(n_signs, 4)
+    n_signs = printed_signs(n_signs)
     factor = 10**n_signs
     t_rounded = printed_ticks(t, n_signs)
     frac = int(t_rounded % factor)
