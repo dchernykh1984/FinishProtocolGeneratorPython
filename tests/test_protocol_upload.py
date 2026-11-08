@@ -230,6 +230,8 @@ def test_the_eliminator_settings_survive_save_and_load():
         win._cfg.eliminator_laps = 3
         win._cfg.eliminator_ladder_file = "finals/ladders.txt"
         win._cfg.not_ridden_label = "unraced"
+        win._cfg.show_qualification_place = False
+        win._cfg.qualification_place_label = "Qual."
         with tempfile.TemporaryDirectory() as td:
             path = str(Path(td) / "fpg_info.txt")
             win._save_race_info_to_path(path)
@@ -238,6 +240,8 @@ def test_the_eliminator_settings_survive_save_and_load():
             win._cfg.eliminator_laps = 1
             win._cfg.eliminator_ladder_file = "ladders.txt"
             win._cfg.not_ridden_label = ""
+            win._cfg.show_qualification_place = True
+            win._cfg.qualification_place_label = ""
             win._load_race_info_from_path(path)
         assert win._cfg.eliminator_small_final is False
         assert win._cfg.eliminator_seeding == SEEDING_KEEP_ADJACENT
@@ -250,6 +254,9 @@ def test_the_eliminator_settings_survive_save_and_load():
         )
         assert win._cfg.not_ridden_label == "unraced"
         assert not win.findChild(QCheckBox, "eliminator_small_final").isChecked()
+        assert win._cfg.show_qualification_place is False
+        assert win._cfg.qualification_place_label == "Qual."
+        assert not win.findChild(QCheckBox, "show_qualification_place").isChecked()
     finally:
         win.deleteLater()
 

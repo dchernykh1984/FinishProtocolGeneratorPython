@@ -1466,6 +1466,13 @@ class MainWindow(QMainWindow):
         row_nr.addWidget(QLabel("Heat not ridden label (Eliminator Finals):"), 1)
         row_nr.addWidget(self._bind_line_edit("not_ridden_label"), 2)
         ly.addLayout(row_nr)
+        ly.addLayout(
+            _check_label_row(
+                "Show qualification place (Eliminator Finals)",
+                "show_qualification_place",
+                "qualification_place_label",
+            )
+        )
 
         ly.addLayout(_check_label_row("Show lap times", "show_lap_times", "lap_name"))
         row_lai = QHBoxLayout()
@@ -2208,6 +2215,11 @@ class MainWindow(QMainWindow):
         ]
         lines += ["EliminatorSeeding", cfg.eliminator_seeding]
         lines += ["EliminatorLaps", str(cfg.eliminator_laps)]
+        lines += [
+            "ShowQualificationPlace",
+            "1" if cfg.show_qualification_place else "0",
+        ]
+        lines += ["QualificationPlaceLabel", cfg.qualification_place_label]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2389,6 +2401,15 @@ class MainWindow(QMainWindow):
             cfg.eliminator_small_final = _bool("EliminatorSmallFinal", True)
             cfg.eliminator_seeding = normalize_seeding(_str("EliminatorSeeding"))
             cfg.eliminator_laps = max(_int("EliminatorLaps", 1), 1)
+            # Not cleared with the other optional columns above: the setting is
+            # newer than this file format, so a file without it was written before
+            # the column existed rather than with it turned off.
+            cfg.show_qualification_place = _bool(
+                "ShowQualificationPlace", cfg.show_qualification_place
+            )
+            cfg.qualification_place_label = _str(
+                "QualificationPlaceLabel", cfg.qualification_place_label
+            )
             cfg.print_dnf = _bool("PrintDNF", cfg.print_dnf)
             cfg.print_dns = _bool("PrintDNS", cfg.print_dns)
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
@@ -2707,6 +2728,10 @@ class MainWindow(QMainWindow):
             cfg.eliminator_small_final = d.get("eliminator_small_final", "1") == "1"
             cfg.eliminator_seeding = normalize_seeding(d.get("eliminator_seeding", ""))
             cfg.eliminator_laps = max(_di("eliminator_laps", 1), 1)
+            cfg.show_qualification_place = d.get("show_qualification_place", "1") == "1"
+            cfg.qualification_place_label = d.get(
+                "qualification_place_label", cfg.qualification_place_label
+            )
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:

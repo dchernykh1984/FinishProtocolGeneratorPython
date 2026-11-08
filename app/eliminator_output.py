@@ -57,7 +57,14 @@ def _heat_heading(bracket: EliminatorBracket, heat: Heat, cfg: RaceConfig) -> st
 
 
 def _person_fields(cfg: RaceConfig) -> list[tuple[str, str, str]]:
-    """The optional columns of a heat table: (id, label, rider attribute)."""
+    """The optional columns of a heat table: (id, label, rider attribute).
+
+    The qualification place is one of them rather than a column of its own: it comes
+    off the rider's start line like his team or his year, out of the field the
+    seeding export wrote there, and the heat tables are the only tables that have
+    it -- in a timed protocol the place is the result, not a thing a rider brought
+    with him.
+    """
     wanted = [
         (cfg.show_id, "bib", cfg.id_label, "competitor_id"),
         (cfg.show_name, "name", cfg.name_label, "name"),
@@ -65,6 +72,12 @@ def _person_fields(cfg: RaceConfig) -> list[tuple[str, str, str]]:
         (cfg.show_team, "team", cfg.team_label, "team"),
         (cfg.show_city, "city", cfg.city_label, "city"),
         (cfg.show_additional_info, "extra", cfg.additional_info_label, "extra_info"),
+        (
+            cfg.show_qualification_place,
+            "qual",
+            cfg.qualification_place_label,
+            "start_place",
+        ),
     ]
     return [(key, label, attr) for shown, key, label, attr in wanted if shown]
 
@@ -115,7 +128,10 @@ def _seat_values(
     values = []
     for _key, _label, attr in _person_fields(cfg):
         if rider is not None:
-            values.append(str(getattr(rider, attr, "")))
+            value = getattr(rider, attr, "")
+            # A qualification place of nothing is a rider the seeding export left
+            # unplaced, and a zero in the column would read as a place of its own.
+            values.append("" if attr == "start_place" and not value else str(value))
         else:
             # A seat whose bib is not in the start protocol still shows the bib.
             values.append(bib if attr == "competitor_id" else "")
@@ -245,6 +261,9 @@ def write_heat_list(path: str, brackets: list[EliminatorBracket]) -> None:
 #: its time gives way after the minor columns, before the number; place and name,
 #: priority 1, always stay.
 _RESULT_PRIORITY = 4
+#: The qualification place is what seated the rider, so it holds a narrow screen
+#: longer than his team or his city but gives way before his time.
+_QUAL_PRIORITY = 5
 
 
 def _heat_row(
@@ -287,6 +306,10 @@ def _heat_section(
     if cfg.show_additional_info:
         extra = _column("extra", cfg.additional_info_label, priority=_PRIORITY["extra"])
         columns.append(extra)
+    if cfg.show_qualification_place:
+        columns.append(
+            _column("qual", cfg.qualification_place_label, priority=_QUAL_PRIORITY)
+        )
     if cfg.show_finish_time:
         sub = [_plain(cfg.time_difference_label)] if cfg.show_time_difference else []
         columns.append(
