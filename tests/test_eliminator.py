@@ -770,6 +770,24 @@ class TestHeatsScoredFromTimes:
         _brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         assert [line for line in log if "crossed the line more often" in line]
 
+    def test_the_small_final_keeps_a_start_the_big_final_copied(self) -> None:
+        # Both heats of the last round are offered together and the small final goes
+        # first, so it is the one the referee started: the big final saved without
+        # pressing Start again is the copy, whatever order the ladder holds them in.
+        event = _Event()
+        event.ride(SEMI1, ["101", "105", "104", "108"])
+        event.ride(SEMI2, ["102", "106", "103", "107"])
+        event.start(SMALL, seconds=1120.0)
+        for gap, bib in enumerate(["104", "103", "108", "107"]):
+            event.marks.append(FinishCompetitorElement(bib, 1121.0 + gap, "finish"))
+        event.starts.append(GroupStartElement(group_id=FINAL, seconds=1120.0))
+        brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        small = brackets[0].small_final
+        assert small.has_results
+        assert brackets[0].finishing_places(small) == [5, 6, 7, 8]
+        assert not brackets[0].stages[1][0].was_started
+        assert any("starting at the same time" in line for line in log)
+
     def test_a_heat_being_ridden_says_so_once(self) -> None:
         event = _Event()
         event.ride(SEMI2, ["102", "106", "103", "107"])
