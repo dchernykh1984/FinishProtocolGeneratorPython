@@ -631,6 +631,38 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "one crossing recorded twice" in m]
 
+    def test_a_real_dead_heat_is_not_reported_as_unreadable(self) -> None:
+        # Both rode the same millisecond, so the protocol gives them one place and
+        # there is nothing the page is failing to show.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=1), _start("2", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("2", start_t + 100.0, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "are all printed as" in m]
+
+    def test_a_lapped_rider_crossing_with_the_leader_is_not_reported(self) -> None:
+        # Same instant, different lap: nothing about their places is unclear.
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=2), _start("2", "G", n_laps=1)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 50.0, "nextLap"),
+            _finish("1", start_t + 100.0, "finish"),
+            _finish("2", start_t + 100.0, "finish"),
+        ]
+        cfg = _cfg()
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "are all printed as" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]
