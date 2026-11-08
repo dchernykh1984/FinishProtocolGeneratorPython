@@ -808,9 +808,9 @@ class TestHeatsScoredFromTimes:
         assert [line for line in log if "crossed the line more often" in line]
 
     def test_the_small_final_keeps_a_start_the_big_final_copied(self) -> None:
-        # Both heats of the last round are offered together and the small final goes
-        # first, so it is the one the referee started: the big final saved without
-        # pressing Start again is the copy, whatever order the ladder holds them in.
+        # The small final's line comes first in the group file, so it is the one the
+        # referee started: the big final saved without pressing Start again holds
+        # the copy, whatever order the ladder keeps the two of them in.
         event = _Event()
         event.ride(SEMI1, ["101", "105", "104", "108"])
         event.ride(SEMI2, ["102", "106", "103", "107"])
