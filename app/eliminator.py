@@ -374,9 +374,9 @@ class EliminatorBracket:
             )
         if unsure:
             log.append(
-                f"ERROR: {', '.join(unsure)} crossed the line again after being "
-                "disqualified, so which heat the jury decided about is not settled; "
-                f"it was taken as {heat_name(self, heat)}"
+                f"WARNING: {', '.join(unsure)} rode on after being disqualified in "
+                f"{heat_name(self, heat)}, so a heat after it holds a rider who "
+                "should not have been in it"
             )
         accounted = len(set(times) | dsq)
         complete = accounted >= heat.taken or heat.window_end != _OPEN
@@ -548,9 +548,9 @@ def _claimed_dsq(
     video or a protest fell outside every window and was lost. Such a mark goes to
     the heat whose finish he crossed last before it.
 
-    A stray with a crossing of his after it means he rode on after the jury decided,
-    and then which heat the decision is about is not something the file can settle:
-    it is reported rather than guessed at quietly.
+    A stray with a crossing of his after it still belongs to the heat he had last
+    finished -- that is where he was when the jury decided -- but he then rode a heat
+    he was no longer entitled to, which is worth saying out loud.
     """
     claimed: list[FinishCompetitorElement] = []
     unclear = False
