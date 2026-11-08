@@ -18,7 +18,7 @@ from app.models import (
     StartProtocolElement,
     printed_ticks,
 )
-from app.protocol_rows import format_time, result_seconds
+from app.protocol_rows import format_time, result_count, result_seconds
 
 
 def _record_dsq_reason(
@@ -423,13 +423,9 @@ def calculate_protocol(  # noqa: C901
     return result
 
 
-#: Two marks for one bib closer than this are not two crossings: no lap of any race
-#: is ridden in under a second.
-_DOUBLE_MARK = 1.0
-
-
 def report_double_marks(
     finish_list: list[FinishCompetitorElement],
+    minimal_time_for_lap: float,
     log: list[str],
 ) -> None:
     """Bibs whose marks come in pairs a fraction of a second apart.
@@ -443,12 +439,16 @@ def report_double_marks(
     second.
 
     Reported here rather than guessed at: which device to believe is the referee's
-    decision, and "Minimal time for lap" is the setting that drops the copy.
+    decision, and "Minimal time for lap" is both the setting that drops the copy and
+    the one that says how close two crossings have to be to be the same crossing.
+    Left at nothing, it asks nothing and nothing is reported.
 
     Only crossings are compared. The same file carries a stage change next to a
     finish and a disqualification stamped seconds after one, and neither is a second
     reading of the line.
     """
+    if minimal_time_for_lap <= 0:
+        return
     by_bib: dict[str, list[float]] = {}
     for mark in finish_list:
         if mark.action in CROSSING_ACTIONS:
@@ -456,13 +456,14 @@ def report_double_marks(
     doubled = []
     for bib, seconds in by_bib.items():
         ordered = sorted(seconds)
-        if any(b - a < _DOUBLE_MARK for a, b in itertools.pairwise(ordered)):
+        if any(b - a < minimal_time_for_lap for a, b in itertools.pairwise(ordered)):
             doubled.append(bib)
     if doubled:
         log.append(
-            f"ERROR: {', '.join(doubled)} have two marks less than "
-            f"{_DOUBLE_MARK:.0f} s apart, which is one crossing recorded twice; "
-            "check whether a second device is writing the same finish line"
+            f"ERROR: {', '.join(doubled)} have two crossings less than "
+            f"{minimal_time_for_lap:g} s apart, the minimal time for lap, which is "
+            "one crossing recorded twice; check whether a second device is writing "
+            "the same finish line"
         )
 
 
@@ -484,12 +485,9 @@ def _report_shared_times(
     anything. The laps count too -- a leader lapping a backmarker crosses with him on
     the same second and is not sharing anything with him.
 
-    Number of Tries is left out, as it is wherever a time is taken for a result: the
-    result there is a count of attempts scored by the rules, the protocol prints that
-    count beside the time, and two riders sharing a total time are told apart by it.
+    In Number of Tries the count the protocol prints beside the time is part of the
+    result, so riders are only compared against the others on the same count.
     """
-    if cfg.is_number_of_tries():
-        return
     seen: dict[tuple[str, int, str], list[tuple[str, int]]] = {}
     for fp in protocol:
         seconds = result_seconds(fp, cfg)
@@ -497,7 +495,7 @@ def _report_shared_times(
             continue
         key = (
             fp.group_id,
-            fp.n_laps_finished,
+            result_count(fp, cfg),
             format_time(seconds, cfg.n_signs_after_point),
         )
         seen.setdefault(key, []).append(
@@ -523,7 +521,7 @@ def check_start_protocol(  # noqa: C901
 ) -> None:
     """Validate protocol and log warnings/errors."""
     _report_shared_times(protocol, cfg, log)
-    report_double_marks(finish_list, log)
+    report_double_marks(finish_list, cfg.minimal_time_for_lap, log)
     for fe in finish_list:
         found = any(fp.is_same_competitor(fe) for fp in protocol)
         if not found:

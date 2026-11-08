@@ -707,7 +707,7 @@ class _GenerateWorker(QThread):
             marks = [mark for mark in marks if not mark.is_dsq]
         self.log_message.emit(f"  {len(marks)} finish mark(s) loaded")
 
-        report_double_marks(marks, log)
+        report_double_marks(marks, cfg.minimal_time_for_lap, log)
         brackets = build_brackets(
             groups,
             start_list,
