@@ -17,6 +17,7 @@ from app.models import (
     GroupStartElement,
     StartProtocolElement,
     printed_ticks,
+    recorded_ms,
 )
 from app.protocol_rows import format_time, result_count, result_seconds
 
@@ -138,8 +139,8 @@ def _first_better(  # noqa: C901
         return cp_a > cp_b
 
     if cp_a == 0:
-        fin_a = a.finish_lap_times[a.n_laps_finished - 1]
-        fin_b = b.finish_lap_times[b.n_laps_finished - 1]
+        fin_a = recorded_ms(a.finish_lap_times[a.n_laps_finished - 1])
+        fin_b = recorded_ms(b.finish_lap_times[b.n_laps_finished - 1])
         if fin_a != fin_b:
             return fin_a < fin_b
         return _number_less(a.competitor_id, b.competitor_id)
@@ -152,8 +153,8 @@ def _first_better(  # noqa: C901
     )
     seg_a = a.control_points[a.n_laps_finished].segment_finishes[cp_a - 1]
     seg_b = b.control_points[b.n_laps_finished].segment_finishes[cp_b - 1]
-    total_a = prev_a + seg_a
-    total_b = prev_b + seg_b
+    total_a = recorded_ms(prev_a + seg_a)
+    total_b = recorded_ms(prev_b + seg_b)
     if total_a != total_b:
         return total_a < total_b
     return _number_less(a.competitor_id, b.competitor_id)
