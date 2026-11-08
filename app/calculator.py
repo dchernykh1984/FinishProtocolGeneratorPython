@@ -11,10 +11,12 @@ from app.config import RaceConfig
 from app.models import (
     CROSSING_ACTIONS,
     INF,
+    RECORDED_SIGNS,
     FinishCompetitorElement,
     FinishProtocolElement,
     GroupStartElement,
     StartProtocolElement,
+    printed_ticks,
 )
 from app.protocol_rows import format_time, result_seconds
 
@@ -477,26 +479,38 @@ def _report_shared_times(
     different heats on an order nobody can read off the page. The finals have said
     this about a heat all along; the qualification said nothing at all.
 
+    Riders who really did ride the same millisecond are left out: a dead heat is
+    printed as one, both of them taking the same place, so the page is not hiding
+    anything. The laps count too -- a leader lapping a backmarker crosses with him on
+    the same second and is not sharing anything with him.
+
     Number of Tries is left out, as it is wherever a time is taken for a result: the
     result there is a count of attempts scored by the rules, the protocol prints that
     count beside the time, and two riders sharing a total time are told apart by it.
     """
     if cfg.is_number_of_tries():
         return
-    seen: dict[tuple[str, str], list[str]] = {}
+    seen: dict[tuple[str, int, str], list[tuple[str, int]]] = {}
     for fp in protocol:
         seconds = result_seconds(fp, cfg)
         if seconds <= 0:
             continue
-        key = (fp.group_id, format_time(seconds, cfg.n_signs_after_point))
-        seen.setdefault(key, []).append(fp.competitor_id)
-    for (group_id, text), bibs in seen.items():
-        if len(bibs) > 1:
-            log.append(
-                f"WARNING: {', '.join(bibs)} are all printed as {text} in group "
-                f"{group_id}, so the places between them cannot be read off the "
-                "protocol"
-            )
+        key = (
+            fp.group_id,
+            fp.n_laps_finished,
+            format_time(seconds, cfg.n_signs_after_point),
+        )
+        seen.setdefault(key, []).append(
+            (fp.competitor_id, printed_ticks(seconds, RECORDED_SIGNS))
+        )
+    for (group_id, _laps, text), riders in seen.items():
+        if len({ticks for _bib, ticks in riders}) < 2:
+            continue
+        log.append(
+            f"WARNING: {', '.join(bib for bib, _t in riders)} are all printed as "
+            f"{text} in group {group_id} without riding the same time, so the places "
+            "between them cannot be read off the protocol"
+        )
 
 
 def check_start_protocol(  # noqa: C901
