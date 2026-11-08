@@ -631,10 +631,10 @@ class TestHeatsScoredFromTimes:
         assert same and same[0].startswith("ERROR:")
         assert SEMI1 in same[0] and SEMI2 in same[0]
 
-    def test_heats_sharing_a_start_are_not_scored(self) -> None:
-        # Both would be scored from the same span, so the one that really went off
-        # later would have its times measured from the other one's start. Nothing is
-        # written for either until the referee fixes the group file.
+    def test_the_heat_that_copied_a_start_time_is_not_scored(self) -> None:
+        # Semi-final 2 was saved without pressing Start, so it carries semi-final 1's
+        # time and would have its own times measured from it -- three minutes out.
+        # Semi-final 1 was recorded correctly and keeps its result.
         event = _Event()
         event.start(SEMI1, seconds=1000.0)
         for gap, bib in enumerate(["101", "105", "104", "108"]):
@@ -644,8 +644,9 @@ class TestHeatsScoredFromTimes:
             event.marks.append(FinishCompetitorElement(bib, 1218.0 + gap, "finish"))
         brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
         semi1, semi2 = brackets[0].stages[0]
-        assert not semi1.was_started and not semi2.was_started
-        assert not semi1.has_results and not semi2.has_results
+        assert semi1.was_started and semi1.has_results
+        assert brackets[0].finishing_places(semi1) == [1, 2, 3, 4]
+        assert not semi2.was_started and not semi2.has_results
         assert any("starting at the same time" in line for line in log)
 
     def test_a_final_sharing_a_semi_finals_start_is_not_scored(self) -> None:
@@ -660,9 +661,14 @@ class TestHeatsScoredFromTimes:
         for gap, bib in enumerate(["101", "102", "105", "106"]):
             event.marks.append(FinishCompetitorElement(bib, 2000.0 + gap, "finish"))
         brackets, log = event.build(_ladder(), _starts(list(range(1, 9))))
+        semi1 = brackets[0].stages[0][0]
         final = brackets[0].stages[1][0]
         assert not final.was_started
         assert not final.has_results
+        # The semi-final it copied the time from was recorded correctly, so it keeps
+        # its result and the rest of the meeting carries on.
+        assert semi1.has_results
+        assert brackets[0].finishing_places(semi1) == [1, 2, 3, 4]
         assert any("starting at the same time" in line for line in log)
 
     def test_a_late_disqualification_reaches_the_heat_the_rider_won(self) -> None:
