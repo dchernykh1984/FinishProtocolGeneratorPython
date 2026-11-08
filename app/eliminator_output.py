@@ -129,6 +129,14 @@ def _seat_values(
         # starts -- so a rider who pulled out of the last heat of the day read as
         # nothing at all, on a protocol that was otherwise finished.
         place_text = "DNF"
+    elif bib:
+        # No start of this heat's own was recorded, so its riders are DNS -- the same
+        # as a rider whose group never went off in a timed race. What the heat has in
+        # the group file is what decides it, not what the riders did: a heat with no
+        # line, one saved before Start was pressed, and one holding a time that
+        # belongs to another heat all read alike, because none of the three has a
+        # start of this heat to measure from.
+        place_text = "DNS"
     else:
         place_text = ""
     rider = riders.get(bib)
@@ -311,6 +319,8 @@ def _heat_row(
     }
     if place_text == "DNF":
         row["status"] = "dnf"
+    elif place_text == "DNS":
+        row["status"] = "dns"
     elif place_text == "DSQ":
         row["status"] = "dsq"
     if reasons:
