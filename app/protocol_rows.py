@@ -133,21 +133,20 @@ def shared_places(
     ``rows`` are one table's printed rows in the order they are printed, and
     ``first`` is the number the first of them takes.
 
-    Number of Tries is left alone: there the result is a count of attempts scored by
-    the rules and the time only separates equal counts, so two riders can honestly
-    share a total time and still be ranked apart.
+    In Number of Tries the result is a count of attempts and the time only separates
+    equal counts, so both have to match for a place to be shared; that pair is what
+    ranks them in the first place.
     """
-    if cfg.is_number_of_tries():
-        return {id(fp): first + offset for offset, fp in enumerate(rows)}
     places: dict[int, int] = {}
     previous = (-1, -1)
     shown = first
     for offset, fp in enumerate(rows):
         seconds = result_seconds(fp, cfg)
         ticks = printed_ticks(seconds, RECORDED_SIGNS) if seconds > 0 else -1
-        # The laps count as much as the clock: a leader lapping a backmarker crosses
-        # with him on the same millisecond and is nowhere near sharing his place.
-        current = (ticks, fp.n_laps_finished)
+        # What was ridden counts as much as the clock: a leader lapping a backmarker
+        # crosses with him on the same millisecond and shares nothing with him, and
+        # in Number of Tries the attempts are the result and the time the separator.
+        current = (ticks, result_count(fp, cfg))
         if ticks < 0 or current != previous:
             shown = first + offset
         places[id(fp)] = shown
@@ -207,6 +206,14 @@ def result_seconds(fp: FinishProtocolElement, cfg: RaceConfig) -> float:
         return fp.get_total_time()
     n = fp.n_laps_finished
     return fp.finish_lap_times[n - 1] if n > 0 else 0.0
+
+
+def result_count(fp: FinishProtocolElement, cfg: RaceConfig) -> int:
+    """What the protocol counts beside this finisher's time: the attempts it scored
+    for him, or the laps he rode. Two results are one result only if both match."""
+    if cfg.is_number_of_tries():
+        return fp.get_n_successful_tries()
+    return fp.n_laps_finished
 
 
 def result_parts(

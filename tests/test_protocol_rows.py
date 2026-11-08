@@ -98,10 +98,11 @@ def test_group_places_count_printed_finishers_and_do_not_change_the_groups():
 
 
 def _group_of_four(offsets):
-    """One group of four, each with a single finish mark at the given second."""
+    """One group, one rider per offset, each with a single finish mark at it."""
     cfg = RaceConfig()
     starts = [
-        StartProtocolElement.from_line(f"{i}#Rider {i}#A#1#1####") for i in range(1, 5)
+        StartProtocolElement.from_line(f"{i}#Rider {i}#A#1#1####")
+        for i in range(1, len(offsets) + 1)
     ]
     groups = [GroupStartElement("A", 100.0)]
     marks = [
@@ -166,3 +167,18 @@ def test_a_lapped_rider_crossing_with_the_leader_does_not_share_his_place():
     prepare_statuses(sorted_protocol, cfg)
     places = shared_places([fp for fp in sorted_protocol if is_printed(fp, cfg)], cfg)
     assert sorted(places.values()) == [1, 2]
+
+
+def _places(offsets):
+    protocol, cfg = _group_of_four(offsets)
+    prepare_statuses(protocol, cfg)
+    places = shared_places([fp for fp in protocol if is_printed(fp, cfg)], cfg)
+    return [places[id(fp)] for fp in protocol]
+
+
+def test_a_dead_heat_in_the_middle_numbers_one_two_two_four():
+    assert _places([10.0, 11.0, 11.0, 12.0, 13.0, 14.0]) == [1, 2, 2, 4, 5, 6]
+
+
+def test_four_riders_on_one_time_all_take_first_and_the_next_is_fifth():
+    assert _places([10.0, 10.0, 10.0, 10.0, 13.0, 14.0]) == [1, 1, 1, 1, 5, 6]
