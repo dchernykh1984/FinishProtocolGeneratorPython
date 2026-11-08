@@ -471,7 +471,13 @@ def _report_shared_times(
     the finals are seeded from, and two riders shown the same time went into
     different heats on an order nobody can read off the page. The finals have said
     this about a heat all along; the qualification said nothing at all.
+
+    Number of Tries is left out, as it is wherever a time is taken for a result: the
+    result there is a count of attempts scored by the rules, the protocol prints that
+    count beside the time, and two riders sharing a total time are told apart by it.
     """
+    if cfg.is_number_of_tries():
+        return
     seen: dict[tuple[str, str], list[str]] = {}
     for fp in protocol:
         seconds = result_seconds(fp, cfg)
