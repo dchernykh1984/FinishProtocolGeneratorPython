@@ -679,6 +679,24 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "one crossing recorded twice" in m]
 
+    def test_number_of_tries_marks_are_not_called_doubles(self) -> None:
+        # There the setting is the shortest attempt, and the marks come in
+        # start/finish pairs with as little rest between attempts as the rider likes.
+        from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 100.0, "nextLap"),
+            _finish("1", start_t + 100.2, "finish"),
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES, minimal_time_for_lap=10)
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "one crossing recorded twice" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]

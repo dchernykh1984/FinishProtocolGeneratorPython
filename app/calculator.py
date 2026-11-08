@@ -427,6 +427,7 @@ def report_double_marks(
     finish_list: list[FinishCompetitorElement],
     minimal_time_for_lap: float,
     log: list[str],
+    is_number_of_tries: bool = False,
 ) -> None:
     """Bibs whose marks come in pairs a fraction of a second apart.
 
@@ -447,7 +448,10 @@ def report_double_marks(
     finish and a disqualification stamped seconds after one, and neither is a second
     reading of the line.
     """
-    if minimal_time_for_lap <= 0:
+    if minimal_time_for_lap <= 0 or is_number_of_tries:
+        # In Number of Tries the setting is the shortest attempt, not the shortest
+        # gap between marks: there the marks come in start/finish pairs and the rest
+        # between attempts is as short as the rider wants it.
         return
     by_bib: dict[str, list[float]] = {}
     for mark in finish_list:
@@ -521,7 +525,9 @@ def check_start_protocol(  # noqa: C901
 ) -> None:
     """Validate protocol and log warnings/errors."""
     _report_shared_times(protocol, cfg, log)
-    report_double_marks(finish_list, cfg.minimal_time_for_lap, log)
+    report_double_marks(
+        finish_list, cfg.minimal_time_for_lap, log, cfg.is_number_of_tries()
+    )
     for fe in finish_list:
         found = any(fp.is_same_competitor(fe) for fp in protocol)
         if not found:
