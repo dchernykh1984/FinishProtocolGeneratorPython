@@ -595,6 +595,26 @@ class TestCheckStartProtocol:
         check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
         assert not [m for m in log if "one crossing recorded twice" in m]
 
+    def test_number_of_tries_is_not_asked_about_shared_times(self) -> None:
+        # The attempt count is printed beside the time and is what ranks them, so a
+        # shared total time is not a result nobody can read off the page.
+        from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+        start_t = BASE_T + 3600
+        start_list = [_start("1", "G", n_laps=2), _start("2", "G", n_laps=2)]
+        group_list = [_group("G", start_t)]
+        finish_list = [
+            _finish("1", start_t + 10, "nextLap"),
+            _finish("1", start_t + 20, "finish"),
+            _finish("2", start_t + 30, "nextLap"),
+            _finish("2", start_t + 40, "finish"),
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES)
+        protocol = self._build_protocol(start_list, group_list, finish_list, cfg)
+        log: list[str] = []
+        check_start_protocol(protocol, finish_list, start_list, [], cfg, log)
+        assert not [m for m in log if "are all printed as" in m]
+
     def test_clean_protocol_no_errors(self) -> None:
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]
