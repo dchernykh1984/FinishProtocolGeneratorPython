@@ -479,6 +479,21 @@ class TestHeatsScoredFromTimes:
         assert brackets[0].finishing_places(semi) == [1, 2, 3, 4]
         assert any("more than one start recorded" in line for line in log)
 
+    def test_a_heat_saved_again_with_an_empty_start_field_is_not_reported(
+        self,
+    ) -> None:
+        # The second line carries no start time, so there is no second start to
+        # report and the first one stands.
+        event = _Event()
+        event.start(SEMI1, seconds=1000.0)
+        event.marks.append(FinishCompetitorElement("101", 1001.0, "finish"))
+        event.starts.append(GroupStartElement(group_id=SEMI1, seconds=0.0))
+        event.start(SEMI2, seconds=3000.0)
+        brackets, log = event.build(_ladder(), _starts([1, 4, 5, 8]))
+        assert brackets[0].stages[0][0].times[0] == pytest.approx(1.0)
+        assert not any("more than one start recorded" in line for line in log)
+        assert not any("no start time" in line for line in log)
+
     def test_a_heat_saved_without_a_start_and_then_started_is_not_reported(
         self,
     ) -> None:
