@@ -913,11 +913,11 @@ def _shared_starts(
     """The heats that hold a start time another heat was recorded with first.
 
     The chronometer keeps the start time in its field after Save group, so saving the
-    next heat without pressing Start again gives it the same one. The heat that comes
-    first in the chronometer's own list keeps the time: that is the one the referee
-    started, because he works down that list as the day runs, and taking its result
-    away would punish the heat that was recorded correctly. The ones behind it only
-    copied the field and have no span of their own.
+    next heat without pressing Start again gives it the same one. The heat whose line
+    comes first in the group file keeps the time: the field holds the time of the
+    last Start press, so a heat that copied it can only have been written after the
+    heat that was started, whichever of them the ladder puts first and whichever
+    order they were ridden in. The ones behind it have no span of their own.
     """
     by_start: dict[float, list[str]] = {}
     for bracket, heat in started:
@@ -970,16 +970,12 @@ def _open_windows(
                 continue
             heat.start_seconds = seconds
             started.append((bracket, heat))
-    # Ordered as the chronometer offers them, which is the order the referee works
-    # down: a small final goes before the big one of its round.
-    started.sort(
-        key=lambda pair: (
-            pair[1].start_seconds,
-            pair[1].stage,
-            not pair[1].is_small_final,
-            pair[1].number,
-        )
-    )
+    # Ordered as the group file has them, so that of two heats recorded with one
+    # time the one that was really started comes first. The ladder's own order will
+    # not do: heats are not always ridden in it, and the small final of a round goes
+    # before the big one in the ladder but can be ridden after it.
+    order = {name: index for index, name in enumerate(starts)}
+    started.sort(key=lambda pair: (pair[1].start_seconds, order[heat_name(*pair)]))
     refused = _shared_starts(started, log)
     usable: list[tuple[EliminatorBracket, Heat]] = []
     for bracket, heat in started:
