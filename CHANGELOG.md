@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.16.1...v0.17.0) (2026-11-08)
+
+
+### Features
+
+* **finals:** a heat with no start of its own reads DNS for its riders ([accead7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/accead7dfe8a0e6419e148b4ca3c653573361342))
+* **finals:** a rider with no time in a heat that has gone off reads DNF ([28e461f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/28e461f193e697e3728cf659a591e7a87c95fc1b))
+* **finals:** print why a rider was disqualified, as the timed protocols do ([a5c885f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a5c885fbd55512466a0517296673f3c94b65d7aa))
+
+
+### Bug Fixes
+
+* **finals:** a heat that cannot be scored yet does not call its riders DNF ([1f5b6b6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1f5b6b69677d0f7138b023f87fad33e6789d16fc))
+
+
+### Documentation
+
+* **finals:** the heat comments say what the status cells now do ([00295d0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/00295d07ea74f63e8d976ff975244d365e5f34cf))
+
 ## [0.16.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.16.0...v0.16.1) (2026-11-08)
 
 
