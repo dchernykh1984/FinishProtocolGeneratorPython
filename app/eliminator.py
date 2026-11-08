@@ -175,6 +175,9 @@ class EliminatorBracket:
         #: the same way are one time as far as the ladder is concerned, because a
         #: difference it cannot show is one nobody can defend when protested.
         self.n_signs = _SIGNS
+        #: "Minimal time for lap": below this, a second crossing is the first one
+        #: recorded twice rather than a lap.
+        self.minimal_lap = 0.0
         size = group.heat_size
         # stages[0] is the first round ridden; the last stage holds the final.
         self.stages: list[list[Heat]] = []
@@ -365,7 +368,7 @@ class EliminatorBracket:
         with nothing against them rather than as DNF.
         """
         times, dsq, used, over, unsure = _heat_marks(
-            heat, marks, self.group.laps, strays
+            heat, marks, self.group.laps, strays, self.minimal_lap
         )
         if over:
             log.append(
@@ -587,6 +590,7 @@ def _heat_marks(
     marks: list[FinishCompetitorElement],
     laps: int = 1,
     strays: frozenset[int] = frozenset(),
+    minimal: float = 0.0,
 ) -> tuple[
     dict[str, float], set[str], list[FinishCompetitorElement], list[str], list[str]
 ]:
@@ -612,10 +616,10 @@ def _heat_marks(
             and heat.start_seconds <= mark.seconds < heat.window_end
         ]
         used.extend(seen)
-        extra = len(crossings(seen)) - laps
+        extra = len(crossings(seen, minimal)) - laps
         if extra > 0:
             over.append(bib)
-        crossing = finish_crossing(seen, laps)
+        crossing = finish_crossing(seen, laps, minimal)
         claimed, unclear = _claimed_dsq(heat, bib, marks, strays)
         used.extend(claimed)
         if unclear:
@@ -627,18 +631,34 @@ def _heat_marks(
     return times, dsq, used, over, unsure
 
 
-def crossings(marks: list[FinishCompetitorElement]) -> list[float]:
+def crossings(
+    marks: list[FinishCompetitorElement], minimal: float = 0.0
+) -> list[float]:
     """When this rider crossed the line, in order, inside whatever window was given.
 
     The action is not consulted. The chronometer's "Finish mode" is one switch for
     the whole session, so on a multi-lap heat it stamps every lap as a finish; taking
     its word would place a rider on lap one. Counting crossings is true either way.
+
+    ``minimal`` is the "Minimal time for lap" setting: a crossing that follows the
+    one before it sooner than any lap can be ridden is one crossing recorded twice,
+    which is what a second timekeeper on the finish line produces. Every other race
+    type has dropped such a copy all along; a ladder used to count it as a lap and
+    finish a two-lap heat on the start line.
     """
-    return sorted(mark.seconds for mark in marks if mark.action in _CROSSINGS)
+    ordered = sorted(mark.seconds for mark in marks if mark.action in _CROSSINGS)
+    if minimal <= 0:
+        return ordered
+    kept: list[float] = []
+    for when in ordered:
+        if kept and when - kept[-1] < minimal:
+            continue
+        kept.append(when)
+    return kept
 
 
 def finish_crossing(
-    marks: list[FinishCompetitorElement], laps: int = 1
+    marks: list[FinishCompetitorElement], laps: int = 1, minimal: float = 0.0
 ) -> float | None:
     """When this rider finished a heat of ``laps`` laps, or None if he has not.
 
@@ -646,7 +666,7 @@ def finish_crossing(
     crossings are laps, and placing him on one would publish whoever led lap one as
     the winner of the heat and send him up a round over riders still ahead of him.
     """
-    crossed = crossings(marks)
+    crossed = crossings(marks, minimal)
     return crossed[laps - 1] if len(crossed) >= max(laps, 1) else None
 
 
@@ -951,11 +971,13 @@ def _seat_and_score(
     log: list[str],
     n_signs: int,
     strays: frozenset[int],
+    minimal_lap: float,
 ) -> tuple[list[EliminatorBracket], set[int], dict[str, float]]:
     """One whole pass: ladders, qualifiers in their seats, heats scored from marks."""
     brackets = _one_ladder_per_group(groups, log)
     for built in brackets:
         built.n_signs = n_signs
+        built.minimal_lap = minimal_lap
     by_id = {built.group.group_id: built for built in brackets}
     for start in start_list:
         bracket = by_id.get(group_key(start.group_id))
@@ -988,6 +1010,7 @@ def build_brackets(
     marks: list[FinishCompetitorElement],
     log: list[str],
     n_signs: int = _SIGNS,
+    minimal_lap: float = 0.0,
 ) -> list[EliminatorBracket]:
     """Build every ladder, seat the qualifiers and ride the heats through it.
 
@@ -1004,13 +1027,13 @@ def build_brackets(
     """
     first: list[str] = []
     brackets, used, starts = _seat_and_score(
-        groups, start_list, group_list, marks, first, n_signs, frozenset()
+        groups, start_list, group_list, marks, first, n_signs, frozenset(), minimal_lap
     )
     strays = _stray_dsq(marks, used)
     if strays:
         first = []
         brackets, used, starts = _seat_and_score(
-            groups, start_list, group_list, marks, first, n_signs, strays
+            groups, start_list, group_list, marks, first, n_signs, strays, minimal_lap
         )
     log.extend(first)
     known = set(heat_names(brackets))

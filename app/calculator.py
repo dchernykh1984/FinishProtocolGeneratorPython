@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import time
 
 from app.attempt_calculator import calculate_attempts
@@ -419,6 +420,45 @@ def calculate_protocol(  # noqa: C901
     return result
 
 
+#: Two marks for one bib closer than this are not two crossings: no lap of any race
+#: is ridden in under a second.
+_DOUBLE_MARK = 1.0
+
+
+def report_double_marks(
+    finish_list: list[FinishCompetitorElement],
+    log: list[str],
+) -> None:
+    """Bibs whose marks come in pairs a fraction of a second apart.
+
+    Which is what a second timekeeper on the finish line looks like. The site hands
+    out every device's stream of a competition merged into one, and a backup
+    chronometer uploads by itself as soon as it has the address and the token, so
+    each crossing arrives twice -- once from the beam and once from a judge's thumb.
+    Nothing downstream can tell the copy from the crossing, and in Custom Start the
+    copy of a rider's start becomes his finish and gives him a lap of a tenth of a
+    second.
+
+    Reported here rather than guessed at: which device to believe is the referee's
+    decision, and "Minimal time for lap" is the setting that drops the copy.
+    """
+    by_bib: dict[str, list[float]] = {}
+    for mark in finish_list:
+        if not mark.is_dsq:
+            by_bib.setdefault(mark.competitor_id, []).append(mark.seconds)
+    doubled = []
+    for bib, seconds in by_bib.items():
+        ordered = sorted(seconds)
+        if any(b - a < _DOUBLE_MARK for a, b in itertools.pairwise(ordered)):
+            doubled.append(bib)
+    if doubled:
+        log.append(
+            f"ERROR: {', '.join(doubled)} have two marks less than "
+            f"{_DOUBLE_MARK:.0f} s apart, which is one crossing recorded twice; "
+            "check whether a second device is writing the same finish line"
+        )
+
+
 def _report_shared_times(
     protocol: list[FinishProtocolElement],
     cfg: RaceConfig,
@@ -458,6 +498,7 @@ def check_start_protocol(  # noqa: C901
 ) -> None:
     """Validate protocol and log warnings/errors."""
     _report_shared_times(protocol, cfg, log)
+    report_double_marks(finish_list, log)
     for fe in finish_list:
         found = any(fp.is_same_competitor(fe) for fp in protocol)
         if not found:
