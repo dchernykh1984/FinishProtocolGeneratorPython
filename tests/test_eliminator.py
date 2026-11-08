@@ -773,6 +773,9 @@ class TestHeatsScoredFromTimes:
         semi = brackets[0].stages[0][0]
         assert semi.times[0] == pytest.approx(1.0)
         assert not [line for line in log if "crossed the line more often" in line]
+        # Dropping a crossing is never silent: with the setting too large for the
+        # lap it would be the ladder throwing real laps away.
+        assert [line for line in log if "was dropped" in line]
 
     def test_without_the_setting_the_copy_is_still_counted(self) -> None:
         # The filter is off by default, so the ladder says what it sees.
