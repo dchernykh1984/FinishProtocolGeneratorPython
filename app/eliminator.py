@@ -122,6 +122,11 @@ class Heat:
     times: list[float] = field(default_factory=list)
     #: Whether the rider in each seat was disqualified in this heat.
     disqualified: list[bool] = field(default_factory=list)
+    #: The reason the chronometer carried with a rider's disqualification, by bib.
+    #: Free referee text off a "DSQ: <reason>" mark, which the protocol prints where
+    #: his time would be, as the timed protocols already do. A bare "DSQ" leaves
+    #: nothing here and still disqualifies him.
+    dsq_reasons: dict[str, list[str]] = field(default_factory=dict)
     has_results: bool = False
     #: Whether the heat is over, so a rider without a crossing did not finish. A heat
     #: can hold results without being complete: a rider's place is settled the moment
@@ -357,7 +362,7 @@ class EliminatorBracket:
             (bib for bib in heat.numbers if bib),
             key=lambda bib: self.places.get(bib, unplaced),
         )
-        self._record(heat, order, len(order), {}, set(), ridden=False, complete=True)
+        self._record(heat, order, len(order), {}, {}, ridden=False, complete=True)
 
     def ride_timed(
         self,
@@ -405,7 +410,7 @@ class EliminatorBracket:
                 f"{heat_name(self, heat)}, so a heat after it holds a rider who "
                 "should not have been in it"
             )
-        accounted = len(set(times) | dsq)
+        accounted = len(set(times) | dsq.keys())
         complete = accounted >= heat.taken or heat.window_end != _OPEN
         order = sorted(times, key=lambda bib: times[bib])
         log.extend(self._tie_problems(heat, order, times))
@@ -452,7 +457,7 @@ class EliminatorBracket:
         order: list[str],
         classified_count: int,
         times: dict[str, float],
-        dsq: set[str],
+        dsq: Mapping[str, list[str]],
         *,
         ridden: bool,
         complete: bool,
@@ -475,6 +480,9 @@ class EliminatorBracket:
         ]
         heat.times = [times.get(number, -1.0) for number in heat.numbers]
         heat.disqualified = [number in dsq for number in heat.numbers]
+        heat.dsq_reasons = {
+            number: list(dsq[number]) for number in heat.numbers if dsq.get(number)
+        }
         heat.has_results = True
         heat.ridden = ridden
         heat.complete = complete
@@ -612,7 +620,7 @@ def _heat_marks(
     minimal: float = 0.0,
 ) -> tuple[
     dict[str, float],
-    set[str],
+    dict[str, list[str]],
     list[FinishCompetitorElement],
     list[str],
     list[str],
@@ -627,7 +635,7 @@ def _heat_marks(
     matched to its heat by ``_claimed_dsq`` rather than by this heat's window.
     """
     times: dict[str, float] = {}
-    dsq: set[str] = set()
+    dsq: dict[str, list[str]] = {}
     used: list[FinishCompetitorElement] = []
     over: list[str] = []
     unsure: list[str] = []
@@ -653,7 +661,14 @@ def _heat_marks(
         if unclear:
             unsure.append(bib)
         if claimed:
-            dsq.add(bib)
+            # Collapsed and in the order stamped: the jury can stamp twice, and two
+            # copies of one reason under a rider's name read as two offences.
+            reasons: list[str] = []
+            for mark in claimed:
+                reason = mark.dsq_reason
+                if reason and reason not in reasons:
+                    reasons.append(reason)
+            dsq[bib] = reasons
         elif crossing is not None:
             times[bib] = crossing - heat.start_seconds
     return times, dsq, used, over, unsure, dropped
