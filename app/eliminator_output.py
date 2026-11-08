@@ -121,11 +121,13 @@ def _seat_values(
         place_text = "DSQ"
     elif place is not None:
         place_text = str(place)
-    elif bib and heat.complete:
-        # Only a heat that is over can leave somebody unclassified. While it is being
-        # ridden the seat stays blank: the rider is on the course, not beaten. The C++
-        # version wrote DNF against every seeded rider from the moment the ladder was
-        # drawn, which reads as though the whole field had abandoned.
+    elif bib and heat.was_started:
+        # A heat that has gone off says DNF against a rider until his time comes in,
+        # which is what every other race type says about a rider whose group has
+        # started and whose finish has not been seen. Waiting for the heat to be
+        # over instead left the cell blank, and a heat is only over once a later one
+        # starts -- so a rider who pulled out of the last heat of the day read as
+        # nothing at all, on a protocol that was otherwise finished.
         place_text = "DNF"
     else:
         place_text = ""
