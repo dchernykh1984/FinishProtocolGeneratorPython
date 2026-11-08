@@ -277,3 +277,44 @@ def test_printed_ticks_never_scales_a_time_down():
     assert printed_ticks(100.4, -1) == printed_ticks(100.4, 0) == 100
     assert printed_ticks(100.4, -1) != printed_ticks(104.0, -1)
     assert printed_ticks(1.23456, 9) == printed_ticks(1.23456, 4) == 12346
+
+
+def _ride(start_ms: int, length_ms: int) -> float:
+    """A result as the pipeline gets it: the difference of two times of day, both
+    parsed from what the chronometer wrote."""
+    from app.models import parse_time_string
+
+    def stamp(ms: int) -> str:
+        hours, rest = divmod(ms, 3600_000)
+        minutes, rest = divmod(rest, 60_000)
+        seconds, frac = divmod(rest, 1000)
+        return f"20765 {hours:02d}:{minutes:02d}:{seconds:02d}.{frac:03d}"
+
+    return parse_time_string(stamp(start_ms + length_ms)) - parse_time_string(
+        stamp(start_ms)
+    )
+
+
+def test_one_recorded_result_prints_the_same_from_any_time_of_day():
+    # Subtracting two times of day a few hours into it leaves a couple of
+    # ten-thousandths of a millisecond of float error -- small, but all it takes to
+    # decide a half. A ride of 37.245 came out as 37.24 from one start time and as
+    # 37.25 from another, the same result printed two ways.
+    from app.models import printed_ticks
+
+    # Start times a millisecond or two off the second, which is what a chronometer
+    # writes: a whole second in and the error cancels and nothing shows.
+    ticks = {
+        printed_ticks(_ride(start, 37245), 2) for start in range(0, 28_800_000, 997)
+    }
+    assert ticks == {3724}
+
+
+def test_the_rounding_rule_itself_is_the_one_the_cpp_used():
+    # Math::Round takes a half to the nearest even digit, which is what round()
+    # does: the millisecond only decides which number the rule is applied to.
+    from app.models import printed_ticks
+
+    assert printed_ticks(_ride(0, 37245), 2) == 3724
+    assert printed_ticks(_ride(0, 37255), 2) == 3726
+    assert printed_ticks(_ride(0, 37245), 3) == 37245
