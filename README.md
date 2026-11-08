@@ -263,10 +263,13 @@ device's stream of that competition merged into one, with no way to pick between
 A backup chronometer on the same finish line uploads by itself as soon as it has the
 address and the token, so every crossing then arrives twice and nothing downstream can
 tell the copy from the crossing: in Custom Start the copy of a rider's start is read as
-his finish and he gets a lap of a tenth of a second. The run reports the bibs whose
-marks come in pairs under a second apart; **Minimal time for lap** is the setting that
-drops the copy, in the finals as in every other race type. Give the backup chronometer
-either no token or its own control point.
+his finish and he gets a lap of a tenth of a second. **Minimal time for lap** is both
+the setting that drops the copy -- in the finals as in every other race type -- and the
+one that says how close two marks have to be to be one crossing recorded twice: the run
+reports the bibs whose marks come in pairs closer together than it. It is nothing by
+default, and left at nothing it asks nothing: no mark is dropped and none is reported,
+so set it for a meeting where a second device may reach the finish line. Give the
+backup chronometer either no token or its own control point.
 
 ## Live race statistics (for the Garmin data field)
 
