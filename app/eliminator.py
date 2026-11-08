@@ -878,6 +878,10 @@ def _heat_starts(
         if not name:
             continue
         if starts.get(name, 0.0) > 0:
+            if gs.seconds <= 0:
+                # Not a start, so not a repeat of one either: the field was simply
+                # empty when Save group was pressed again.
+                continue
             log.append(
                 f"ERROR: {name} has more than one start recorded; the first one is "
                 "used. Take the line that does not belong out of the group file"
