@@ -303,6 +303,46 @@ class TestTimesOnThePage:
         page = _html(brackets, _cfg())
         assert "DSQ" in page
 
+    def test_the_reason_fills_the_result_cell_of_a_disqualified_rider(self) -> None:
+        # The timed protocols print the reason where the time would be, and the
+        # referee cannot read a protocol that says only DSQ: the reason was in the
+        # results file and nowhere on the page.
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(
+            FinishCompetitorElement("101", 1030.0, "DSQ: cut across the first turn")
+        )
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        row = _row(_table(_html(brackets, _cfg()), "1/2 final 1"), "101")
+        assert row[0] == "DSQ"
+        assert row[-1] == "cut across the first turn"
+
+    def test_a_reason_is_escaped_and_several_stack(self) -> None:
+        # Free referee text typed into the chronometer, so it can hold anything.
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(FinishCompetitorElement("101", 1020.0, "DSQ: cut <the> turn"))
+        marks.append(FinishCompetitorElement("101", 1030.0, "DSQ: and the next"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        page = _html(brackets, _cfg())
+        assert "cut &lt;the&gt; turn<BR>and the next" in page
+        assert "<the>" not in page
+
+    def test_a_bare_disqualification_leaves_the_cell_empty(self) -> None:
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(FinishCompetitorElement("101", 1030.0, "DSQ"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        row = _row(_table(_html(brackets, _cfg()), "1/2 final 1"), "101")
+        assert row[0] == "DSQ"
+        assert row[-1] == ""
+
 
 class TestDocument:
     def _document(self, **kwargs: Any) -> dict[str, Any]:
@@ -469,6 +509,26 @@ class TestDocument:
             row.get("status") for heat in _heats(document) for row in heat["rows"]
         ]
         assert "dsq" in statuses
+
+    def test_the_reason_is_a_note_under_the_row(self) -> None:
+        # The site has no room for it in the cell and shows a note instead, which is
+        # what the timed protocol's document does with the same text.
+        starts, marks = _timed([(_SEMI1, ["105", "104", "108"])])
+        marks.append(FinishCompetitorElement("101", 1030.0, "DSQ: cut in"))
+        log: list[str] = []
+        brackets = build_brackets(
+            [EliminatorGroup("Men", 4, 2)], _starts(), starts, marks, log
+        )
+        document = build_finals_document(brackets, _starts(), _cfg())
+        notes = {
+            row["cells"].get("bib"): row.get("note")
+            for heat in _heats(document)
+            for row in heat["rows"]
+        }
+        assert notes["101"] == "cut in"
+        assert notes["105"] is None
+        check_document_rules(document)
+        jsonschema.validate(document, SCHEMA)
 
     def test_an_unraced_heat_says_so_in_its_title(self) -> None:
         log: list[str] = []

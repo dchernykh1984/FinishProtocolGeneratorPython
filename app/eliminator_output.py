@@ -108,8 +108,13 @@ def _seat_values(
     seat: int,
     riders: dict[str, StartProtocolElement],
     cfg: RaceConfig,
-) -> tuple[str, list[str], tuple[str, str]]:
-    """The place cell, the rider cells and the result (time, gap) of one seat."""
+) -> tuple[str, list[str], tuple[str, str], list[str]]:
+    """The place cell, the rider cells, the result (time, gap) and the reasons a
+    disqualification carried, of one seat.
+
+    A disqualified rider is never given a time, so the reasons have his result cell
+    to themselves -- which is where the timed protocols print them too.
+    """
     bib = heat.numbers[seat]
     place = bracket.finishing_places(heat)[seat]
     if heat.disqualified[seat]:
@@ -135,10 +140,23 @@ def _seat_values(
         else:
             # A seat whose bib is not in the start protocol still shows the bib.
             values.append(bib if attr == "competitor_id" else "")
-    return place_text, values, _result_parts(heat, seat, cfg)
+    return (
+        place_text,
+        values,
+        _result_parts(heat, seat, cfg),
+        heat.dsq_reasons.get(bib, []) if heat.disqualified[seat] else [],
+    )
 
 
 # -- HTML ---------------------------------------------------------------------
+
+
+def _reasons_html(reasons: list[str]) -> str:
+    """A disqualified rider's reasons, stacked inside one cell.
+
+    Escaped: it is free referee text, typed into the chronometer mid-meeting.
+    """
+    return "<BR>".join(html.escape(reason) for reason in reasons)
 
 
 def _write_heat(
@@ -164,7 +182,9 @@ def _write_heat(
         f.write(f"<td ALIGN=center><B>{html.escape(cfg.finish_time_label)}</B></td>\n")
     f.write("</tr>\n")
     for seat in range(len(heat.numbers)):
-        place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
+        place_text, values, result, reasons = _seat_values(
+            bracket, heat, seat, riders, cfg
+        )
         row_style = st.even_line_style if seat % 2 == 0 else st.odd_line_style
         f.write(f'<tr style="{row_style}">')
         if cfg.show_place:
@@ -173,7 +193,8 @@ def _write_heat(
             f.write(f"<td ALIGN=center>{html.escape(value)}</td>\n")
         if cfg.show_finish_time:
             text = " ".join(part for part in result if part)
-            f.write(f"<td ALIGN=center>{html.escape(text)}</td>\n")
+            cell = html.escape(text) if text else _reasons_html(reasons)
+            f.write(f"<td ALIGN=center>{cell}</td>\n")
         f.write("</tr>\n")
     f.write("</table>\n")
 
@@ -275,7 +296,7 @@ def _heat_row(
 ) -> dict[str, Any]:
     """One seat as a site row: its cells keyed by column id, as the site's schema
     has them, and an empty cell left out, as the timed protocol leaves it."""
-    place_text, values, result = _seat_values(bracket, heat, seat, riders, cfg)
+    place_text, values, result, reasons = _seat_values(bracket, heat, seat, riders, cfg)
     keys = [key for key, _label, _attr in _person_fields(cfg)]
     cells: dict[str, Any] = dict(zip(keys, values, strict=True))
     if cfg.show_place:
@@ -290,6 +311,10 @@ def _heat_row(
         row["status"] = "dnf"
     elif place_text == "DSQ":
         row["status"] = "dsq"
+    if reasons:
+        # In the HTML the reasons fill the result cell; the site shows a note under
+        # the row instead, always visible. Same as the timed protocol's document.
+        row["note"] = "\n".join(reasons)
     return row
 
 
