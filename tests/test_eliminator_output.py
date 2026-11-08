@@ -192,8 +192,14 @@ class TestHtml:
         assert _row(_table(page, "Final"), "106")[0] == "DNF"
 
     def test_a_ladder_nobody_has_ridden_has_no_places(self) -> None:
+        # Drawn and not yet raced: no start of any heat is recorded, so every seeded
+        # rider is DNS and nobody is DNF or placed. This is the whole ladder saying
+        # what a timed protocol says before its groups go off.
         page = _html(_brackets([]), _cfg())
         assert "DNF" not in page
+        table = _table(page, "1/2 final 1")
+        assert [row[0] for row in table[1:]] == ["DNS"] * 4
+        assert page.count("DNS") == 8
 
     def test_a_heat_nobody_started_reads_dns(self) -> None:
         # The small final of a group that was sent home after the big one: its riders
