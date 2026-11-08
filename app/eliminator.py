@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.models import (
+    RECORDED_SIGNS,
     FinishCompetitorElement,
     GroupStartElement,
     StartProtocolElement,
@@ -484,10 +485,21 @@ class EliminatorBracket:
             # final is usually ridden first, when the big one holds nobody yet.
             big_final = self.stages[-1][0]
             offset = big_final.taken or len(big_final.numbers)
-        return [
-            offset + seat + 1 if heat.has_results and classified else None
-            for seat, classified in enumerate(heat.finished)
-        ]
+        places: list[int | None] = []
+        shown = offset + 1
+        previous = -1
+        for seat, classified in enumerate(heat.finished):
+            ridden = heat.times[seat]
+            # Two riders of a heat who rode the same millisecond share a place, each
+            # keeping his own line. The order they go on in is still the order the
+            # marks were recorded in, which a tie across that line reports as the
+            # referee's to settle.
+            ticks = printed_ticks(ridden, RECORDED_SIGNS) if ridden >= 0 else -1
+            if ticks < 0 or ticks != previous:
+                shown = offset + seat + 1
+            previous = ticks
+            places.append(shown if heat.has_results and classified else None)
+        return places
 
 
 def _child_seeds(

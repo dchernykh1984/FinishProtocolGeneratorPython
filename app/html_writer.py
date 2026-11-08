@@ -19,6 +19,7 @@ from app.protocol_rows import (
     place_status,
     prepare_statuses,
     result_parts,
+    shared_places,
     split_text,
     time_shift_text,
 )
@@ -375,6 +376,7 @@ def write_group_protocol(  # noqa: C901
         leader: FinishProtocolElement | None = None
         place_ctr = 0
         members = [fp for fp in sorted_protocol if fp.group_id == group_id]
+        shown = shared_places([fp for fp in members if is_printed(fp, cfg)], cfg)
 
         for fp in sorted_protocol:
             if fp.group_id != group_id:
@@ -387,7 +389,7 @@ def write_group_protocol(  # noqa: C901
             buf.write(f'<tr style="{row_style}">')
 
             if cfg.show_place:
-                buf.write(_place_label(fp, place_ctr, rows, cfg))
+                buf.write(_place_label(fp, shown[id(fp)], rows, cfg))
             if cfg.show_id:
                 buf.write(_id_cell(fp, rows))
             if cfg.show_name:
@@ -615,6 +617,9 @@ def write_absolute_protocol(  # noqa: C901
 
     abs_leader: FinishProtocolElement | None = None
     abs_place = 0
+    abs_shown = shared_places(
+        [fp for fp in sorted_protocol if is_printed(fp, cfg)], cfg
+    )
 
     for fp in sorted_protocol:
         if not is_printed(fp, cfg):
@@ -624,7 +629,7 @@ def write_absolute_protocol(  # noqa: C901
         buf.write(f'<tr style="{row_style}">')
 
         if cfg.show_place:
-            buf.write(_place_label(fp, abs_place, rows, cfg))
+            buf.write(_place_label(fp, abs_shown[id(fp)], rows, cfg))
         if cfg.show_id:
             buf.write(_id_cell(fp, rows))
         if cfg.show_name:
