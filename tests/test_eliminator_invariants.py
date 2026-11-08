@@ -40,7 +40,6 @@ from app.eliminator import (
     build_brackets,
     heat_name,
     heat_names,
-    tie_tolerance,
 )
 from app.models import (
     FinishCompetitorElement,
@@ -188,7 +187,7 @@ class _Meeting:
             self.starts,
             self.marks,
             log,
-            tie_tolerance(1),
+            1,
         )
         return brackets, log
 

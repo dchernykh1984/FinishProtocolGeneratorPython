@@ -14,6 +14,7 @@ from app.models import (
     GroupStartElement,
     StartProtocolElement,
 )
+from app.protocol_rows import format_time, result_seconds
 
 
 def _record_dsq_reason(
@@ -418,6 +419,35 @@ def calculate_protocol(  # noqa: C901
     return result
 
 
+def _report_shared_times(
+    protocol: list[FinishProtocolElement],
+    cfg: RaceConfig,
+    log: list[str],
+) -> None:
+    """Finishers of one group whose results the protocol prints the same way.
+
+    Two riders do not really share a thousandth, so this is a timing slip, and in a
+    qualification it is one that decides something: the places it hands out are what
+    the finals are seeded from, and two riders shown the same time went into
+    different heats on an order nobody can read off the page. The finals have said
+    this about a heat all along; the qualification said nothing at all.
+    """
+    seen: dict[tuple[str, str], list[str]] = {}
+    for fp in protocol:
+        seconds = result_seconds(fp, cfg)
+        if seconds <= 0:
+            continue
+        key = (fp.group_id, format_time(seconds, cfg.n_signs_after_point))
+        seen.setdefault(key, []).append(fp.competitor_id)
+    for (group_id, text), bibs in seen.items():
+        if len(bibs) > 1:
+            log.append(
+                f"WARNING: {', '.join(bibs)} are all printed as {text} in group "
+                f"{group_id}, so the places between them cannot be read off the "
+                "protocol"
+            )
+
+
 def check_start_protocol(  # noqa: C901
     protocol: list[FinishProtocolElement],
     finish_list: list[FinishCompetitorElement],
@@ -427,6 +457,7 @@ def check_start_protocol(  # noqa: C901
     log: list[str],
 ) -> None:
     """Validate protocol and log warnings/errors."""
+    _report_shared_times(protocol, cfg, log)
     for fe in finish_list:
         found = any(fp.is_same_competitor(fe) for fp in protocol)
         if not found:

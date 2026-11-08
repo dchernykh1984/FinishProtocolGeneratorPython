@@ -37,6 +37,7 @@ from app.models import (
     GroupStartElement,
     StartProtocolElement,
     get_field,
+    printed_ticks,
 )
 
 #: The C++ version accepted only these, and threw on anything else. Kept: the seeding
@@ -45,10 +46,9 @@ HEAT_SIZES = (2, 4)
 #: Each heat is fed by two heats of the previous stage. The C++ code carried this as a
 #: configurable "elimination coefficient" but only ever passed 2.0.
 _FEEDERS = 2
-#: Default gap below which two times count as equal: half of a tenth, the protocol's
-#: own default precision. A difference the protocol cannot print is one a referee
-#: cannot defend, so the run is told the real precision instead where it knows it.
-_TIE = 0.05
+#: Default number of digits after the point the protocol prints. The run is told the
+#: real setting; this is only what a bracket assumes until it is.
+_SIGNS = 1
 #: What the chronometers write for a line crossing. They also write "nextStage", and
 #: a penalty record carries its own action, and neither is a rider finishing a heat.
 _CROSSINGS = ("finish", "nextLap")
@@ -170,10 +170,10 @@ class EliminatorBracket:
         #: Qualification place per bib, so a heat that was not ridden can be ordered
         #: by it at any stage, not only where the seats still hold the seeding.
         self.places: dict[str, int] = {}
-        #: Below this a gap between two times is no gap at all. Set from the digits
-        #: the protocol actually prints, because a difference it cannot show is one
-        #: nobody can defend when the result is protested.
-        self.tie_tolerance = _TIE
+        #: How many digits after the point the protocol prints. Two times it shows
+        #: the same way are one time as far as the ladder is concerned, because a
+        #: difference it cannot show is one nobody can defend when protested.
+        self.n_signs = _SIGNS
         size = group.heat_size
         # stages[0] is the first round ridden; the last stage holds the final.
         self.stages: list[list[Heat]] = []
@@ -403,7 +403,7 @@ class EliminatorBracket:
         means anything -- the rest only has to be noticed.
         """
         problems: list[str] = []
-        for tied in _tied_runs(order, times, self.tie_tolerance):
+        for tied in _tied_runs(order, times, self.n_signs):
             first, last = tied[0], tied[-1]
             if self.is_big_final(heat):
                 decisive = first < _PODIUM
@@ -638,20 +638,22 @@ def finish_crossing(
     return crossed[laps - 1] if len(crossed) >= max(laps, 1) else None
 
 
-def tie_tolerance(n_signs_after_point: int) -> float:
-    """Half of the smallest difference the protocol prints, so two times that come
-    out identical on the page are treated as identical in the ladder."""
-    return 0.5 * 10.0 ** -max(n_signs_after_point, 0)
-
-
 def _tied_runs(
-    order: list[str], times: dict[str, float], tolerance: float
+    order: list[str], times: dict[str, float], n_signs: int
 ) -> list[list[int]]:
-    """Positions in the finishing order that share a time, as runs of two or more."""
+    """Positions in the finishing order the protocol prints the same time against,
+    as runs of two or more.
+
+    Printed, not close: a tolerance of half the last digit left the other half of
+    every rounding bucket unreported, so two riders shown to the page as the same
+    hundredth could take different places with nothing said about it.
+    """
     runs: list[list[int]] = []
     current: list[int] = []
     for index in range(1, len(order)):
-        if abs(times[order[index]] - times[order[index - 1]]) < tolerance:
+        if printed_ticks(times[order[index]], n_signs) == printed_ticks(
+            times[order[index - 1]], n_signs
+        ):
             current = current or [index - 1]
             current.append(index)
         elif current:
@@ -935,13 +937,13 @@ def _seat_and_score(
     group_list: list[GroupStartElement],
     marks: list[FinishCompetitorElement],
     log: list[str],
-    tolerance: float,
+    n_signs: int,
     strays: frozenset[int],
 ) -> tuple[list[EliminatorBracket], set[int], dict[str, float]]:
     """One whole pass: ladders, qualifiers in their seats, heats scored from marks."""
     brackets = _one_ladder_per_group(groups, log)
     for built in brackets:
-        built.tie_tolerance = tolerance
+        built.n_signs = n_signs
     by_id = {built.group.group_id: built for built in brackets}
     for start in start_list:
         bracket = by_id.get(group_key(start.group_id))
@@ -973,12 +975,12 @@ def build_brackets(
     group_list: list[GroupStartElement],
     marks: list[FinishCompetitorElement],
     log: list[str],
-    tolerance: float = _TIE,
+    n_signs: int = _SIGNS,
 ) -> list[EliminatorBracket]:
     """Build every ladder, seat the qualifiers and ride the heats through it.
 
-    ``tolerance`` is the gap below which two times count as equal; pass
-    :func:`tie_tolerance` of the protocol's own precision.
+    ``n_signs`` is how many digits after the point the protocol prints: two times it
+    shows the same way count as equal.
 
     Scored again when the first pass left a disqualification unclaimed. Such a mark
     is a jury decision stamped after the rider's heat had closed -- the chronometer
@@ -990,13 +992,13 @@ def build_brackets(
     """
     first: list[str] = []
     brackets, used, starts = _seat_and_score(
-        groups, start_list, group_list, marks, first, tolerance, frozenset()
+        groups, start_list, group_list, marks, first, n_signs, frozenset()
     )
     strays = _stray_dsq(marks, used)
     if strays:
         first = []
         brackets, used, starts = _seat_and_score(
-            groups, start_list, group_list, marks, first, tolerance, strays
+            groups, start_list, group_list, marks, first, n_signs, strays
         )
     log.extend(first)
     known = set(heat_names(brackets))
