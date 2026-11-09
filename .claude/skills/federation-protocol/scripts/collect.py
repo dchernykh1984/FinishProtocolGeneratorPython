@@ -30,6 +30,8 @@ sys.path.insert(0, str(REPO))
 from app.calculator import calculate_protocol, generate_sorted_protocol  # noqa: E402
 from app.config import RaceConfig  # noqa: E402
 from app.file_io import (  # noqa: E402
+    config_file_problems,
+    is_key_value_config,
     load_config_file,
     read_finish_times,
     read_group_times,
@@ -42,6 +44,7 @@ STATUSES = ("DNS", "DNF", "DSQ")
 HEAT_TITLE = re.compile(r'<FONT SIZE="3" COLOR="#000000"><B><CENTER>([^<]*)</CENTER>')
 GROUP_TITLE = re.compile(r"<U>([^<]*)</U>")
 ROW = re.compile(r"<tr\b.*?</tr>", re.S | re.I)
+DEFAULTS = RaceConfig()
 
 
 def cells(row: str) -> list[str]:
@@ -55,7 +58,32 @@ def cells(row: str) -> list[str]:
 def label(cfg: dict[str, str], key: str) -> str:
     """A setting from fpg_info.txt, or the generator's own default when the file has
     no line for it -- which is what the published protocol then shows."""
-    return cfg.get(key) or str(getattr(RaceConfig(), key))
+    return cfg.get(key) or str(getattr(DEFAULTS, key))
+
+
+def number(cfg: dict[str, str], key: str) -> int:
+    """A whole-number setting, read as the generator reads it: its default when the
+    line is missing or holds no whole number."""
+    try:
+        return int(cfg[key])
+    except KeyError, ValueError:
+        return int(getattr(DEFAULTS, key))
+
+
+def config(folder: Path) -> dict[str, str]:
+    """The run's settings, refused when they cannot be read as the generator reads
+    them: every column and time below is found through them."""
+    path = str(folder / "fpg_info.txt")
+    if is_key_value_config(path):
+        sys.exit(
+            f"{path} is in the old key=value format, which this script does not "
+            "read; saving the race once in the generator rewrites it"
+        )
+    cfg = load_config_file(path)
+    problems = config_file_problems(cfg)
+    if problems:
+        sys.exit(f"{path} does not line up:\n" + "\n".join(problems))
+    return cfg
 
 
 def columns(header: list[str], cfg: dict[str, str], *keys: str) -> dict[str, int]:
@@ -142,10 +170,10 @@ def ladders(finish: Path, cfg: dict[str, str]) -> dict[str, dict[str, list[dict]
 def exact_results(finish: Path, cfg: dict[str, str]) -> dict[str, float]:
     """Each qualifier's result in seconds, scored as the generator scores it."""
     race = RaceConfig(
-        race_type=cfg["race_type"],
-        minimal_time_for_lap=int(cfg.get("minimal_time_for_lap") or 0),
-        time_limit=int(cfg.get("time_limit") or 0),
-        n_signs_after_point=int(cfg.get("n_signs_after_point") or 1),
+        race_type=label(cfg, "race_type"),
+        minimal_time_for_lap=number(cfg, "minimal_time_for_lap"),
+        time_limit=number(cfg, "time_limit"),
+        n_signs_after_point=number(cfg, "n_signs_after_point"),
     )
     start = read_start_protocol(
         str(finish / label(cfg, "start_protocol_file")), race.skip_first_lap_effective()
@@ -174,9 +202,8 @@ def old_style(seconds: float) -> str:
 
 
 def collect(qfinish: Path, ffinish: Path) -> dict[str, Any]:
-    qcfg = load_config_file(str(qfinish / "fpg_info.txt"))
-    fcfg = load_config_file(str(ffinish / "fpg_info.txt"))
-    signs = int(qcfg.get("n_signs_after_point") or 1)
+    qcfg, fcfg = config(qfinish), config(ffinish)
+    signs = number(qcfg, "n_signs_after_point")
     exact = exact_results(qfinish, qcfg)
     riders: dict[str, dict] = {}
     order: dict[str, list[str]] = {}
