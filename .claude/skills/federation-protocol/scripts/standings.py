@@ -38,7 +38,9 @@ def _finalists(heats: dict[str, list[Row]], qorder: list[str]) -> list[tuple[int
     final = heats.get("Final", [])
     small = heats.get("Small final", [])
     semis = [r for title in SEMIS for r in heats.get(title, [])]
-    held = any(r["place"].isdigit() for r in small)
+    # Held means started: a heat that never ran shows DNS for everyone, one that
+    # ran and that nobody finished shows DNF -- those riders take the last place.
+    held = any(r["status"] != "dns" for r in small)
     unheld = sorted((r["bib"] for r in small), key=qorder.index) if not held else []
     through = _finished(final) + (_finished(small) if held else unheld)
     places = list(enumerate(through, start=1))

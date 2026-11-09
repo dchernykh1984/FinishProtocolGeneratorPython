@@ -42,7 +42,7 @@ def expected_places(group: str, data: dict[str, Any]) -> list[tuple[str, str]]:
             )
         ]
 
-    held = any(h["place"].isdigit() for h in small)
+    held = any(h["status"] != "dns" for h in small)
     through = done(final) + (
         done(small) if held else sorted((h["bib"] for h in small), key=q.index)
     )
