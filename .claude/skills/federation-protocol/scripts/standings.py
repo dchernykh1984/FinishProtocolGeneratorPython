@@ -33,11 +33,23 @@ def _finished(heat: list[Row]) -> list[str]:
     return [r["bib"] for r in ranked]
 
 
+def _no_small_final(final: list[Row], semis: list[Row]) -> list[Row]:
+    """The riders a small final would have held, when the meeting rides none: the
+    semi-finalists who finished and did not go through. A small final not held goes
+    by qualification, so they are set as riders of one that did not start."""
+    in_final = {r["bib"] for r in final}
+    return [
+        {**r, "place": "DNS", "status": "dns"}
+        for r in semis
+        if r["status"] == "ok" and r["bib"] not in in_final
+    ]
+
+
 def _finalists(heats: dict[str, list[Row]], qorder: list[str]) -> list[tuple[int, str]]:
     """(place, bib) for every finalist who was not disqualified, best first."""
     final = heats.get("Final", [])
-    small = heats.get("Small final", [])
     semis = [r for title in SEMIS for r in heats.get(title, [])]
+    small = heats.get("Small final") or _no_small_final(final, semis)
     # Held means started: a heat that never ran shows DNS for everyone, one that
     # ran and that nobody finished shows DNF -- those riders take the last place.
     held = any(r["status"] != "dns" for r in small)
