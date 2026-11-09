@@ -105,7 +105,8 @@ def group_of(heading: str, label: str) -> str:
 
 def qualification(finish: Path, cfg: dict[str, str]) -> dict[str, list[dict]]:
     """Group -> rows of the published qualification protocol, in its order."""
-    page = (finish / label(cfg, "group_protocol_file")).read_text(encoding="utf-8")
+    path = finish / label(cfg, "group_protocol_file")
+    page = path.read_text(encoding="utf-8")
     tokens = re.finditer(rf"{GROUP_TITLE.pattern}|(?P<row>{ROW.pattern})", page, re.S)
     keys = (
         "place_label",
@@ -138,13 +139,22 @@ def qualification(finish: Path, cfg: dict[str, str]) -> dict[str, list[dict]]:
                 "time": c[col["finish_time_label"]].split(" (")[0],
             }
         )
-    return {g: rows for g, rows in groups.items() if rows}
+    found = {g: rows for g, rows in groups.items() if rows}
+    if not found:
+        # A header the labels do not match reads as no riders at all; an empty
+        # protocol must not pass for a race nobody rode.
+        sys.exit(
+            f"{path}: no rider rows under a header row starting with "
+            f"{label(cfg, 'place_label')!r} -- is the place column shown, and first?"
+        )
+    return found
 
 
 def ladders(finish: Path, cfg: dict[str, str]) -> dict[str, dict[str, list[dict]]]:
     """Group -> heat -> rows, each heat's table cut from its title to its end: the
     ladder nests heat tables inside layout rows, so rows cannot be matched page-wide."""
-    page = (finish / label(cfg, "group_protocol_file")).read_text(encoding="utf-8")
+    path = finish / label(cfg, "group_protocol_file")
+    page = path.read_text(encoding="utf-8")
     heads = [
         (m.start(), group_of(m.group(1), label(cfg, "group_label")))
         for m in GROUP_TITLE.finditer(page)
@@ -163,6 +173,12 @@ def ladders(finish: Path, cfg: dict[str, str]) -> dict[str, dict[str, list[dict]
                 place, bib = c[col["place_label"]], c[col["id_label"]]
                 status = place.lower() if place in STATUSES else "ok"
                 rows.append({"bib": bib, "place": place, "status": status})
+        if not col:
+            place = label(cfg, "place_label")
+            sys.exit(
+                f"{path}: {owner}, {title}: no header row starting with {place!r} "
+                "-- is the place column shown, and first?"
+            )
         out[owner][title] = rows
     return out
 
