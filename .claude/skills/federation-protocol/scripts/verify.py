@@ -122,6 +122,13 @@ def check_finals(
 ) -> list[str]:
     problems = []
     for group, got in groups:
+        # Whatever the rules say, every rider of the group is on the list exactly
+        # once. A rule both implementations get wrong the same way cannot hide that.
+        listed = sorted(r[1] for r in got)
+        if listed != sorted(data["qualification"][group]):
+            missing = sorted(set(data["qualification"][group]) - set(listed))
+            twice = sorted({b for b in listed if listed.count(b) > 1})
+            problems.append(f"final places {group}: missing {missing}, twice {twice}")
         want = expected_places(group, data)
         if [(r[0], r[1]) for r in got] != want:
             problems.append(
