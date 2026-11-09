@@ -52,6 +52,24 @@ def cells(row: str) -> list[str]:
     return out
 
 
+def label(cfg: dict[str, str], key: str) -> str:
+    """A setting from fpg_info.txt, or the generator's own default when the file has
+    no line for it -- which is what the published protocol then shows."""
+    return cfg.get(key) or str(getattr(RaceConfig(), key))
+
+
+def columns(header: list[str], cfg: dict[str, str], *keys: str) -> dict[str, int]:
+    """Column index by setting name, matched against the header row's labels."""
+    found = {}
+    for key in keys:
+        name = label(cfg, key)
+        hits = [i for i, text in enumerate(header) if text.startswith(name)]
+        if not hits:
+            sys.exit(f"the published protocol has no {name!r} column ({key})")
+        found[key] = hits[0]
+    return found
+
+
 def group_of(heading: str, label: str) -> str:
     text = html.unescape(heading).strip()
     return text[len(label) :].strip() if text.startswith(label + " ") else text
@@ -59,34 +77,37 @@ def group_of(heading: str, label: str) -> str:
 
 def qualification(finish: Path, cfg: dict[str, str]) -> dict[str, list[dict]]:
     """Group -> rows of the published qualification protocol, in its order."""
-    page = (finish / cfg["group_protocol_file"]).read_text(encoding="utf-8")
+    page = (finish / label(cfg, "group_protocol_file")).read_text(encoding="utf-8")
     tokens = re.finditer(rf"{GROUP_TITLE.pattern}|(?P<row>{ROW.pattern})", page, re.S)
+    keys = (
+        "place_label",
+        "id_label",
+        "name_label",
+        "team_label",
+        "additional_info_label",
+        "finish_time_label",
+    )
     groups: dict[str, list[dict]] = {}
-    group, col = "", {}
+    group, col, width = "", {}, 0
     for m in tokens:
         if m.group("row") is None:
-            group = group_of(m.group(1), cfg["group_label"])
+            group = group_of(m.group(1), label(cfg, "group_label"))
             groups.setdefault(group, [])
             continue
         c = cells(m.group("row"))
-        if c and c[0] == cfg["place_label"]:
-            col = {name: i for i, name in enumerate(c)}
+        if c and c[0] == label(cfg, "place_label"):
+            col, width = columns(c, cfg, *keys), len(c)
             continue
-        if not col or len(c) != len(col) or not c[col[cfg["id_label"]]]:
+        if not col or len(c) != width or not c[col["id_label"]]:
             continue
-        result = next(
-            v
-            for k, v in zip(col, c, strict=True)
-            if k.startswith(cfg["finish_time_label"])
-        )
         groups[group].append(
             {
-                "place": c[col[cfg["place_label"]]],
-                "bib": c[col[cfg["id_label"]]],
-                "name": c[col[cfg["name_label"]]],
-                "team": c[col[cfg["team_label"]]],
-                "birth": c[col[cfg["additional_info_label"]]],
-                "time": result.split(" (")[0],
+                "place": c[col["place_label"]],
+                "bib": c[col["id_label"]],
+                "name": c[col["name_label"]],
+                "team": c[col["team_label"]],
+                "birth": c[col["additional_info_label"]],
+                "time": c[col["finish_time_label"]].split(" (")[0],
             }
         )
     return {g: rows for g, rows in groups.items() if rows}
@@ -95,9 +116,9 @@ def qualification(finish: Path, cfg: dict[str, str]) -> dict[str, list[dict]]:
 def ladders(finish: Path, cfg: dict[str, str]) -> dict[str, dict[str, list[dict]]]:
     """Group -> heat -> rows, each heat's table cut from its title to its end: the
     ladder nests heat tables inside layout rows, so rows cannot be matched page-wide."""
-    page = (finish / cfg["group_protocol_file"]).read_text(encoding="utf-8")
+    page = (finish / label(cfg, "group_protocol_file")).read_text(encoding="utf-8")
     heads = [
-        (m.start(), group_of(m.group(1), cfg["group_label"]))
+        (m.start(), group_of(m.group(1), label(cfg, "group_label")))
         for m in GROUP_TITLE.finditer(page)
     ]
     out: dict[str, dict[str, list[dict]]] = {name: {} for _pos, name in heads}
@@ -105,13 +126,15 @@ def ladders(finish: Path, cfg: dict[str, str]) -> dict[str, dict[str, list[dict]
         owner = [name for pos, name in heads if pos < m.start()][-1]
         title = re.sub(r"\s*\(.*\)$", "", html.unescape(m.group(1))).strip()
         table = page[m.end() : page.index("</table>", m.end())]
-        rows = []
+        rows, col = [], {}
         for row in ROW.findall(table):
             c = cells(row)
-            if len(c) < 2 or c[0] == cfg["place_label"] or not c[1]:
-                continue
-            status = c[0].lower() if c[0] in STATUSES else "ok"
-            rows.append({"bib": c[1], "place": c[0], "status": status})
+            if c and c[0] == label(cfg, "place_label"):
+                col = columns(c, cfg, "place_label", "id_label")
+            elif col and len(c) > col["id_label"] and c[col["id_label"]]:
+                place, bib = c[col["place_label"]], c[col["id_label"]]
+                status = place.lower() if place in STATUSES else "ok"
+                rows.append({"bib": bib, "place": place, "status": status})
         out[owner][title] = rows
     return out
 
@@ -125,15 +148,15 @@ def exact_results(finish: Path, cfg: dict[str, str]) -> dict[str, float]:
         n_signs_after_point=int(cfg.get("n_signs_after_point") or 1),
     )
     start = read_start_protocol(
-        str(finish / cfg["start_protocol_file"]), race.skip_first_lap_effective()
+        str(finish / label(cfg, "start_protocol_file")), race.skip_first_lap_effective()
     )
-    groups = read_group_times(str(finish / cfg["group_time_file"]))
+    groups = read_group_times(str(finish / label(cfg, "group_time_file")))
     known = {g.group_id for g in groups}
     for s in start:
         if s.group_id not in known:
             known.add(s.group_id)
             groups.append(GroupStartElement(group_id=s.group_id, seconds=0.0))
-    marks = read_finish_times(str(finish / cfg["finish_time_file"]))
+    marks = read_finish_times(str(finish / label(cfg, "finish_time_file")))
     protocol = calculate_protocol(start, groups, marks, [], [], race, [])
     return {
         fp.competitor_id: result_seconds(fp, race)
