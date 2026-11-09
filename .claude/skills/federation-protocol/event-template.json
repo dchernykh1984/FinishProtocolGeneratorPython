@@ -1,0 +1,32 @@
+{
+  "letterhead": [
+    "<letterhead line 1, word for word from the organizer's template protocol>",
+    "<letterhead line 2>",
+    "<letterhead line 3>"
+  ],
+  "date": "<DD.MM.YYYY>",
+  "city": "<the place line, as on the template>",
+  "judge": "<the judge, Surname I.O., as the organizer names them>",
+  "secretary": "<the secretary, Surname I.O.>",
+  "labels": {
+    "judge": "<the judge caption from the template, with its colon>",
+    "secretary": "<the secretary caption from the template>",
+    "qualification": "<the qualification page heading from the template>"
+  },
+  "group_titles": {
+    "<group id as in the race data>": "<the group as printed>"
+  },
+  "corrections": {
+    "<text as in the race data>": "<text as the organizer approved it>"
+  },
+  "parts": [
+    {
+      "file": "<file name>.pdf",
+      "title": "<the title, built on the template's pattern>",
+      "groups": [
+        "<group id>",
+        "<group id>"
+      ]
+    }
+  ]
+}

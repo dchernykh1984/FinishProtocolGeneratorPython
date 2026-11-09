@@ -8,6 +8,8 @@ in `.claude/skills/` tell an agent how to work in this repo. Detailed skills:
 - `.claude/skills/cycling-site` - how the app reads from and writes to the website.
 - `.claude/skills/local-testing` - running tests and Qt/test gotchas.
 - `.claude/skills/number-of-tries` - scoring rules, timing windows and mode boundaries.
+- `.claude/skills/federation-protocol` - a federation's PDF results protocol from a
+  qualification and an Eliminator Finals run: ordering rules, layout, verification.
 
 ## Golden rules for commits and PRs
 
