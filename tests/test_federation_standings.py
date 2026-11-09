@@ -84,6 +84,21 @@ def test_a_small_final_not_held_goes_by_qualification() -> None:
     ]  # fmt: skip
 
 
+def test_a_meeting_without_small_finals_places_the_rest_by_qualification() -> None:
+    # No small final in the ladder at all: the semi-finalists who did not go through
+    # are placed as the riders of a small final that was not held.
+    heats = {
+        "1/2 final 1": _heat(("A", "1"), ("B", "2"), ("G", "3"), ("H", "4")),
+        "1/2 final 2": _heat(("C", "1"), ("D", "2"), ("F", "3"), ("E", "DNF")),
+        "Final": _heat(("A", "1"), ("B", "2"), ("C", "3"), ("D", "4")),
+    }
+    got = _places(heats, ["A", "B", "C", "D", "E", "F", "G", "H"])
+    assert got == [
+        ("1", "A"), ("2", "B"), ("3", "C"), ("4", "D"),
+        ("5", "F"), ("6", "G"), ("7", "H"), ("8", "E"),
+    ]  # fmt: skip
+
+
 def test_a_small_final_nobody_finished_was_still_held() -> None:
     # Started and nobody crossed the line: DNF, not the DNS of a heat never run, so
     # its riders share the last place rather than going by qualification.
@@ -141,11 +156,12 @@ def test_a_rider_disqualified_in_the_qualification_is_last_as_dsq() -> None:
 
 
 def test_a_finalist_with_nowhere_to_go_is_an_error() -> None:
-    # A semi-final finisher seated in neither final means the ladder data is broken;
-    # silently dropping him would hide it.
+    # A small final was ridden, yet a semi-finalist sits in neither final: the ladder
+    # data is broken, and silently dropping him would hide it.
     heats = {
         "1/2 final 1": _heat(("A", "1"), ("B", "2"), ("G", "3"), ("H", "4")),
         "Final": _heat(("A", "1")),
+        "Small final": _heat(("G", "5")),
     }
     with pytest.raises(ValueError, match="finalists with no place"):
         _places(heats, ["A", "B", "G", "H"])
