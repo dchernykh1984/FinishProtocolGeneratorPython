@@ -4,8 +4,9 @@ The federation's rules for an Eliminator Finals event, compared with UCI 4.2.12 
 XCE final classification) in SKILL.md:
 
 1. Whoever finished is numbered straight on: the final's finishers in their order,
-   then the small final's. A small final that was not held places its riders by
-   qualification instead -- nobody failed to start a heat that never ran.
+   then the small final's; riders a heat placed equal share the place (1, 2, 2, 4).
+   A final or small final that was not held places its riders by qualification
+   instead -- nobody failed to start a heat that never ran.
 2. A rider who did not finish or did not start a heat of the finals (semi-final,
    final or small final) takes the last place a finalist can take -- 8 in a ladder
    of 8 -- shared with every other such rider, in qualification order.

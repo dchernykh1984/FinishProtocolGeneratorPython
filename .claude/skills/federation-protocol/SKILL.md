@@ -19,7 +19,11 @@ The scripts live once, in `.claude/skills/federation-protocol/scripts/`.
 2. If the protocols were published, make sure the local files are the published ones
    (see "Published copy" below).
 3. `uv run python .claude/skills/federation-protocol/scripts/collect.py QUAL_DIR FINALS_DIR data.json`
-   - It stops if scoring the marks again does not give every published time.
+   - It stops rather than guess when a run's `fpg_info.txt` is in the old key=value
+     format or does not line up; a protocol has no header row its labels match; the
+     runs disagree on the groups (one renamed between them, or a group with no
+     finals: ask how to place it) or a finalist is missing from his group's
+     qualification; scoring the marks again does not give every published time.
 4. Copy `event-template.json` outside the repo and fill it in: the words come from
    the template and the organizer, never from guesses (see "Ask, do not invent").
 5. `uv run --with reportlab==4.4.4 python .claude/skills/federation-protocol/scripts/render.py data.json event.json OUT_DIR`
@@ -60,13 +64,15 @@ In order, numbered as shown; `standings.py` is the implementation and
 
 1. Finishers of the final, in the order they finished, then finishers of the small
    final - numbered straight on. A rider of the final who did not finish lets the
-   small final's winner move up (1, 2, 3, 4, 5, ...).
-2. A small final that was not held - every rider in it DNS, the heat never started -
-   or a meeting that rides no small final at all: the riders it would have held (the
-   semi-finalists who finished and did not go through) by qualification place,
-   straight on. They did not fail to start a heat that never ran, so they are not
-   DNS. A small final that started and that nobody finished was held: its riders are
-   DNF and fall under rule 3.
+   small final's winner move up (1, 2, 3, 4, 5, ...). Riders a heat placed equal keep
+   their shared place, and the next rider takes his own count: 1, 2, 2, 4.
+2. A final or small final that was not held - every rider in it DNS, the heat never
+   started - or a meeting that rides no small final at all: the riders it held, or
+   would have held (the semi-finalists who finished and did not go through), by
+   qualification place, straight on. They did not fail to start a heat that never
+   ran, so they are not DNS. A heat that started and that nobody finished was held:
+   its riders are DNF and fall under rule 3. A heat the generator prints as not
+   ridden already places its riders in qualification order - the same thing.
 3. Everyone who did not finish or did not start a heat of the finals (semi-final,
    final or small final - the chronometer cannot tell the two apart there) takes
    the last place a finalist can take: 8 in a ladder of 8, 4 in a final of 4,
@@ -106,8 +112,8 @@ at the thousandth, so two riders can show the same hundredths and different plac
   reproduce every published time at the published precision. It carries over only
   the timing settings (race type, minimal lap, time limit, digits), so a run that
   used a start check list or switched DNF off is reported, not silently re-scored.
-- Columns are found by the labels in each run's `fpg_info.txt`, or the generator's
-  defaults when a label line is missing - as the published protocol shows them.
+- Columns are found by their headings, through the labels in each run's
+  `fpg_info.txt`; a setting the file has no line for reads as the generator's default.
 - Group names: as in the data; `group_titles` maps one to the template's name for it.
 - `corrections`: substring fixes applied to names, teams and coaches in the PDF only,
   never to the race data - and only those the organizer approved. Two coaches with one
