@@ -33,7 +33,7 @@ def expected_places(group: str, data: dict[str, Any]) -> list[tuple[str, str]]:
     heats = data["ladders"].get(group, {})
     final, small = heats.get("Final", []), heats.get("Small final", [])
     semis = [h for t in SEMIS for h in heats.get(t, [])]
-    if "Small final" not in heats:  # none ridden: by qualification, as if not held
+    if not small:  # none ridden, or its table empty: by qualification, as if not held
         gone = {h["bib"] for h in final}
         small = [
             {**h, "status": "dns"}
