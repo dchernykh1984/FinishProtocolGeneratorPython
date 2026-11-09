@@ -185,14 +185,17 @@ def collect(qfinish: Path, ffinish: Path) -> dict[str, Any]:
         order[group] = [r["bib"] for r in rows]
         for r in rows:
             team, _sep, coach = r["team"].partition(" - ")
-            year, month, day = r["birth"].split("-")
+            # The generator stores the date as YYYY-MM-DD; anything else -- a year
+            # alone, nothing at all -- is printed as it stands rather than lost.
+            iso = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", r["birth"])
+            birth = f"{iso[3]}.{iso[2]}.{iso[1]}" if iso else r["birth"]
             entry = {
                 "bib": r["bib"],
                 "name": r["name"],
                 "group": group,
                 "team": team.strip(),
                 "coach": coach.strip(),
-                "birth": f"{day}.{month}.{year}",
+                "birth": birth,
                 "qual_place": int(r["place"]) if r["place"].isdigit() else None,
                 "qual_status": r["place"] if r["place"] in STATUSES else "",
                 "published_time": r["time"],
