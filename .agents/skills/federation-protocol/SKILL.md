@@ -24,8 +24,11 @@ The scripts live once, in `.claude/skills/federation-protocol/scripts/`.
    the template and the organizer, never from guesses (see "Ask, do not invent").
 5. `uv run --with reportlab==4.4.4 python .claude/skills/federation-protocol/scripts/render.py data.json event.json OUT_DIR`
 6. `uv run --with pdfplumber==0.11.7 python .claude/skills/federation-protocol/scripts/verify.py data.json event.json OUT_DIR`
-   - Exit 0 or the PDF is not done. After changing a rule, plant an error and watch
-     it fail: a check that cannot fail proves nothing.
+   - Exit 0 or the PDF is not done. Besides the places, it checks that every rider
+     of a group is listed exactly once - which holds whatever the rules say, so a
+     rule wrong in both implementations cannot drop a rider unseen.
+   - After changing a rule, plant an error and watch it fail: a check that cannot
+     fail proves nothing.
 7. Look at every page (`pdftoppm -r 70 -png FILE page`): wrapped cells, a table
    split oddly, signatures alone on a page.
 8. When the organizer asks for a change, keep the delivered files and write the next
@@ -58,8 +61,12 @@ In order, numbered as shown; `standings.py` is the implementation and
 1. Finishers of the final, in the order they finished, then finishers of the small
    final - numbered straight on. A rider of the final who did not finish lets the
    small final's winner move up (1, 2, 3, 4, 5, ...).
-2. A small final that was not held: its riders by qualification place, straight on.
-   They did not fail to start a heat that never ran, so they are not DNS.
+2. A small final that was not held - every rider in it DNS, the heat never started -
+   or a meeting that rides no small final at all: the riders it would have held (the
+   semi-finalists who finished and did not go through) by qualification place,
+   straight on. They did not fail to start a heat that never ran, so they are not
+   DNS. A small final that started and that nobody finished was held: its riders are
+   DNF and fall under rule 3.
 3. Everyone who did not finish or did not start a heat of the finals (semi-final,
    final or small final - the chronometer cannot tell the two apart there) takes
    the last place a finalist can take: 8 in a ladder of 8, 4 in a final of 4,
@@ -68,7 +75,10 @@ In order, numbered as shown; `standings.py` is the implementation and
    took, in qualification order. A disqualified finalist frees his place: 1-7, then
    the first non-finalist is 8th.
 5. Riders with no qualification result: DNF, then DNS, in the place column.
-6. Disqualified riders: DSQ, always last.
+6. Disqualified riders, in a heat or in the qualification: DSQ, always last.
+
+Ladders deeper than semi-finals (`1/4 final` and earlier) are refused: no rule places
+the riders who went out there yet, so ask the organizer rather than guess.
 
 Compared with UCI 4.2.12 (XCE final classification): final, then small final, then
 DNF/DNS of the semi-finals; a DNF/DNS in the first round of the main event and a DSQ
@@ -87,12 +97,17 @@ at the thousandth, so two riders can show the same hundredths and different plac
 ## Data mapping
 
 - Team and coach: the generator's team field split at its first `" - "`.
-- Birth date: the generator's additional info (`YYYY-MM-DD`) as `DD.MM.YYYY`.
+- Birth date: the generator's additional info (`YYYY-MM-DD`) as `DD.MM.YYYY`;
+  anything else is printed as it stands.
 - Time: `M:SS:hh` (`0:41:08`). The published protocol may print tenths only, so
   `collect.py` scores the qualification marks again with the generator's own
   calculator and rounds with its `format_time` - a half goes to the even digit, on
   the recorded millisecond - and refuses to go on if that scoring does not
-  reproduce every published time at the published precision.
+  reproduce every published time at the published precision. It carries over only
+  the timing settings (race type, minimal lap, time limit, digits), so a run that
+  used a start check list or switched DNF off is reported, not silently re-scored.
+- Columns are found by the labels in each run's `fpg_info.txt`, or the generator's
+  defaults when a label line is missing - as the published protocol shows them.
 - Group names: as in the data; `group_titles` maps one to the template's name for it.
 - `corrections`: substring fixes applied to names, teams and coaches in the PDF only,
   never to the race data - and only those the organizer approved. Two coaches with one
