@@ -46,21 +46,32 @@ def _no_small_final(final: list[Row], semis: list[Row]) -> list[Row]:
     ]
 
 
+def _held(heat: list[Row]) -> bool:
+    """Held means started: a heat that never ran shows DNS for everyone, one that ran
+    and that nobody finished shows DNF -- and those riders take the last place."""
+    return any(r["status"] != "dns" for r in heat)
+
+
+def _in_order(heat: list[Row], qorder: list[str]) -> list[str]:
+    """A heat's riders best first: its finishers if it was held, everyone by
+    qualification if it never ran -- nobody failed to start a heat that never ran."""
+    if _held(heat):
+        return _finished(heat)
+    return sorted((r["bib"] for r in heat), key=qorder.index)
+
+
 def _finalists(heats: dict[str, list[Row]], qorder: list[str]) -> list[tuple[int, str]]:
     """(place, bib) for every finalist who was not disqualified, best first."""
     final = heats.get("Final", [])
     semis = [r for title in SEMIS for r in heats.get(title, [])]
     small = heats.get("Small final") or _no_small_final(final, semis)
-    # Held means started: a heat that never ran shows DNS for everyone, one that
-    # ran and that nobody finished shows DNF -- those riders take the last place.
-    held = any(r["status"] != "dns" for r in small)
-    unheld = sorted((r["bib"] for r in small), key=qorder.index) if not held else []
-    through = _finished(final) + (_finished(small) if held else unheld)
+    through = _in_order(final, qorder) + _in_order(small, qorder)
     places = list(enumerate(through, start=1))
     last = len(semis or final)  # the last place a finalist can take
+    raced = [r for heat in (final, small) if _held(heat) for r in heat] + semis
     unfinished = [
         r["bib"]
-        for r in final + (small if held else []) + semis
+        for r in raced
         if r["status"] in ("dnf", "dns") and r["bib"] not in through
     ]
     ordered = sorted(dict.fromkeys(unfinished), key=qorder.index)

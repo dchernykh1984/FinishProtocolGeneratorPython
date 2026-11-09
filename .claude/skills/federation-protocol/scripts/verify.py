@@ -49,12 +49,17 @@ def expected_places(group: str, data: dict[str, Any]) -> list[tuple[str, str]]:
             )
         ]
 
-    held = any(h["status"] != "dns" for h in small)
-    through = done(final) + (
-        done(small) if held else sorted((h["bib"] for h in small), key=q.index)
-    )
+    def ran(heat: list[dict]) -> bool:
+        return any(h["status"] != "dns" for h in heat)
+
+    def by_q(heat: list[dict]) -> list[str]:
+        return sorted((h["bib"] for h in heat), key=q.index)
+
+    through = [
+        b for heat in (final, small) for b in (done(heat) if ran(heat) else by_q(heat))
+    ]
     rows = [(i, b) for i, b in enumerate(through, 1)]
-    raced = final + (small if held else []) + semis
+    raced = [h for heat in (final, small) if ran(heat) for h in heat] + semis
     out_of_heat = [
         h["bib"]
         for h in raced
