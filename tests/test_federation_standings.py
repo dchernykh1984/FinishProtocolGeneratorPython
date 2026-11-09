@@ -84,6 +84,22 @@ def test_a_small_final_not_held_goes_by_qualification() -> None:
     ]  # fmt: skip
 
 
+def test_a_dead_heat_in_a_heat_keeps_its_shared_place() -> None:
+    # The generator publishes two riders on one millisecond as "2" and "2"; numbering
+    # them 2 and 3 would hand one of them a place the race did not give.
+    heats = {
+        "1/2 final 1": _heat(("A", "1"), ("B", "2"), ("G", "3"), ("H", "4")),
+        "1/2 final 2": _heat(("C", "1"), ("D", "2"), ("F", "3"), ("E", "4")),
+        "Final": _heat(("A", "1"), ("B", "2"), ("C", "2"), ("D", "4")),
+        "Small final": _heat(("G", "5"), ("F", "6"), ("H", "6"), ("E", "8")),
+    }
+    got = _places(heats, ["A", "B", "C", "D", "E", "F", "G", "H"])
+    assert got == [
+        ("1", "A"), ("2", "B"), ("2", "C"), ("4", "D"),
+        ("5", "G"), ("6", "F"), ("6", "H"), ("8", "E"),
+    ]  # fmt: skip
+
+
 def test_a_final_that_never_ran_goes_by_qualification_above_the_small_final() -> None:
     # Every finalist DNS: the heat did not start, so its riders keep the places of
     # the final, by qualification -- not the last place below the small final.

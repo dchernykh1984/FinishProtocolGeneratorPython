@@ -41,24 +41,25 @@ def expected_places(group: str, data: dict[str, Any]) -> list[tuple[str, str]]:
             if h["status"] == "ok" and h["bib"] not in gone
         ]
 
-    def done(heat: list[dict]) -> list[str]:
-        return [
-            h["bib"]
-            for h in sorted(
-                (h for h in heat if h["place"].isdigit()), key=lambda h: int(h["place"])
-            )
-        ]
-
     def ran(heat: list[dict]) -> bool:
         return any(h["status"] != "dns" for h in heat)
 
-    def by_q(heat: list[dict]) -> list[str]:
-        return sorted((h["bib"] for h in heat), key=q.index)
-
-    through = [
-        b for heat in (final, small) for b in (done(heat) if ran(heat) else by_q(heat))
-    ]
-    rows = [(i, b) for i, b in enumerate(through, 1)]
+    # (bib, heat, the place the heat gave), best first; one place given twice is a
+    # dead heat and stays one place here.
+    seq = []
+    for n, heat in enumerate((final, small)):
+        if ran(heat):
+            fin = sorted(
+                (h for h in heat if h["place"].isdigit()), key=lambda h: int(h["place"])
+            )
+            seq += [(h["bib"], n, h["place"]) for h in fin]
+        else:
+            seq += [(b, n, b) for b in sorted((h["bib"] for h in heat), key=q.index)]
+    through = [b for b, _n, _g in seq]
+    rows: list[tuple[int, str]] = []
+    for i, (b, n, given) in enumerate(seq):
+        same = i > 0 and seq[i - 1][1:] == (n, given)
+        rows.append((rows[-1][0] if same else i + 1, b))
     raced = [h for heat in (final, small) if ran(heat) for h in heat] + semis
     out_of_heat = [
         h["bib"]
