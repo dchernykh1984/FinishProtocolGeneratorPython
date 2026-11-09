@@ -84,6 +84,22 @@ def test_a_small_final_not_held_goes_by_qualification() -> None:
     ]  # fmt: skip
 
 
+def test_a_small_final_nobody_finished_was_still_held() -> None:
+    # Started and nobody crossed the line: DNF, not the DNS of a heat never run, so
+    # its riders share the last place rather than going by qualification.
+    heats = {
+        "1/2 final 1": _heat(("A", "1"), ("B", "2"), ("G", "3"), ("H", "4")),
+        "1/2 final 2": _heat(("C", "1"), ("D", "2"), ("F", "3"), ("E", "4")),
+        "Final": _heat(("A", "1"), ("B", "2"), ("C", "3"), ("D", "4")),
+        "Small final": _heat(("G", "DNF"), ("H", "DNF"), ("F", "DNF"), ("E", "DNF")),
+    }
+    got = _places(heats, ["A", "B", "C", "D", "E", "F", "G", "H"])
+    assert got == [
+        ("1", "A"), ("2", "B"), ("3", "C"), ("4", "D"),
+        ("8", "E"), ("8", "F"), ("8", "G"), ("8", "H"),
+    ]  # fmt: skip
+
+
 def test_a_disqualified_finalist_frees_his_place_and_goes_last() -> None:
     heats = {
         "1/2 final 1": _heat(("A", "1"), ("B", "2"), ("G", "3"), ("H", "4")),
