@@ -197,8 +197,12 @@ def collect(qfinish: Path, ffinish: Path) -> dict[str, Any]:
                 "qual_status": r["place"] if r["place"] in STATUSES else "",
                 "published_time": r["time"],
             }
-            if entry["qual_place"] is not None:
-                seconds = exact[r["bib"]]
+            seconds = exact.get(r["bib"])
+            if entry["qual_place"] is not None and seconds is None:
+                # Published as a finisher, not one when scored again: a setting this
+                # script does not carry over (a start check list, DNF switched off).
+                wrong.append(f"#{r['bib']}: published {r['time']}, not finished here")
+            elif entry["qual_place"] is not None and seconds is not None:
                 entry["time"] = old_style(seconds)
                 if format_time(seconds, signs) != r["time"]:
                     wrong.append(
