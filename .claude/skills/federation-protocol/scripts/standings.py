@@ -59,18 +59,20 @@ def group_standings(group: str, data: dict[str, Any]) -> list[Row]:
     qorder: list[str] = data["qualification"][group]
     heats: dict[str, list[Row]] = data["ladders"].get(group, {})
     ladder = {r["bib"] for rows in heats.values() for r in rows}
-    dsq = sorted(
-        (r["bib"] for rows in heats.values() for r in rows if r["status"] == "dsq"),
-        key=qorder.index,
-    )
+    outside = [bib for bib in qorder if bib not in ladder]
+    in_heats = {
+        r["bib"] for rows in heats.values() for r in rows if r["status"] == "dsq"
+    }
+    # Disqualified in the qualification is disqualified all the same: last, as DSQ.
+    in_qual = {bib for bib in outside if riders[bib]["qual_status"] == "DSQ"}
+    dsq = sorted(in_heats | in_qual, key=qorder.index)
     placed = _finalists(heats, qorder)
-    lost = ladder - {bib for _place, bib in placed} - set(dsq)
+    lost = ladder - {bib for _place, bib in placed} - in_heats
     if lost:
         raise ValueError(f"{group}: finalists with no place: {sorted(lost)}")
 
     out = [{"bib": bib, "place": str(place)} for place, bib in placed]
     after = max((place for place, _bib in placed), default=0)
-    outside = [bib for bib in qorder if bib not in ladder]
     timed = [bib for bib in outside if not riders[bib]["qual_status"]]
     out += [{"bib": bib, "place": str(after + i)} for i, bib in enumerate(timed, 1)]
     for status in ("DNF", "DNS"):
