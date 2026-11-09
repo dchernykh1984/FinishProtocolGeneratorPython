@@ -69,13 +69,13 @@ def expected_places(group: str, data: dict[str, Any]) -> list[tuple[str, str]]:
             for b in q
             if b not in in_ladder and riders[b]["qual_status"] == status
         ]
-    result += [
-        ("DSQ", h["bib"])
-        for h in sorted(
-            (h for hs in heats.values() for h in hs if h["status"] == "dsq"),
-            key=lambda h: q.index(h["bib"]),
-        )
-    ]
+    disqualified = {
+        h["bib"] for hs in heats.values() for h in hs if h["status"] == "dsq"
+    }
+    disqualified |= {
+        b for b in q if b not in in_ladder and riders[b]["qual_status"] == "DSQ"
+    }
+    result += [("DSQ", b) for b in sorted(disqualified, key=q.index)]
     return result
 
 

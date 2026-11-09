@@ -109,6 +109,21 @@ def test_a_final_only_ladder_continues_with_the_rest() -> None:
     ]  # fmt: skip
 
 
+def test_a_rider_disqualified_in_the_qualification_is_last_as_dsq() -> None:
+    # Dropping him would print a group short of a rider with nothing said; DSQ
+    # always goes last, wherever it was given.
+    heats = {"Final": _heat(("B", "1"), ("A", "2"), ("C", "DSQ"))}
+    got = _places(heats, ["A", "B", "C", "D"], {"X": "DSQ", "Y": "DNS"})
+    assert got == [
+        ("1", "B"),
+        ("2", "A"),
+        ("3", "D"),
+        ("DNS", "Y"),
+        ("DSQ", "C"),
+        ("DSQ", "X"),
+    ]
+
+
 def test_a_finalist_with_nowhere_to_go_is_an_error() -> None:
     # A semi-final finisher seated in neither final means the ladder data is broken;
     # silently dropping him would hide it.
