@@ -217,6 +217,31 @@ def old_style(seconds: float) -> str:
     return f"{int(hours) * 60 + int(minutes)}:{secs}:{hundredths}"
 
 
+def agree(order: dict[str, list[str]], heats: dict[str, dict[str, list[dict]]]) -> None:
+    """Stop unless both runs hold the same groups and every finalist is in his
+    group's qualification: the places come from the two together, and a group renamed
+    between the runs would otherwise lose its finals without a word."""
+    only_q = sorted(set(order) - set(heats))
+    only_f = sorted(g for g in set(heats) - set(order) if any(heats[g].values()))
+    if only_q or only_f:
+        sys.exit(
+            f"the runs disagree on the groups: only in the qualification {only_q}, "
+            f"only in the finals {only_f}"
+        )
+    strangers = sorted(
+        {
+            f"{group} #{r['bib']}"
+            for group, by_title in heats.items()
+            if group in order
+            for rows in by_title.values()
+            for r in rows
+            if r["bib"] not in order[group]
+        }
+    )
+    if strangers:
+        sys.exit(f"finalists not in their group's qualification: {strangers}")
+
+
 def collect(qfinish: Path, ffinish: Path) -> dict[str, Any]:
     qcfg, fcfg = config(qfinish), config(ffinish)
     signs = number(qcfg, "n_signs_after_point")
@@ -259,7 +284,9 @@ def collect(qfinish: Path, ffinish: Path) -> dict[str, Any]:
         sys.exit(
             "re-scored times differ from the published protocol:\n" + "\n".join(wrong)
         )
-    return {"riders": riders, "qualification": order, "ladders": ladders(ffinish, fcfg)}
+    heats = ladders(ffinish, fcfg)
+    agree(order, heats)
+    return {"riders": riders, "qualification": order, "ladders": heats}
 
 
 if __name__ == "__main__":
