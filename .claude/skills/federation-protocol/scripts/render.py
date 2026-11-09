@@ -239,6 +239,8 @@ def main(data_path: str, event_path: str, out_dir: str) -> None:
     register_fonts()
     protocol = Protocol(data, event)
     for part in event["parts"]:
+        if not part["groups"]:
+            sys.exit(f"{part['file']}: a part needs at least one group")
         unknown = [g for g in part["groups"] if g not in data["qualification"]]
         if unknown:
             sys.exit(f"{part['file']}: no such group in the race data: {unknown}")
