@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.17.0...v0.17.1) (2026-11-09)
+
+
+### Documentation
+
+* **skills:** add the federation results protocol skill ([670fbbf](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/670fbbf09be8be1fd55b9d9472a436928af461eb))
+* **skills:** the federation protocol covers a final not held, shared heat places and collect's refusals ([15a7e09](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/15a7e0904525c6288072893ae556d3493d37495e))
+* **skills:** the federation protocol rules cover a missing small final and DSQ ([b8c5465](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b8c54651312238f1e2d690665c808a8d7eaae154))
+
 ## [0.17.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.16.1...v0.17.0) (2026-11-08)
 
 
