@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import Any
 
 SEMIS = ("1/2 final 1", "1/2 final 2")
+KNOWN = {*SEMIS, "Final", "Small final"}
 Row = dict[str, str]
 
 
@@ -72,6 +73,14 @@ def group_standings(group: str, data: dict[str, Any]) -> list[Row]:
     riders = data["riders"]
     qorder: list[str] = data["qualification"][group]
     heats: dict[str, list[Row]] = data["ladders"].get(group, {})
+    deeper = sorted(set(heats) - KNOWN)
+    if deeper:
+        # Whoever went out before the semi-finals has no rule to place him by; a
+        # guess would put somebody's name on the wrong line of an official paper.
+        raise ValueError(
+            f"{group}: heats {deeper} come before the semi-finals, and the rules do "
+            "not place their riders yet -- ask the organizer"
+        )
     ladder = {r["bib"] for rows in heats.values() for r in rows}
     outside = [bib for bib in qorder if bib not in ladder]
     in_heats = {

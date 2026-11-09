@@ -155,6 +155,12 @@ def test_a_rider_disqualified_in_the_qualification_is_last_as_dsq() -> None:
     ]
 
 
+def test_a_ladder_deeper_than_the_semi_finals_is_refused() -> None:
+    heats = {"1/4 final 1": _heat(("A", "1")), "Final": _heat(("A", "1"))}
+    with pytest.raises(ValueError, match="ask the organizer"):
+        _places(heats, ["A"])
+
+
 def test_a_finalist_with_nowhere_to_go_is_an_error() -> None:
     # A small final was ridden, yet a semi-finalist sits in neither final: the ladder
     # data is broken, and silently dropping him would hide it.
