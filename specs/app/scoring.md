@@ -62,8 +62,9 @@ differ:
 5. Two riders with no lap and no control point passed: one who started before one who did not,
    then the smaller start delay, then the number.
 6. On the lap in progress, more control points passed in a row.
-7. With no point passed on that lap, the earlier finish of the last lap; otherwise the earlier
-   time at the last point passed -- both compared to the recorded millisecond.
+7. With no point passed on that lap, the shorter time from his start to the finish of his last
+   lap; otherwise the shorter time from his start to the last point passed -- both compared to
+   the recorded millisecond.
 8. The lower number: as whole numbers when both are, otherwise as text.
 
 ## Places and times
