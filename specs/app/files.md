@@ -47,8 +47,8 @@ them is ignored.
 
 - `number#time#action#` per mark, as the chronometers write it. A fourth field that reads as a
   number is a penalty in seconds.
-- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or `DSQ:
-  <reason>` disqualifies. In the timed race types every mark that is not a disqualification
+- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or
+  `DSQ: <reason>` disqualifies. In the timed race types every mark that is not a disqualification
   counts as a crossing of the line ([scoring.md](scoring.md)).
 - Control points: with "Control points" N > 0 and a "Path prefix" folder, point n is read from
   `<folder>/results_<n>.txt`, n = 1..N, in the same format.
