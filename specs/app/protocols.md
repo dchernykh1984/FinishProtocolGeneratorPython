@@ -33,7 +33,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
     reasons take its place, one per line.
   - **Start time**: the start delay; in Custom Start and Number of Tries the first mark with its
     date, or `NOT STARTED`.
-- Up to two more rows per rider sit under the laps. With "Show lap stats button": each completed
+- Up to two more rows per rider sit under the lap columns, so they too need "Show lap times".
+  With "Show lap stats button": each completed
   lap's gap to the fastest rider of the group on that lap (of everyone, in the absolute
   protocol) and its rank there, bold for the fastest, and
   with "Show lap finish cumulative time" the same for the time since the start. With control
@@ -44,8 +45,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   group table a lap in progress counts once a control point of it is passed -- otherwise as many
   as the first rider of the table has laps. A table has none when its riders
   have one lap, the finish time is shown and there are no control points.
-- "Show intermediate splits button" (with control points) and "Show lap stats button" put a
-  button above the tables that shows and hides those rows; their labels default to "Show/Hide
+- "Show intermediate splits button" (with control points) and "Show lap stats button", with "Show
+  lap times", put a button above the tables that shows and hides those rows; their labels default to "Show/Hide
   CP Splits By Lap" and "Show/Hide Additional Statistics By Lap".
 
 ## Number of Tries in a table
