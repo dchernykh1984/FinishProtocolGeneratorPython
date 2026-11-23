@@ -53,7 +53,8 @@ an ERROR in the log and a dialog. Every other failure is a line in the log.
 ## The log
 
 - A run's messages go to the window ("Show log in window") and to the log file ("Write log to
-  file"); "Errors and warnings only" keeps the lines that contain ERROR or WARNING.
+  file"); "Errors and warnings only" keeps the lines that contain "error" or "warning", in any
+  case.
 - "Search" selects the next line of the window's log that contains the text, without regard to
   case, and says "No matches found." when there is none.
 
