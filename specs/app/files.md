@@ -119,7 +119,9 @@ empty; a template that cannot be read gives the built-in styles.
   not Eliminator Finals: a start protocol of each group's finishers who were not disqualified, in
   finishing order, group by group for every line of the group times file -- a group listed twice
   is written twice -- with the place in the group -- 1, 2, 3,
-  a dead heat not shared -- in field 9 and fields 0-8 as read from his start line. It goes to its
+  a dead heat not shared -- in field 9 and fields 0-8 as the generator read them: laps and stages
+  that were empty, 0 or not a number come out as 1, and in Spiridonov the comment is the
+  coefficient. It goes to its
   own path, or beside the group protocol as `<group protocol>.txt` when that is empty, in UTF-8.
   A path that names a file of the race (start protocol, group times, finish times, start check
   list, group or absolute protocol, styles template, ladder file) is refused with an ERROR, and
