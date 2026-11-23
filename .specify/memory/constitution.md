@@ -10,8 +10,8 @@ Sync Impact Report
   WindowsChronometerPython follow.
 - Known gaps, where the code does not meet a principle yet: a site that times out or drops the
   connection after taking a fetch, or answers JSON of another shape, stops the download step
-  without a word (I, VI); a generated file is not refused the path of a control point stream or
-  of fpg_info.txt (II).
+  without a word (I, VI); a generated file is not yet refused the path of a control point stream
+  or of fpg_info.txt (II).
 - Templates: plan-template.md's "Constitution Check" gate reads these principles; no template
   needed changes.
 -->
@@ -42,7 +42,8 @@ index, anything after them ignored), the group start lines and the crossing line
 chronometers (`group#time#`, `number#time#action#`), and the same lines as the site hands them
 back. It writes into those files only where the referee chose to download or merge into them, and
 the files it makes itself -- the seeding protocol, the heat list, the ladder table -- are refused
-the path of the start protocol, the group times, the finish marks or the start check list.
+a path that names another file of the race: its inputs, its protocols, its styles template, its
+ladder file, its race info file.
 
 ### III. Old files stay readable
 
