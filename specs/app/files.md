@@ -23,8 +23,8 @@ them is ignored.
 | 0 | number | The competitor's id, compared as text; read as a whole number too, for stage riders |
 | 1 | name | |
 | 2 | group | |
-| 3 | laps | Laps, or attempts, to ride; empty, 0 or not a number is 1 |
-| 4 | stages | With N > 1 the marks of the numbers `number` .. `number + N - 1` all count for the line; empty, 0 or not a number is 1 |
+| 3 | laps | Laps, or attempts, to ride; empty, 0 or not a number is 1, a negative number is kept |
+| 4 | stages | With N > 1 the marks of the numbers `number` .. `number + N - 1` all count for the line; empty, 0 or not a number is 1, a negative number is kept |
 | 5 | year of birth | Printed; the age of the Spiridonov coefficient |
 | 6 | team | |
 | 7 | city | |
