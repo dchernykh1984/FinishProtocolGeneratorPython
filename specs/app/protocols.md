@@ -58,7 +58,7 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
 - One table, headed by "Absolute protocol title" ("Overall results" by default), of every rider
   in one order. The same columns as a group table with the group after the year of birth, which
   gives a finisher's place in his group in brackets; as many lap columns as the most laps anyone
-  has.
+  has, or with "Hide empty lap columns" as the most laps anyone has ridden.
 - Eliminator Finals writes none.
 
 ## The site document
