@@ -50,7 +50,8 @@ A port of the C++ comparison (`_first_better`); one rule is tried after another 
 differ:
 
 1. Not disqualified before disqualified, then finishers before the rest.
-2. Number of Tries: its rules (below), then the number.
+2. Number of Tries: rule by rule (below); with no rules, more counted attempts, then the smaller
+   sum of them; then the number.
 3. More laps first.
 4. In Custom Start, a rider with a first mark before one without.
 5. Two riders with no lap and no control point passed: one who started before one who did not,
