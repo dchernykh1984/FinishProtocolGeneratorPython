@@ -117,7 +117,8 @@ empty; a template that cannot be read gives the built-in styles.
   into their local files: [site-exchange.md](site-exchange.md).
 - **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type is
   not Eliminator Finals: a start protocol of each group's finishers who were not disqualified, in
-  finishing order and the groups in the protocol's order, with the place in the group -- 1, 2, 3,
+  finishing order, group by group for every line of the group times file -- a group listed twice
+  is written twice -- with the place in the group -- 1, 2, 3,
   a dead heat not shared -- in field 9 and fields 0-8 as read from his start line. It goes to its
   own path, or beside the group protocol as `<group protocol>.txt` when that is empty, in UTF-8.
   A path that names a file of the race (start protocol, group times, finish times, start check
