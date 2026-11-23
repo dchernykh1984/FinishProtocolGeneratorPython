@@ -31,7 +31,8 @@ does not guess. A run always builds its protocols from the local files
 - Not caught: a site that takes the request and then does not answer within the 10 seconds or
   drops the connection, and an answer that is JSON of another shape -- not an object, or a point
   without its number. The run stops there without a word in the log, and Generate Protocol and
-  Download stay disabled until a run completes.
+  Download stay disabled until a run completes -- which only the auto-refresh timer can start
+  then -- or the program is restarted.
 - A stream fetched from the site is not also downloaded by FTP: a configured FTP download for it
   is an ERROR about the conflict, and the site's data is used.
 
