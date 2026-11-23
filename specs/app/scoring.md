@@ -106,7 +106,8 @@ split times will be incorrect.
   printed bold.
 - With no rules (`[]`) every rider's comment holds the legacy rule `N:a,b,...`: the best N of
   the listed attempts. A rider whose comment is not that rule is an ERROR ("invalid
-  NumberOfTries format") and counts no attempt.
+  NumberOfTries format") and counts no attempt. A rider is then a finisher once all his attempts
+  are completed, or once a completed one ended on a `finish` mark.
 
 ## Checks
 
