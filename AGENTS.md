@@ -46,7 +46,9 @@ ASCII ONLY: the `no-non-ascii` hook scans python, yaml, markdown, toml, shell an
 Never add non-ASCII characters (emoji, smart quotes, en/em dashes, Cyrillic, ...) to any
 tracked file except `uv.lock`, `CHANGELOG.md` and Spec Kit's generated files (`.specify/`
 but the constitution, the `speckit-*` skills), which are out of every hook: `specify` keeps
-a file it finds edited instead of updating it. Write code comments and docs in English.
+a file it finds edited instead of updating it. What those skills write into `specs/` is
+checked like any file, and the plan and tasks templates carry box drawing and emoji: make a
+plan or task list ASCII before committing it. Write code comments and docs in English.
 
 Write files as UTF-8. On Windows a PowerShell redirect, `Set-Content` or `Out-File`
 defaults to UTF-16, and the ASCII hook then rejects a file whose text looks perfectly
