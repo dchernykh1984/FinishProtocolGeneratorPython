@@ -8,6 +8,10 @@ Sync Impact Report
   detailed runtime guidance. Merging by rebase, never squashed, is the maintainer's standing rule.
   Development Workflow and Governance are the ones StartProtocolMakerPython and
   WindowsChronometerPython follow.
+- Known gaps, where the code does not meet a principle yet: a site that times out or drops the
+  connection after taking a fetch, or answers JSON of another shape, stops the download step
+  without a word (I, VI); a generated file is not refused the path of a control point stream or
+  of fpg_info.txt (II).
 - Templates: plan-template.md's "Constitution Check" gate reads these principles; no template
   needed changes.
 -->
