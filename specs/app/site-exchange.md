@@ -62,7 +62,8 @@ does not guess. A run always builds its protocols from the local files
   three again with `_delta` after the suffix (how the gap changed over the last lap); for the
   whole race the participant packs, `gap_prev_pack_abs`, `gap_next_pack_abs`,
   `qty_prev_pack_abs` and `qty_next_pack_abs`; and `laps` as `<done>/<total>`.
-- A gap is taken at the last lap finish both riders completed and is signed for the reader: a
+- A gap is taken at the last lap finish both riders completed -- in Number of Tries it is the
+  difference of their results, in the first rule's direction -- and is signed for the reader: a
   rider ahead is `+`, one behind `-`; it prints as `M:SS` (`H:MM:SS` past an hour) with the
   protocol's decimals. Riders whose gap is at most the pack gap are one pack.
 
