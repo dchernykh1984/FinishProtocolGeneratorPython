@@ -37,8 +37,8 @@ The generator reads what other programs write: the start protocol line of StartP
 index, anything after them ignored), the group start lines and the crossing lines of the
 chronometers (`group#time#`, `number#time#action#`), and the same lines as the site hands them
 back. It writes into those files only where the referee chose to download or merge into them, and
-a file it makes itself -- the seeding protocol, the heat list, the ladder table -- is refused a
-path that names one of them.
+the files it makes itself -- the seeding protocol, the heat list, the ladder table -- are refused
+the path of the start protocol, the group times, the finish marks or the start check list.
 
 ### III. Old files stay readable
 
