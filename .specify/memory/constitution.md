@@ -54,15 +54,17 @@ loaded and is not overwritten without the referee's yes.
 
 What a protocol says about a competitor -- printed or not, place or status, result, gap, lap and
 attempt cells, splits, lap ranks -- is worked out once, in `app/protocol_rows.py`, and read by the
-HTML protocols, the structured document sent to the site and the live statistics alike. No value
-is computed in one of them only.
+HTML protocols and the structured document sent to the site alike. No value is computed in one of
+them only. The live statistics are the one deliberate exception: they rank from lap finishes
+alone, with the protocol's own comparison, so that a missed control point mark cannot move a live
+place or gap.
 
 ### V. Report, do not guess
 
 What the data cannot settle is said in the run log and left to the referee: two devices writing
 one finish line, two riders printed with the same time without riding it, a heat start recorded
-twice, a mark no heat accounts for. Results equal to the recorded millisecond are a dead heat and
-share a place; any other difference ranks them. A finals protocol that would be wrong -- a group
+twice, a mark no heat accounts for. In a protocol, results equal to the recorded millisecond are a
+dead heat and share a place; any other difference ranks them. A finals protocol that would be wrong -- a group
 with qualifiers and no ladder -- is not written at all.
 
 ### VI. A failure is reported, not fatal

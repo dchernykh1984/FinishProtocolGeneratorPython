@@ -55,7 +55,9 @@ does not guess. A run always builds its protocols from the local files
   the count it stored.
 - Every value comes from lap finishes only, never from control points, so a missed control point
   mark cannot move a place or a gap; a penalty is already in the lap times and a DSQ mark
-  disqualifies. Keys, each with the suffix `_group` or `_abs` of its switch: `place` (a number or
+  disqualifies. The riders are ranked with the protocol's comparison without its control points
+  and numbered 1, 2, 3 -- a dead heat is not shared -- and a disqualified rider's place is `DSQ`,
+  outside the numbering. Keys, each with the suffix `_group` or `_abs` of its switch: `place` (a number or
   `DSQ`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and `gap_leader`, the same
   three again with `_delta` after the suffix (how the gap changed over the last lap); for the
   whole race the participant packs, `gap_prev_pack_abs`, `gap_next_pack_abs`,
