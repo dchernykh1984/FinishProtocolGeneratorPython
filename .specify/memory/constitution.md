@@ -84,10 +84,10 @@ Tests use placeholder tokens, never a real competition's.
 
 ### VIII. Plain, attributable history
 
-Files are ASCII. Commits follow Conventional Commits in one line with no trailers, because
-release-please builds the changelog from them. Work is published under the owner's name with no
-AI credit anywhere. Every change goes through a pull request from a branch off `origin/main`,
-merged by rebase, never squashed.
+Files are ASCII, but for `uv.lock`, `CHANGELOG.md` and Spec Kit's generated files. Commits follow
+Conventional Commits in one line with no trailers, because release-please builds the changelog
+from them. Work is published under the owner's name with no AI credit anywhere. Every change goes
+through a pull request from a branch off `origin/main`, merged by rebase, never squashed.
 
 ## Constraints
 
