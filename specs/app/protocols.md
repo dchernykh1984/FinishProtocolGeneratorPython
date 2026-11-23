@@ -43,7 +43,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   was missed on a completed lap or a lap that has passed another point.
 - Lap columns, which need "Show lap times": with "Hide empty lap columns" as many as anyone of
   the table has ridden -- in a group table a lap in progress counts once a control point of it
-  is passed -- otherwise as many as the first rider of the table has laps. A table has none when
+  is passed -- otherwise as many as the first rider of the table with at least one lap has. A
+  table has none when
   its riders have one lap, the finish time is shown and there are no control points.
 - "Show intermediate splits button" (with control points) and "Show lap stats button", with
   "Show lap times", put a button above the tables that shows and hides those rows; their labels
