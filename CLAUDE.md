@@ -22,7 +22,8 @@ in `.claude/skills/` tell an agent how to work in this repo. Detailed skills:
 - release-please turns merged commits into CHANGELOG entries and version bumps, so the
   subject line is user-facing. Keep it accurate.
 - **Anything outward-facing waits for an explicit yes**: pushing, merging, tagging,
-  deleting or force-pushing a branch, cutting a release. Show the exact command and wait
+  deleting or force-pushing a branch, cutting a release, opening issues (the
+  `speckit-taskstoissues` skill does). Show the exact command and wait
   for a plain "yes" - narrating what you are about to do is not consent. Reading (status,
   log, diff, fetch, `gh ... view`) needs no permission.
 

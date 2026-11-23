@@ -30,8 +30,8 @@ executable and a different working directory.
 - **Outward-facing actions require explicit user authorization.** A request to push
   and open a pull request authorizes those actions for the current task. If no such
   authorization was given, show the exact command and wait for consent. Merging,
-  tagging, deleting or force-pushing a branch, and cutting a release require their
-  own explicit request. Reading (status, log, diff, fetch, `gh ... view`) needs no
+  tagging, deleting or force-pushing a branch, cutting a release and opening issues
+  (the `speckit-taskstoissues` skill does) require their own explicit request. Reading (status, log, diff, fetch, `gh ... view`) needs no
   permission.
 
 ## Quality gates (all enforced in CI)
