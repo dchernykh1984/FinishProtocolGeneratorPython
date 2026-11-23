@@ -6,13 +6,14 @@ file does not guess.
 
 ## Reading
 
-- Every input file is read as UTF-8, or else cp1251, or else Latin-1. The `#`-separated files skip
-  their blank lines and read their fields by index, a field the line does not have reading as
-  empty; the race info file and the styles template keep every line, a blank one being an empty
-  field.
-- A time is `D HH:MM:SS.fff` -- days since 1970-01-01, then the time of day -- or `HH:MM:SS.fff`,
-  with any number of decimals or none; the seconds may be left out (`HH:MM`). Empty or `0` is no
-  time. A time that cannot be read ends the run with an error ([generator.md](generator.md)).
+- Every input file is read as UTF-8, or else cp1251, or else Latin-1. The `#`-separated files
+  skip their blank lines and read their fields by index, a field the line does not have reading
+  as empty; the race info file and the styles template keep every line, a blank one being an
+  empty field.
+- A time is `D HH:MM:SS.fff` -- days since 1970-01-01, then the time of day -- or
+  `HH:MM:SS.fff`, with one or more digits after a decimal point, or no point at all; the seconds
+  may be left out (`HH:MM`). Empty or `0` is no time. A time that cannot be read ends the run
+  with an error ([generator.md](generator.md)).
 
 ## The start protocol (`start.txt`)
 
@@ -37,8 +38,8 @@ them is ignored.
 - `group#time#` per line, as the chronometer appends it when a group starts.
 - A group's first line is its start. Every line gives the protocol a table, in the order of the
   file, so a group listed twice is printed twice. The groups of the start protocol that the file
-  does not list follow with a start time of 0, the start of the day count: their riders' start is
-  their start delay alone, so a rider without one has not started, and one with a delay rides
+  does not list follow with a start time of 0, the start of the day count: their riders' start
+  is their start delay alone, so a rider without one has not started, and one with a delay rides
   laps timed from it, which print as `UNKNOWN`.
 - In Eliminator Finals a line is a heat ([eliminator-finals.md](eliminator-finals.md)).
 
@@ -46,8 +47,8 @@ them is ignored.
 
 - `number#time#action#` per mark, as the chronometers write it. A fourth field that reads as a
   number is a penalty in seconds.
-- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or
-  `DSQ: <reason>` disqualifies. In the timed race types every mark that is not a disqualification
+- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or `DSQ:
+  <reason>` disqualifies. In the timed race types every mark that is not a disqualification
   counts as a crossing of the line ([scoring.md](scoring.md)).
 - Control points: with "Control points" N > 0 and a "Path prefix" folder, point n is read from
   `<folder>/results_<n>.txt`, n = 1..N, in the same format.
@@ -93,8 +94,8 @@ as switched off, with its label empty.
 - Tags are read in the order they are written and a version stops at the first one it does not
   know, so a new tag goes last. The reader still takes the retired `HttpCompetitionId` and
   `HttpProtocolType` (and drops their values) and `UploadHttpGroups` / `UploadHttpAbsolute`,
-  which migrate to the per-protocol actions: neither on is Nothing for both, otherwise the one on
-  is Upload and the other Delete.
+  which migrate to the per-protocol actions: neither on is Nothing for both, otherwise the one
+  on is Upload and the other Delete.
 - The C++ names of the race types ("Mass Start or Splitted Start", and the same "with
   Spiridonov's coefficients") are read as Mass/Splitted and its Spiridonov variant; the retired
   "Eliminator Qualification" becomes Mass/Splitted with the seeding protocol on.
@@ -112,27 +113,27 @@ as switched off, with its label empty.
 
 Eleven lines of HTML, in the C++ order: table style, header row style, even row style, odd row
 style, group name style, additional text styles (header row, then rows), top text style,
-additional info styles (header row, then rows), and a style sheet for the page. Missing lines are
-empty; a template that cannot be read gives the built-in styles.
+additional info styles (header row, then rows), and a style sheet for the page. Missing lines
+are empty; a template that cannot be read gives the built-in styles.
 
 ## What it writes
 
 - The group and absolute protocols: [protocols.md](protocols.md). The finals protocol, the heat
   list and the ladder file: [eliminator-finals.md](eliminator-finals.md). The streams fetched
   into their local files: [site-exchange.md](site-exchange.md).
-- **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type is
-  not Eliminator Finals: a start protocol of the finishers who were not disqualified.
+- **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type
+  is not Eliminator Finals: a start protocol of the finishers who were not disqualified.
   - Group by group for every line of the group times file, so a group listed twice is written
     twice, then the start protocol's groups the file does not list; within a group in finishing
     order.
   - Field 9 is the place in the group: 1, 2, 3, a dead heat not shared. Fields 0-8 are as the
-    generator read them: laps and stages that were empty, 0 or not a number come out as 1, and in
-    Spiridonov the comment is the coefficient.
+    generator read them: laps and stages that were empty, 0 or not a number come out as 1, and
+    in Spiridonov the comment is the coefficient.
   - It goes to its own path, or beside the group protocol as `<group protocol>.txt` when that is
     empty, in UTF-8. A path that names a file of the race (start protocol, group times, finish
-    times, start check list, group or absolute protocol, styles template, ladder file) is refused
-    with an ERROR, and the protocols are written all the same; a folder that is not there is
-    made.
+    times, start check list, group or absolute protocol, styles template, ladder file) is
+    refused with an ERROR, and the protocols are written all the same; a folder that is not
+    there is made.
 - **The log file** `temp/fpg<N>.txt`, N the first number not yet used, when "Write log to file"
   is on.
 - **`fpg_info.txt`** on exit, next to the program; "Save Race Info to file..." writes the same
