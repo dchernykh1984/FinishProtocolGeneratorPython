@@ -34,7 +34,8 @@ nor in Number of Tries while the attempt rules are invalid, nor when an FTP down
 set and the FTP address is empty; the last two say why in a dialog.
 
 1. The HTML styles template is loaded -- a missing or unreadable one gives the built-in styles
-   -- the log is cleared, and with "Write log to file" a new file `temp/fpg<N>.txt` is started.
+   -- the log is cleared, and with "Write log to file" the run logs to `temp/fpg<N>.txt`, N the
+   first number not in use, created with the first line written.
 2. **Downloads**, when a stream's source is the site or an FTP download action is set for it:
    the site's streams first, then the FTP downloads ([site-exchange.md](site-exchange.md)). A
    stream set to both takes the site's data and logs an ERROR about the conflict. A failed
