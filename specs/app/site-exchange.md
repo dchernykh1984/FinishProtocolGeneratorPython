@@ -26,10 +26,12 @@ does not guess. A run always builds its protocols from the local files
 - The lines replace the stream's local file, in UTF-8 with a line break after each. Point n goes
   to `<control point folder>/results_<n>.txt` for n = 1 .. the control point count, a point the
   site does not list as an empty file; with no count or no folder the points are skipped.
-- Without a site URL and a token, or when the request fails or the answer is not JSON, the log
-  says why and the local file stays as it was. An answer that is JSON of another shape -- not an
-  object, or a point without its number -- is not caught: the run stops there without a word in
-  the log, and Generate Protocol and Download stay disabled until a run completes.
+- Without a site URL and a token, when the site cannot be reached or answers with an HTTP error,
+  or when the answer is not JSON, the log says why and the local file stays as it was.
+- Not caught: a site that takes the request and then does not answer within the 10 seconds or
+  drops the connection, and an answer that is JSON of another shape -- not an object, or a point
+  without its number. The run stops there without a word in the log, and Generate Protocol and
+  Download stay disabled until a run completes.
 - A stream fetched from the site is not also downloaded by FTP: a configured FTP download for it
   is an ERROR about the conflict, and the site's data is used.
 
