@@ -36,12 +36,20 @@ Run before pushing:
 
 ASCII ONLY: the `no-non-ascii` hook scans python, yaml, markdown, toml, shell and json.
 Never add non-ASCII characters (emoji, smart quotes, en/em dashes, Cyrillic, ...) to any
-tracked file except `uv.lock` and `CHANGELOG.md`. Write code comments and docs in English.
+tracked file except `uv.lock`, `CHANGELOG.md` and Spec Kit's generated files (`.specify/`
+but the constitution, the `speckit-*` skills), which are out of every hook: `specify` keeps
+a file it finds edited instead of updating it. Write code comments and docs in English.
 
 Write files as UTF-8. On Windows a PowerShell redirect, `Set-Content` or `Out-File`
 defaults to UTF-16, and the ASCII hook then rejects a file whose text looks perfectly
 plain in an editor - the bytes are the problem, not the characters. `file <path>` says
 which encoding you actually wrote.
+
+## Specifications
+
+Changes to a file format, the site exchange or what the referee sees start as a specification:
+see [`specs/README.md`](specs/README.md) and the constitution in
+[`.specify/memory/constitution.md`](.specify/memory/constitution.md).
 
 ## Repo facts and gotchas
 
