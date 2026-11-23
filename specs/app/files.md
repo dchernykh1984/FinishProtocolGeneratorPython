@@ -78,7 +78,8 @@ as switched off, with its label empty.
    `UseStartCheckList` + check list action + registration period; then always the bottom text,
    the last field the C++ generator reads. `Stratch` and `Erroros` are the C++ spellings.
 3. Tag and value pairs only this generator reads, in this order: `FinishTimeLabel`,
-   `TimeDifferenceLabel`, `NFinishedLapsLabel` (each written when its column is on),
+   `TimeDifferenceLabel`, `NFinishedLapsLabel` (each written when its column is on, the time
+   difference only with the finish time),
    `TemplateFile`, `ButtonsLabel` and `AllButtonsLabel` (these two when their buttons are on),
    `LapRankLabel`, `LapFinishRankLabel`, `WeatherLabel`, `TrackLabel`, `OrganizerLabel`,
    `OverallResultsLabel`, `HttpSiteUrl`, `HttpUploadToken`, `StartListSource`,
