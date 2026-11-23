@@ -71,5 +71,6 @@ an ERROR in the log and a dialog. Every other failure is a line in the log.
 
 - "Are you sure to exit?" In Number of Tries with invalid rule edits, the question says they
   will be discarded: the last valid rules, or none, are kept.
-- On Yes the start board closes, the auto-refresh timer stops, running work gets 5 seconds to end
-  before it is terminated, and the settings are saved to `fpg_info.txt` next to the program.
+- On Yes the start board closes, the auto-refresh timer stops, a running download and a running
+  generation each get 5 seconds to end, one after the other, before they are terminated, and the
+  settings are saved to `fpg_info.txt` next to the program.
