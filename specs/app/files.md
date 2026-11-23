@@ -117,16 +117,17 @@ empty; a template that cannot be read gives the built-in styles.
   list and the ladder file: [eliminator-finals.md](eliminator-finals.md). The streams fetched
   into their local files: [site-exchange.md](site-exchange.md).
 - **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type is
-  not Eliminator Finals: a start protocol of each group's finishers who were not disqualified, in
-  finishing order, group by group for every line of the group times file -- a group listed twice
-  is written twice -- with the place in the group -- 1, 2, 3,
-  a dead heat not shared -- in field 9 and fields 0-8 as the generator read them: laps and stages
-  that were empty, 0 or not a number come out as 1, and in Spiridonov the comment is the
-  coefficient. It goes to its
-  own path, or beside the group protocol as `<group protocol>.txt` when that is empty, in UTF-8.
-  A path that names a file of the race (start protocol, group times, finish times, start check
-  list, group or absolute protocol, styles template, ladder file) is refused with an ERROR, and
-  the protocols are written all the same; a folder that is not there is made.
+  not Eliminator Finals: a start protocol of the finishers who were not disqualified.
+  - Group by group for every line of the group times file, so a group listed twice is written
+    twice; within a group in finishing order.
+  - Field 9 is the place in the group: 1, 2, 3, a dead heat not shared. Fields 0-8 are as the
+    generator read them: laps and stages that were empty, 0 or not a number come out as 1, and in
+    Spiridonov the comment is the coefficient.
+  - It goes to its own path, or beside the group protocol as `<group protocol>.txt` when that is
+    empty, in UTF-8. A path that names a file of the race (start protocol, group times, finish
+    times, start check list, group or absolute protocol, styles template, ladder file) is refused
+    with an ERROR, and the protocols are written all the same; a folder that is not there is
+    made.
 - **The log file** `temp/fpg<N>.txt`, N the first number not yet used, when "Write log to file"
   is on.
 - **`fpg_info.txt`** on exit, next to the program; "Save Race Info to file..." writes the same
