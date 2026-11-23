@@ -10,7 +10,8 @@ file does not guess.
   skipped. Fields are separated by `#` and read by index; a field the line does not have reads
   as empty.
 - A time is `D HH:MM:SS.fff` -- days since 1970-01-01, then the time of day -- or `HH:MM:SS.fff`,
-  with any number of decimals or none. Empty or `0` is no time.
+  with any number of decimals or none; the seconds may be left out (`HH:MM`). Empty or `0` is no
+  time. A time that cannot be read ends the run with an error ([generator.md](generator.md)).
 
 ## The start protocol (`start.txt`)
 
