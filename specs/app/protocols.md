@@ -40,8 +40,9 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   points: one cell per segment of each lap -- start to point 1, ..., last point to the finish --
   holding its time, `ERR` when the point before it was missed, or `UNKNOWN` when its own point
   was missed on a completed lap or a lap that has passed another point.
-- Lap columns: with "Hide empty lap columns" as many as anyone of the table has ridden,
-  otherwise as many as the first rider of the table has laps. A table has none when its riders
+- Lap columns: with "Hide empty lap columns" as many as anyone of the table has ridden -- in a
+  group table a lap in progress counts once a control point of it is passed -- otherwise as many
+  as the first rider of the table has laps. A table has none when its riders
   have one lap, the finish time is shown and there are no control points.
 - "Show intermediate splits button" (with control points) and "Show lap stats button" put a
   button above the tables that shows and hides those rows; their labels default to "Show/Hide
