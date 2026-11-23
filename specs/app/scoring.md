@@ -112,8 +112,8 @@ After the protocols are written the log reports:
 
 - riders of one group printed with the same time and counted laps without riding the same
   millisecond (WARNING);
-- a number with two crossings closer than "Minimal lap time" -- one crossing recorded twice,
-  likely by a second device on the line (ERROR; not in Number of Tries);
+- a number with two `finish` or `nextLap` marks closer than "Minimal lap time" -- one crossing
+  recorded twice, likely by a second device on the line (ERROR; not in Number of Tries);
 - a mark, at the finish or a control point, of a number the start protocol does not have, and a
   number the start protocol has twice (ERROR);
 - more crossings than the laps allow (ERROR): laps, one more in Custom Start, twice the
