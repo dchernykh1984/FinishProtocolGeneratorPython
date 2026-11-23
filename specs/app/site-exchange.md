@@ -54,8 +54,8 @@ does not guess. A run always builds its protocols from the local files
 
 ## Live statistics
 
-- With "Send group statistics" or "Send absolute statistics" on, every run but a finals one
-  `POST`s `{"competition_token": ..., "stats": {<number>: {<key>: <value>}}}` as JSON to
+- With "Send group statistics" or "Send absolute statistics" on and a site URL set, every run
+  but a finals one `POST`s `{"competition_token": ..., "stats": {<number>: {<key>: <value>}}}` as JSON to
   `<site>/api/v1/live-stats/`; the snapshot replaces the previous one, and the site answers with
   the count it stored.
 - Every value comes from lap finishes only, never from control points, so a missed control point
