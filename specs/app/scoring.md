@@ -40,7 +40,8 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
 - A `DSQ` or `DSQ: <reason>` mark in the finish marks or at a control point disqualifies, unless
   "Disable DSQ"; a reason is kept as `finish: <reason>` or `CP <n>: <reason>`. With the start
   check list on and holding any mark, a rider without a mark in it later than his start minus
-  the registration period is disqualified whatever "Disable DSQ" says.
+  the registration period is disqualified, "Disable DSQ" or not -- though with "Disable DSQ" a
+  DSQ mark of his clears that again.
 - Who is printed: one who is not a finisher only with "Print DNF"; one who rode no lap only with
   "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ".
 
