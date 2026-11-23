@@ -21,8 +21,9 @@ does not guess. A run always builds its protocols from the local files
 
 - `GET <site>/api/v1/start-list/?competition_token=<token>`, and likewise `group-times`,
   `finish-times` and `remote-points`, with a 10 second timeout. The answer lists `devices`, each
-  with its `items` -- the lines that device uploaded -- and the lines are joined in the order the
-  site lists the devices. `remote-points` lists `points`, each a `point_number` with its `items`.
+  with its `items` -- the lines that device uploaded -- and the lines are joined in the order
+  the site lists the devices. `remote-points` lists `points`, each a `point_number` with its
+  `items`.
 - The lines replace the stream's local file, in UTF-8 with a line break after each. Point n goes
   to `<control point folder>/results_<n>.txt` for n = 1 .. the control point count, a point the
   site does not list as an empty file; with no count or no folder the points are skipped.
@@ -47,26 +48,27 @@ does not guess. A run always builds its protocols from the local files
   whose document could not be built sends the HTML.
 - **Delete**: `POST <site>/api/v1/protocols/delete/`, form-encoded, with `competition_token`,
   `protocol_type` and `section`. Deleting a protocol that is not there succeeds.
-- "Nothing" leaves the site alone. Without a site URL nothing is published. A failure is an ERROR
-  at the end of the run's log.
+- "Nothing" leaves the site alone. Without a site URL nothing is published. A failure is an
+  ERROR at the end of the run's log.
 - In Eliminator Finals an Upload of the absolute protocol is a Delete, since a finals run writes
   none.
 
 ## Live statistics
 
 - With "Send group statistics" or "Send absolute statistics" on and a site URL set, every run
-  but a finals one `POST`s `{"competition_token": ..., "stats": {<number>: {<key>: <value>}}}` as JSON to
-  `<site>/api/v1/live-stats/`; the snapshot replaces the previous one, and the site answers with
-  the count it stored.
+  but a finals one `POST`s `{"competition_token": ..., "stats": {<number>: {<key>: <value>}}}`
+  as JSON to `<site>/api/v1/live-stats/`; the snapshot replaces the previous one, and the site
+  answers with the count it stored.
 - Every value comes from lap finishes only, never from control points, so a missed control point
   mark cannot move a place or a gap; a penalty is already in the lap times and a DSQ mark
   disqualifies. The riders are ranked with the protocol's comparison without its control points
-  and numbered 1, 2, 3 -- a dead heat is not shared -- and a disqualified rider's place is `DSQ`,
-  outside the numbering. Keys, each with the suffix `_group` or `_abs` of its switch: `place` (a number or
-  `DSQ`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and `gap_leader`, the same
-  three again with `_delta` after the suffix (how the gap changed over the last lap); for the
-  whole race the participant packs, `gap_prev_pack_abs`, `gap_next_pack_abs`,
-  `qty_prev_pack_abs` and `qty_next_pack_abs`; and `laps` as `<done>/<total>`.
+  and numbered 1, 2, 3 -- a dead heat is not shared -- and a disqualified rider's place is
+  `DSQ`, outside the numbering. Keys, each with the suffix `_group` or `_abs` of its switch:
+  `place` (a number or `DSQ`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and
+  `gap_leader`, the same three again with `_delta` after the suffix (how the gap changed over
+  the last lap); for the whole race the participant packs, `gap_prev_pack_abs`,
+  `gap_next_pack_abs`, `qty_prev_pack_abs` and `qty_next_pack_abs`; and `laps` as
+  `<done>/<total>`.
 - A gap is taken at the last lap finish both riders completed -- in Number of Tries it is the
   difference of their results, in the first rule's direction -- and is signed for the reader: a
   rider ahead is `+`, one behind `-`; it prints as `M:SS` (`H:MM:SS` past an hour) with the
@@ -74,10 +76,10 @@ does not guess. A run always builds its protocols from the local files
 
 ## FTP
 
-- FTP tab: "FTP address", "Login", "Password" (masked), an action per stream -- start list, group
-  times, finish times, remote points -- "None", "Download", "Merge" or "Merge+Remove", "Merge by
-  competitor number (ID) only", and the two "Upload ... Protocol after generate" switches. The
-  start check list has an action of its own on the Main tab.
+- FTP tab: "FTP address", "Login", "Password" (masked), an action per stream -- start list,
+  group times, finish times, remote points -- "None", "Download", "Merge" or "Merge+Remove",
+  "Merge by competitor number (ID) only", and the two "Upload ... Protocol after generate"
+  switches. The start check list has an action of its own on the Main tab.
 - `ftp://` only; `ftps://` is refused. Port 21 unless the address names one; anonymous login
   without a login; a 10 second connection timeout. A file is `<address path>/<local file name>`.
 - "Download" replaces the local file with the remote one, rewritten in UTF-8. "Merge" adds the

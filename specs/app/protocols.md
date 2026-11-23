@@ -20,8 +20,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
 - A table per line of the group times file ([files.md](files.md)), headed "<group label>
   <group>", with that group's riders in the order of [scoring.md](scoring.md).
 - Columns, each behind its "Show ..." setting and headed by its label, in this order: place,
-  number, name, year of birth, team, city, one column per lap, the result, additional info, start
-  time.
+  number, name, year of birth, team, city, one column per lap, the result, additional info,
+  start time.
   - **Place**: the place, or DNF, DNS, DSQ.
   - **Number**: a line of N stages lists all N numbers, one under the other.
   - **Lap** "<lap label> <n>", with the lap additional info label under it when "Show lap finish
@@ -41,13 +41,13 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   points: one cell per segment of each lap -- start to point 1, ..., last point to the finish --
   holding its time, `ERR` when the point before it was missed, or `UNKNOWN` when its own point
   was missed on a completed lap or a lap that has passed another point.
-- Lap columns, which need "Show lap times": with "Hide empty lap columns" as many as anyone of the table has ridden -- in a
-  group table a lap in progress counts once a control point of it is passed -- otherwise as many
-  as the first rider of the table has laps. A table has none when its riders
-  have one lap, the finish time is shown and there are no control points.
-- "Show intermediate splits button" (with control points) and "Show lap stats button", with "Show
-  lap times", put a button above the tables that shows and hides those rows; their labels default to "Show/Hide
-  CP Splits By Lap" and "Show/Hide Additional Statistics By Lap".
+- Lap columns, which need "Show lap times": with "Hide empty lap columns" as many as anyone of
+  the table has ridden -- in a group table a lap in progress counts once a control point of it
+  is passed -- otherwise as many as the first rider of the table has laps. A table has none when
+  its riders have one lap, the finish time is shown and there are no control points.
+- "Show intermediate splits button" (with control points) and "Show lap stats button", with
+  "Show lap times", put a button above the tables that shows and hides those rows; their labels
+  default to "Show/Hide CP Splits By Lap" and "Show/Hide Additional Statistics By Lap".
 
 ## Number of Tries in a table
 
@@ -75,5 +75,5 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   buttons, and the tables. A group's id is its name; a name longer than 100 characters, or one
   ending like a hashed id, becomes its first characters, `~` and eight hex digits of its SHA-1.
   Each column carries a priority that tells a narrow screen what it may hide.
-- A document is built only when it will be sent -- a site URL and an Upload action -- and a build
-  that fails is a WARNING: the HTML goes alone ([site-exchange.md](site-exchange.md)).
+- A document is built only when it will be sent -- a site URL and an Upload action -- and a
+  build that fails is a WARNING: the HTML goes alone ([site-exchange.md](site-exchange.md)).
