@@ -119,7 +119,8 @@ empty; a template that cannot be read gives the built-in styles.
 - **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type is
   not Eliminator Finals: a start protocol of the finishers who were not disqualified.
   - Group by group for every line of the group times file, so a group listed twice is written
-    twice; within a group in finishing order.
+    twice, then the start protocol's groups the file does not list; within a group in finishing
+    order.
   - Field 9 is the place in the group: 1, 2, 3, a dead heat not shared. Fields 0-8 are as the
     generator read them: laps and stages that were empty, 0 or not a number come out as 1, and in
     Spiridonov the comment is the coefficient.
