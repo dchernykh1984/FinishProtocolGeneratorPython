@@ -68,9 +68,11 @@ place or gap.
 
 What the data cannot settle is said in the run log and left to the referee: two devices writing
 one finish line, two riders printed with the same time without riding it, a heat start recorded
-twice, a mark no heat accounts for. In a protocol, results equal to the recorded millisecond are a
-dead heat and share a place; any other difference ranks them. A finals protocol that would be wrong -- a group
-with qualifiers and no ladder -- is not written at all.
+twice, a mark no heat accounts for. In the group and absolute protocols and in a finals heat,
+results equal to the recorded millisecond are a dead heat and share a place, and any other
+difference ranks them; the seeding protocol and the live statistics number such riders on. A
+finals protocol that would be wrong -- a group with qualifiers and no ladder -- is not written at
+all.
 
 ### VI. A failure is reported, not fatal
 
