@@ -121,6 +121,8 @@ class TestFetchFailuresAreValueErrors:
         [
             ([], fetch_start_list),
             (None, fetch_finish_times),
+            ({}, fetch_finish_times),
+            ({"detail": "Not found"}, fetch_remote_points),
             ({"devices": {"a": 1}}, fetch_group_times),
             ({"devices": [{"items": "1#0 0:0:1#"}]}, fetch_start_list),
             ({"devices": [{"items": [1]}]}, fetch_finish_times),

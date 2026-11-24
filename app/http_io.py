@@ -45,7 +45,10 @@ def _get_json(site_url: str, endpoint: str, token: str) -> dict:
 
 def _entries(data: dict, key: str) -> list[dict]:
     """The objects listed under ``key``, or a ValueError when they are not that."""
-    entries = data.get(key, [])
+    if key not in data:
+        # {} or {"detail": ...}: written as an empty stream it would wipe the file.
+        raise ValueError(f"Invalid response: no {key}")
+    entries = data[key]
     if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
         raise ValueError(f"Invalid response: {key} is not a list of objects")
     return entries
