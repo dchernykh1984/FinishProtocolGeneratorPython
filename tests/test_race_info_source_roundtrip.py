@@ -89,3 +89,15 @@ def test_disable_dns_survives_a_save_and_a_restart() -> None:
             assert not box.isChecked()
     finally:
         win.deleteLater()
+
+
+def test_the_key_value_format_reads_disable_dns_like_its_siblings() -> None:
+    win = MainWindow()
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            path.write_text("# FPG Race Info\nDisableDNS=1\n", encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.disable_dns is True
+    finally:
+        win.deleteLater()
