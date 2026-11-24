@@ -39,7 +39,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
 - Up to two more rows per rider sit under the lap columns, so they too need "Show lap times".
   With "Show lap stats button": each completed
   lap's gap to the fastest rider of the group on that lap (of everyone, in the absolute
-  protocol), whatever their status, and its rank there, bold for the fastest, and
+  protocol), whatever their status, and its rank there, shared by laps equal to the recorded
+  millisecond and bold for the fastest, and
   with "Show lap finish cumulative time" the same for the time since the start. With control
   points: one cell per segment of each lap -- start to point 1, ..., last point to the finish --
   holding its time, `ERR` when the point before it was missed, or `UNKNOWN` when its own point
