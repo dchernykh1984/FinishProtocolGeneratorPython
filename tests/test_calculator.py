@@ -391,11 +391,13 @@ class TestTimeLimit:
 class TestControlPointPenalty:
     """A penalty adds its seconds to its lap, and so to every time after it."""
 
-    def _rider(self, penalty: float, **settings) -> FinishProtocolElement:
+    def _rider(
+        self, penalty: float, mark: int = 900, **settings
+    ) -> FinishProtocolElement:
         start_t = BASE_T + 3600
         point = [
             FinishCompetitorElement("1", start_t + 300, "penalty", penalty),
-            FinishCompetitorElement("1", start_t + 900, "nextLap"),
+            FinishCompetitorElement("1", start_t + mark, "nextLap"),
         ]
         protocol = calculate_protocol(
             [_start("1", "G", n_laps=2)],
@@ -421,6 +423,12 @@ class TestControlPointPenalty:
             [300, 330],
             [300, 300],
         ]
+
+    def test_a_point_just_after_the_line_is_in_the_lap_as_it_was_ridden(self) -> None:
+        # Lap 2's point is passed 10 s after the line: the 30 s carried on must not push
+        # the crossing past it and leave the point in no lap.
+        fp = self._rider(30, mark=610)
+        assert fp.control_points[1].segment_times[:2] == [10, 590]
 
     def test_what_the_time_limit_cuts_off_a_lap_is_not_carried_on(self) -> None:
         fp = self._rider(700, time_limit=1200)
