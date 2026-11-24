@@ -256,8 +256,9 @@ race) can share one event and one token, each under a heading of its own. 1 is t
 own section, and what a config saved before this setting reads as; the organizer adds the
 others on the site (the event page's timing-token block, "Protocol sections"), where each
 shows its number. A number the event does not have is refused, and the error says so. It
-needs cycling-site after its #452. The setting is the last line of `fpg_info.txt`, so an
-older version of the application still reads every setting before it.
+needs cycling-site after its #452. The setting is written in `fpg_info.txt` after every
+setting an older version knows, so an older version of the application still reads all of
+them.
 
 **One timekeeper per line.** A source set to "Get data from site" is given every
 device's stream of that competition merged into one, with no way to pick between them.
