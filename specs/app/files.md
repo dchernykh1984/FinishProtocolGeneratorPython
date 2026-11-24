@@ -125,7 +125,8 @@ are empty; a template that cannot be read gives the built-in styles.
   list and the ladder file: [eliminator-finals.md](eliminator-finals.md). The streams fetched
   into their local files: [site-exchange.md](site-exchange.md).
 - **The seeding protocol**, when "Seeding protocol for the finals" is ticked and the race type
-  is not Eliminator Finals: a start protocol of the finishers who were not disqualified.
+  is not Eliminator Finals: a start protocol of the finishers who were not disqualified and did
+  not miss the start check.
   - Group by group for every line of the group times file, so a group listed twice is written
     twice, then the start protocol's groups the file does not list; within a group in finishing
     order.

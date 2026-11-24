@@ -8,7 +8,12 @@ from app.calculator import calculate_protocol, generate_sorted_protocol
 from app.config import RACE_TYPE_MASS_SPLITTED, RaceConfig
 from app.html_writer import write_absolute_protocol, write_group_protocol
 from app.live_stats import build_live_stats
-from app.models import FinishCompetitorElement, GroupStartElement, StartProtocolElement
+from app.models import (
+    FinishCompetitorElement,
+    FinishProtocolElement,
+    GroupStartElement,
+    StartProtocolElement,
+)
 from app.protocol_rows import (
     group_places,
     is_printed,
@@ -63,6 +68,23 @@ def test_prepare_statuses_is_idempotent():
     once = [(fp.finished, fp.disqualified) for fp in protocol]
     prepare_statuses(protocol, cfg)
     assert [(fp.finished, fp.disqualified) for fp in protocol] == once
+
+
+def test_a_rider_who_missed_the_start_check_prints_and_places_as_a_dns():
+    # He rode and finished, but a DNS row is printed as one and takes no place.
+    fp = FinishProtocolElement(
+        StartProtocolElement.from_line("1#A#G#1#1####"), False, 0
+    )
+    fp.finished, fp.n_laps_finished, fp.missed_start_check = True, 1, True
+    cfg = RaceConfig(print_dnf=True, print_dns=False)
+    assert not is_printed(fp, cfg)
+    cfg.print_dns = True
+    assert is_printed(fp, cfg)
+    cfg.print_dnf = False
+    assert not is_printed(fp, cfg)
+    assert place_status(fp, 1, cfg) == ("DNS", "dns")
+    everything = RaceConfig(print_dnf=True, print_dns=True)
+    assert group_places([fp], [GroupStartElement("G", 100.0)], everything) == {}
 
 
 def test_place_status_names_dsq_dnf_dns_and_places():

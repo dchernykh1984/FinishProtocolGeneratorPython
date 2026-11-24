@@ -13,19 +13,19 @@ protocols must not change (SC-004).
 **Independent test**: a group of a finisher, a DNF, a rider who rode without a check mark and a
 DSQ reads 1, DNF, DNS with his laps and time, DSQ.
 
-- [ ] T002 [US1] The start check list sets `missed_start_check` where it disqualified, the ERROR
+- [x] T002 [US1] The start check list sets `missed_start_check` where it disqualified, the ERROR
   kept, in `app/calculator.py`; tests in `tests/test_calculator.py`
-- [ ] T003 [US1] `place_status` says DNS for a rider who missed the start check and is not
+- [x] T003 [US1] `place_status` says DNS for a rider who missed the start check and is not
   disqualified, in `app/protocol_rows.py`; tests in `tests/test_protocol_rows.py`
-- [ ] T004 [US1] `_first_better` ranks the statuses first -- finisher, DNF, DNS, DSQ, through
+- [x] T004 [US1] `_first_better` ranks the statuses first -- finisher, DNF, DNS, DSQ, through
   `place_status` -- and keeps today's comparison inside a status, in `app/calculator.py`; tests in
   `tests/test_calculator.py`
-- [ ] T005 [US1] Such a rider is printed only with "Print DNF" and "Print DNS", takes no group
+- [x] T005 [US1] Such a rider is printed only with "Print DNF" and "Print DNS", takes no group
   place and is left out of the shared time warning, in `app/protocol_rows.py` and
   `app/calculator.py`; tests in `tests/test_protocol_rows.py`
-- [ ] T006 [P] [US1] The seeding protocol leaves him out, in `app/html_writer.py`; test in
+- [x] T006 [P] [US1] The seeding protocol leaves him out, in `app/html_writer.py`; test in
   `tests/test_seeding_protocol.py`
-- [ ] T007 [US1] `specs/app/scoring.md` and `specs/app/protocols.md` describe the DNS of the start
+- [x] T007 [US1] `specs/app/scoring.md` and `specs/app/protocols.md` describe the DNS of the start
   check and the order of the statuses
 
 ## Phase 3: User Story 2 - Disable DNS (P2)

@@ -22,7 +22,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
 - Columns, each behind its "Show ..." setting and headed by its label, in this order: place,
   number, name, year of birth, team, city, one column per lap, the result, additional info,
   start time.
-  - **Place**: the place, or DNF, DNS, DSQ.
+  - **Place**: the place, or DNF, DNS, DSQ. A rider who missed the start check reads DNS and
+    keeps his laps and his result in their columns.
   - **Number**: a line of N stages lists all N numbers, one under the other.
   - **Lap** "<lap label> <n>", with the lap additional info label under it when "Show lap finish
     cumulative time" is on: the lap's time; for a stage line the number that rode it, in

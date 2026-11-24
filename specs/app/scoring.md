@@ -41,19 +41,22 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
   has a start time ([files.md](files.md)), in Custom Start and Number of Tries once he has a mark
   -- and DNS otherwise.
 - A `DSQ` or `DSQ: <reason>` mark in the finish marks or at a control point disqualifies, unless
-  "Disable DSQ"; a reason is kept as `finish: <reason>` or `CP <n>: <reason>`. With the start
-  check list on and holding any mark, a rider without a mark in it later than his start minus
-  the registration period is disqualified, "Disable DSQ" or not -- though with "Disable DSQ" a
-  DSQ mark of his clears that again.
+  "Disable DSQ"; a reason is kept as `finish: <reason>` or `CP <n>: <reason>`.
+- With the start check list on and holding any mark, a rider without a mark in it later than his
+  start minus the registration period is DNS, and keeps the laps and the time he rode
+  ([specs/001-start-check-dns](../001-start-check-dns/spec.md)); a DSQ mark still makes him DSQ.
+  The log says that he did not pass start registration.
 - Who is printed: one who is not a finisher only with "Print DNF"; one who rode no lap only with
-  "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ".
+  "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ";
+  a DNS of the start check, whatever he rode, only with both "Print DNF" and "Print DNS".
 
 ## The order
 
 A port of the C++ comparison (`_first_better`); one rule is tried after another until two riders
 differ:
 
-1. Not disqualified before disqualified, then finishers before the rest.
+1. The status: finishers, then DNF, then DNS, then DSQ, whatever each rode; inside one status a
+   rider who finished goes first.
 2. Number of Tries: rule by rule (below); with no rules, more counted attempts, then the smaller
    sum of them; then the number.
 3. More laps first.
@@ -71,7 +74,8 @@ differ:
 - A table's finishers are numbered in its order. Two with the same result to the recorded
   millisecond over the same laps share the first of their places, and the next rider takes his
   own count: 1, 2, 2, 4. In Number of Tries the counted attempts must match as well. The place
-  column of a rider who is not a finisher says DNF or DNS, of a disqualified one DSQ.
+  column of a rider who is not a finisher says DNF or DNS, of a disqualified one DSQ. A DNS of the
+  start check takes no place: none in his group, none in brackets in the absolute protocol.
 - A time prints as `HH:MM:SS` with "Digits after decimal" decimals (0-4), with `N day(s)` in front
   past 24 hours and as `UNKNOWN` past 356 days. A half rounds to the even digit, counted from the
   millisecond the chronometer wrote when the time is a recorded one and from the time as it
