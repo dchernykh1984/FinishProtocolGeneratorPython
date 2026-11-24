@@ -158,6 +158,19 @@ class TestRemotePointsSiteSource:
         assert ok and not err
         assert content == ""
 
+    def test_a_point_beyond_the_count_is_a_warning(self) -> None:
+        # Its marks reach no file, so the referee is told the count is too low.
+        with tempfile.TemporaryDirectory() as td:
+            cfg = _cfg(td)
+            cfg.remote_points_source = START_LIST_SOURCE_SITE
+            points = {1: ["1#0 0:1:0#"], 2: [], 3: ["1#0 0:3:0#"]}
+            with patch("app.main_window.fetch_remote_points", return_value=points):
+                ok, err, log = _run(cfg)
+        assert ok and not err
+        assert any(
+            "WARNING" in m and "control point(s) 3 beyond the 2" in m for m in log
+        )
+
     def test_fetch_error_preserves_local(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             cfg = _cfg(td)

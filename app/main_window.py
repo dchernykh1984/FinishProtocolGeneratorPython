@@ -365,6 +365,14 @@ class _FTPWorker(QThread):
         except ValueError as exc:
             self.log_message.emit(f"  ERROR: {exc}")
             return False
+        beyond = sorted(n for n in points if not 1 <= n <= cfg.n_remote_points)
+        if beyond:
+            # Never written anywhere, so say so: the count is likely set too low.
+            self.log_message.emit(
+                f"  WARNING: the site has control point(s) "
+                f"{', '.join(map(str, beyond))} beyond the {cfg.n_remote_points} "
+                "configured; their marks are not used"
+            )
         ok = True
         for i in range(1, cfg.n_remote_points + 1):
             lines = points.get(i, [])
