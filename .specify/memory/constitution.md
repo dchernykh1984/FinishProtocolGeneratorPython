@@ -9,7 +9,7 @@ Sync Impact Report
   Development Workflow and Governance are the ones StartProtocolMakerPython and
   WindowsChronometerPython follow.
 - Known gaps, where the code does not meet a principle yet, are stated in the principles
-  themselves (I, II, VI), under "Not yet".
+  themselves (II), under "Not yet".
 - Templates: plan-template.md's "Constitution Check" gate reads these principles; no template
   needed changes.
 -->
@@ -30,8 +30,7 @@ A protocol is built from the files next to the program and from nothing else. Th
 and an FTP server are sources the referee may choose for a stream: each is fetched into the
 stream's local file before the run, and a fetch that fails leaves that file as it was while the
 run goes on with what is on disk. Publishing is the last step of a run; a failed upload costs the
-publication, never the protocol. Not yet: a site that times out or drops the connection after
-taking a fetch, or answers JSON of another shape, stops the download step and the run with it.
+publication, never the protocol.
 
 ### II. The input files are shared contracts
 
@@ -79,8 +78,7 @@ all.
 A fetch, an upload, a delete, or a document that cannot be built or that the site refuses is
 logged and the rest of the run goes on; refused data falls back to publishing the HTML. Of a
 run's failures only one that stops the run itself is shown in a dialog. Background work is
-stopped before the window closes, and the settings are saved on exit. Not yet: the fetches of
-principle I that are not caught stop without a word in the log.
+stopped before the window closes, and the settings are saved on exit.
 
 ### VII. Behaviour is proven by tests
 

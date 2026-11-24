@@ -71,6 +71,17 @@ class TestStartListSiteSource:
         assert err and not ok
         assert any("ERROR" in m for m in log)
 
+    def test_an_unexpected_failure_still_lets_the_run_go_on(self) -> None:
+        # A worker that died without a signal left Generate and Download disabled.
+        with tempfile.TemporaryDirectory() as td:
+            cfg = _cfg(td, START_LIST_SOURCE_SITE)
+            with patch(
+                "app.main_window.fetch_start_list", side_effect=RuntimeError("boom")
+            ):
+                ok, err, log = _run_ftp_worker(cfg)
+        assert err and not ok
+        assert any("ERROR" in m and "boom" in m for m in log)
+
     def test_missing_credentials_reports_error(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             cfg = _cfg(td, START_LIST_SOURCE_SITE)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.error
 import urllib.parse
@@ -10,6 +11,61 @@ import uuid
 
 from app.config import FIRST_SECTION
 from app.paths import app_path
+
+
+def _get_json(site_url: str, endpoint: str, token: str) -> dict:
+    """The site's JSON object for one stream; every way of not getting one is a
+    ValueError, which the caller logs before the run goes on with the local file.
+
+    urllib wraps a failure to connect in URLError, but not a failure after the site
+    has taken the request: a reply that does not come within the timeout, or a
+    connection dropped in the middle of the answer, arrives as a bare OSError or an
+    http.client error -- and escaping, it stopped the download step without a word.
+    """
+    url = (
+        site_url.rstrip("/")
+        + f"/api/v1/{endpoint}/?"
+        + urllib.parse.urlencode({"competition_token": token})
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError(f"Connection error: {exc.reason}") from exc
+    except (OSError, http.client.HTTPException) as exc:
+        raise ValueError(f"Connection error: {str(exc) or type(exc).__name__}") from exc
+    except ValueError as exc:
+        raise ValueError(f"Invalid response: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("Invalid response: not a JSON object")
+    return data
+
+
+def _entries(data: dict, key: str) -> list[dict]:
+    """The objects listed under ``key``, or a ValueError when they are not that."""
+    entries = data.get(key, [])
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        raise ValueError(f"Invalid response: {key} is not a list of objects")
+    return entries
+
+
+def _lines(entry: dict, what: str) -> list[str]:
+    """An entry's lines; anything but a list of strings would be written as garbage."""
+    items = entry.get("items", [])
+    if not isinstance(items, list) or not all(isinstance(i, str) for i in items):
+        raise ValueError(f"Invalid response: the items of {what} are not lines")
+    return items
+
+
+def _device_lines(data: dict) -> list[str]:
+    """Every device's lines, merged in the order the site lists the devices."""
+    return [
+        line
+        for device in _entries(data, "devices")
+        for line in _lines(device, "a device")
+    ]
 
 
 def fetch_start_list(site_url: str, token: str) -> list[str]:
@@ -27,45 +83,15 @@ def fetch_start_list(site_url: str, token: str) -> list[str]:
         The merged start-protocol lines (one per competitor).
 
     Raises:
-        ValueError: On HTTP error, network error, or invalid JSON response.
+        ValueError: On an HTTP or network error, a reply that times out, or an answer
+            that is not the JSON object of lines the site sends.
     """
-    url = (
-        site_url.rstrip("/")
-        + "/api/v1/start-list/?"
-        + urllib.parse.urlencode({"competition_token": token})
-    )
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise ValueError(f"Connection error: {exc.reason}") from exc
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ValueError(f"Invalid response: {exc}") from exc
-
-    devices = data.get("devices", [])
-    return [line for device in devices for line in device.get("items", [])]
+    return _device_lines(_get_json(site_url, "start-list", token))
 
 
 def _fetch_stream(site_url: str, token: str, endpoint: str) -> list[str]:
     """Fetch a per-device timing stream (group/finish), merged in device-id order."""
-    url = (
-        site_url.rstrip("/")
-        + f"/api/v1/{endpoint}/?"
-        + urllib.parse.urlencode({"competition_token": token})
-    )
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise ValueError(f"Connection error: {exc.reason}") from exc
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ValueError(f"Invalid response: {exc}") from exc
-    devices = data.get("devices", [])
-    return [line for device in devices for line in device.get("items", [])]
+    return _device_lines(_get_json(site_url, endpoint, token))
 
 
 def fetch_group_times(site_url: str, token: str) -> list[str]:
@@ -83,23 +109,14 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
 
     Lines for the same point from different devices are already merged server-side.
     """
-    url = (
-        site_url.rstrip("/")
-        + "/api/v1/remote-points/?"
-        + urllib.parse.urlencode({"competition_token": token})
-    )
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise ValueError(f"Connection error: {exc.reason}") from exc
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ValueError(f"Invalid response: {exc}") from exc
-    return {
-        int(p["point_number"]): list(p.get("items", [])) for p in data.get("points", [])
-    }
+    points: dict[int, list[str]] = {}
+    for point in _entries(_get_json(site_url, "remote-points", token), "points"):
+        try:
+            number = int(point["point_number"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Invalid response: a point without its number") from exc
+        points[number] = _lines(point, f"point {number}")
+    return points
 
 
 def upload_protocol(  # noqa: C901

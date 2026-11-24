@@ -174,6 +174,23 @@ class _FTPWorker(QThread):
         self._cfg = cfg
 
     def run(self) -> None:
+        # A worker that dies without a signal leaves Generate and Download disabled and
+        # the run never starting, so whatever goes wrong the run is still let go on.
+        try:
+            failed = self._download_all()
+        except Exception as exc:
+            self.log_message.emit(f"  ERROR: the download step stopped: {exc}")
+            failed = True
+        if failed:
+            self.log_message.emit(
+                "WARNING: some downloads failed; continuing with local files."
+            )
+            self.finished_with_errors.emit()
+        else:
+            self.finished_ok.emit()
+
+    def _download_all(self) -> bool:
+        """Every configured download, site streams first; True when any failed."""
         cfg = self._cfg
         for label, action in _site_source_conflicts(cfg):
             self.log_message.emit(
@@ -244,14 +261,7 @@ class _FTPWorker(QThread):
                     failed = True
                 else:
                     self.log_message.emit(f"  {label}: OK")
-
-        if failed:
-            self.log_message.emit(
-                "WARNING: some downloads failed; continuing with local files."
-            )
-            self.finished_with_errors.emit()
-        else:
-            self.finished_ok.emit()
+        return failed
 
     def _fetch_sources_from_site(self, cfg: RaceConfig) -> bool:
         """Fetch each site-sourced stream (start list, group, finish, remote points).
