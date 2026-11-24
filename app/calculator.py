@@ -570,9 +570,10 @@ def _report_shared_times(
     this about a heat all along; the qualification said nothing at all.
 
     Riders who really did ride the same millisecond are left out: a dead heat is
-    printed as one, both of them taking the same place, so the page is not hiding
-    anything. The laps count too -- a leader lapping a backmarker crosses with him on
-    the same second and is not sharing anything with him.
+    printed as one, both of them taking the same place -- or, in Number of Tries, a
+    later scoring rule parts them -- so the order is no timing slip and the page is
+    not hiding anything. The laps count too -- a leader lapping a backmarker crosses
+    with him on the same second and is not sharing anything with him.
 
     In Number of Tries the count the protocol prints beside the time is part of the
     result, so riders are only compared against the others on the same count.
