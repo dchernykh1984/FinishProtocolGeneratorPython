@@ -115,6 +115,17 @@ def test_a_dns_of_the_start_check_is_nobodys_leader_and_keeps_his_time():
     assert parts.time == "00:03:00.0" and parts.gap == ""
 
 
+def test_a_finisher_without_a_leader_shows_no_result():
+    # Only a DNS of the start check keeps his time without a leader; a finisher
+    # always has one, himself at least, so a missing one means nothing to show.
+    fp = FinishProtocolElement(
+        StartProtocolElement.from_line("1#A#G#1#1####"), False, 0
+    )
+    fp.finished, fp.n_laps_finished = True, 1
+    fp.finish_lap_times[0] = 95.5
+    assert result_parts(fp, None, RaceConfig()).time == ""
+
+
 def test_place_status_names_dsq_dnf_dns_and_places():
     race = SCENARIOS["mass_print_all"]()
     prepare_statuses(race.protocol, race.cfg)
