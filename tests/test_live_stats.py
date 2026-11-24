@@ -305,6 +305,28 @@ class TestDsq:
         assert stats["3"]["place_abs"] == "2"
         assert stats["1"]["qty_abs"] == "3"
 
+    def test_a_rider_who_missed_the_start_check_is_dns_outside_the_numbering(self):
+        # Ranked after everyone on course, he would give the last of them a gap to
+        # a rider laps ahead; like a DSQ he is left out, his place reading DNS.
+        cfg = _cfg(use_start_check_list=True, start_registration_period=60)
+        start_list = [_start("1", "G"), _start("2", "G"), _start("3", "G")]
+        finish_list = [
+            _finish("1", START_T + 100, "nextLap"),
+            _finish("2", START_T + 90, "nextLap"),
+            _finish("2", START_T + 180, "nextLap"),
+            _finish("3", START_T + 150, "nextLap"),
+        ]
+        checks = [_finish(bib, START_T - 30, "nextLap") for bib in ("1", "3")]
+        protocol = calculate_protocol(
+            start_list, [_group("G", START_T)], finish_list, [], checks, cfg, []
+        )
+        stats = build_live_stats(generate_sorted_protocol(protocol, cfg, 0), cfg)
+        assert stats["2"]["place_abs"] == "DNS"
+        assert "gap_prev_abs" not in stats["2"] and "gap_next_abs" not in stats["2"]
+        assert stats["1"]["place_abs"] == "1"
+        assert stats["3"]["place_abs"] == "2"
+        assert "gap_next_abs" in stats["1"] and stats["1"]["qty_abs"] == "3"
+
     def test_dsq_still_reports_laps(self):
         cfg = _cfg()
         stats = build_live_stats(self._scenario_with_dsq(cfg), cfg)
