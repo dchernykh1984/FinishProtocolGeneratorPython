@@ -388,6 +388,46 @@ class TestTimeLimit:
         assert any("time limit" in m for m in log)
 
 
+class TestControlPointPenalty:
+    """A penalty adds its seconds to its lap, and so to every time after it."""
+
+    def _rider(self, penalty: float, **settings) -> FinishProtocolElement:
+        start_t = BASE_T + 3600
+        point = [
+            FinishCompetitorElement("1", start_t + 300, "penalty", penalty),
+            FinishCompetitorElement("1", start_t + 900, "nextLap"),
+        ]
+        protocol = calculate_protocol(
+            [_start("1", "G", n_laps=2)],
+            [GroupStartElement("G", start_t)],
+            [
+                FinishCompetitorElement("1", start_t + 600, "nextLap"),
+                FinishCompetitorElement("1", start_t + 1200, "nextLap"),
+            ],
+            [point],
+            [],
+            _cfg(n_remote_points=1, **settings),
+            [],
+        )
+        return protocol[0]
+
+    def test_a_penalty_before_the_last_lap_stays_in_the_result(self) -> None:
+        # 30 s given in lap 1 of 2: the second lap was ridden from where he crossed
+        # the line, so it takes nothing back, nor does its first split.
+        fp = self._rider(30)
+        assert fp.lap_times[:2] == [630, 600]
+        assert fp.finish_lap_times[:2] == [630, 1230]
+        assert [cp.segment_times for cp in fp.control_points[:2]] == [
+            [300, 330],
+            [300, 300],
+        ]
+
+    def test_what_the_time_limit_cuts_off_a_lap_is_not_carried_on(self) -> None:
+        fp = self._rider(700, time_limit=1200)
+        assert fp.lap_times[:2] == [1200, 600]
+        assert fp.finish_lap_times[1] == 1800
+
+
 # ---------------------------------------------------------------------------
 # calculate_protocol -- start_check_list
 # ---------------------------------------------------------------------------
