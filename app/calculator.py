@@ -63,6 +63,12 @@ def _number_less(a_id: str, b_id: str) -> bool:
         return a_id < b_id
 
 
+def _sum_ms(seconds: float) -> float:
+    """A sum of attempt times to the recorded millisecond; INF -- no attempt completed,
+    which no millisecond holds -- stays INF, behind every finite sum."""
+    return seconds if seconds == INF else recorded_ms(seconds)
+
+
 def _first_better(  # noqa: C901
     a: FinishProtocolElement,
     b: FinishProtocolElement,
@@ -91,16 +97,13 @@ def _first_better(  # noqa: C901
                     return a_count > b_count
                 # To the recorded millisecond, as the place is: the float noise of a sum
                 # must not order two riders a later rule parts (recorded_ms).
-                a_time, b_time = recorded_ms(a_sum), recorded_ms(b_sum)
+                a_time, b_time = _sum_ms(a_sum), _sum_ms(b_sum)
                 if a_time != b_time:
                     return a_time < b_time if rule.sort == "asc" else a_time > b_time
             return _number_less(a.competitor_id, b.competitor_id)
         if a.get_n_successful_tries() != b.get_n_successful_tries():
             return a.get_n_successful_tries() > b.get_n_successful_tries()
-        total_a, total_b = (
-            recorded_ms(a.get_total_time()),
-            recorded_ms(b.get_total_time()),
-        )
+        total_a, total_b = _sum_ms(a.get_total_time()), _sum_ms(b.get_total_time())
         if total_a != total_b:
             return total_a < total_b
         return _number_less(a.competitor_id, b.competitor_id)
