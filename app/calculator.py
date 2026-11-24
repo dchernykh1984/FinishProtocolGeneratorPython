@@ -211,7 +211,8 @@ def calculate_protocol(  # noqa: C901
             "WARNING: Spiridonov with control points: split times will be incorrect"
         )
 
-    unstarted: set[str] = set()
+    # Each group with no start time, and whether a rider of it has a mark already.
+    unstarted: dict[str, bool] = {}
     for start in start_list:
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
         fp.attempt_rules = rules
@@ -240,14 +241,11 @@ def calculate_protocol(  # noqa: C901
             # 0 and below are no start, as for the finals' heats and the start board.
             if group is not None and group.seconds > 0:
                 fp.cross_line_times[0] = group.seconds + fp.start_delay
-            elif fp.group_id not in unstarted:
+            else:
                 # No start line, or one without a time: there is nothing to time the
-                # group from, so none of its riders started, whatever his delay. Once
-                # per group is enough to send the referee to the group times file.
-                unstarted.add(fp.group_id)
-                log.append(
-                    f"ERROR: group {fp.group_id} has no start time in the group times "
-                    "file, so none of its laps can be timed"
+                # group from, so none of its riders started, whatever his delay.
+                unstarted[fp.group_id] = unstarted.get(fp.group_id) or _has_marks(
+                    fp, finish_list, remote_points
                 )
 
         # --- start check list ---
@@ -449,7 +447,39 @@ def calculate_protocol(  # noqa: C901
                     fp.control_points[lc].segment_times[n_cp] = finish_t - last_cross
 
         result.append(fp)
+    _report_unstarted(unstarted, log)
     return result
+
+
+def _has_marks(
+    fp: FinishProtocolElement,
+    finish_list: list[FinishCompetitorElement],
+    remote_points: list[list[FinishCompetitorElement]],
+) -> bool:
+    """Whether the rider crossed a timing line, at the finish or a control point."""
+    return any(
+        fp.is_same_competitor(mark) and not mark.is_dsq
+        for stream in (finish_list, *remote_points)
+        for mark in stream
+    )
+
+
+def _report_unstarted(unstarted: dict[str, bool], log: list[str]) -> None:
+    """One line per group without a start time (maintainer, 2026-11-24).
+
+    A WARNING while nobody of it has a mark -- a later wave not started yet is a normal
+    moment of a race -- and an ERROR once one has: marks that nothing can time.
+    """
+    for group_id, marked in unstarted.items():
+        if marked:
+            log.append(
+                f"ERROR: group {group_id} has no start time in the group times file, "
+                "but its riders have marks: none of their laps can be timed"
+            )
+        else:
+            log.append(
+                f"WARNING: group {group_id} has no start time in the group times file"
+            )
 
 
 def report_double_marks(
