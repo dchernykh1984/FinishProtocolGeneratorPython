@@ -32,7 +32,8 @@ protocol is in [eliminator-finals.md](eliminator-finals.md).
   - **Result**: the time; the gap to the table's leader in brackets ("Show time difference");
     the laps ridden in brackets ("Show number of finished laps"). A disqualified rider's
     reasons take its place, one per line. The leader is the table's first finisher; a rider who
-    missed the start check is never the leader, and keeps his time even when nobody finished.
+    missed the start check is never the leader, and keeps his time, with no gap, even when
+    nobody finished.
   - **Start time**: the start delay; in Custom Start and Number of Tries the first mark with its
     date, or `NOT STARTED`.
 - Up to two more rows per rider sit under the lap columns, so they too need "Show lap times".

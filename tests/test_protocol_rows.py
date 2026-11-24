@@ -103,6 +103,16 @@ def test_a_dns_of_the_start_check_is_nobodys_leader_and_keeps_his_time():
     assert not leads(fp)
     parts = result_parts(fp, None, RaceConfig())
     assert parts.time == "00:01:35.5" and parts.gap == ""
+    # Nor a gap to a leader who rode fewer laps: it would be his whole race time.
+    leader = FinishProtocolElement(
+        StartProtocolElement.from_line("2#B#G#1#1####"), False, 0
+    )
+    leader.finished, leader.n_laps_finished = True, 1
+    leader.finish_lap_times[0] = 90.0
+    fp.n_laps_finished = 2
+    fp.finish_lap_times[1] = 180.0
+    parts = result_parts(fp, leader, RaceConfig())
+    assert parts.time == "00:03:00.0" and parts.gap == ""
 
 
 def test_place_status_names_dsq_dnf_dns_and_places():
