@@ -336,6 +336,9 @@ def calculate_protocol(  # noqa: C901
                     )
 
         # --- find all line crossings ---
+        # A penalty is in its lap's crossing and so in every later one; the control
+        # points are matched against the crossings as they were marked.
+        marked = [fp.cross_line_times[0]]
         prev_cross = fp.cross_line_times[0]
         for lap in range(1, fp.n_laps + 1):
             next_cross = INF
@@ -370,6 +373,7 @@ def calculate_protocol(  # noqa: C901
                     log.append(f"WARNING: lap {lap} not found for {fp.competitor_id}")
                 break
             fp.n_laps_finished += 1
+            fp.cross_line_times[lap] += fp.cross_line_times[lap - 1] - prev_cross
             for pts in remote_points:
                 for rem in pts:
                     if rem.is_dsq:
@@ -392,6 +396,7 @@ def calculate_protocol(  # noqa: C901
                     fp.cross_line_times[index - 1] + cfg.time_limit,
                 )
             prev_cross = next_cross
+            marked.append(next_cross)
 
         # --- Spiridonov ---
         if cfg.use_spiridonov_coefficients():
@@ -399,6 +404,7 @@ def calculate_protocol(  # noqa: C901
             for i in range(fp.n_laps_finished + 1):
                 if i < len(fp.cross_line_times):
                     fp.cross_line_times[i] /= coeff
+            marked = [t / coeff for t in marked]
             fp.extra_info = f"{coeff:.4f}"
 
         # --- compute lapTimes and finishLapTimes ---
@@ -414,18 +420,16 @@ def calculate_protocol(  # noqa: C901
 
         # --- control points (intermediate) ---
         for lc in range(min(fp.n_laps_finished + 1, fp.n_laps)):
-            next_lap_t = (
-                INF if lc == fp.n_laps_finished else fp.cross_line_times[lc + 1]
-            )
+            next_lap_t = INF if lc == fp.n_laps_finished else marked[lc + 1]
             n_cp = len(remote_points)
             for cp_i, pts in enumerate(remote_points):
                 prev_seg = (
-                    fp.cross_line_times[lc]
+                    marked[lc]
                     if cp_i == 0
                     else (
                         fp.control_points[lc].segment_crosses[cp_i - 1]
                         if fp.control_points[lc].segment_crosses[cp_i - 1] != -1
-                        else fp.cross_line_times[lc]
+                        else marked[lc]
                     )
                 )
                 for rem in pts:
@@ -434,14 +438,12 @@ def calculate_protocol(  # noqa: C901
                     t = rem.seconds
                     if (
                         fp.is_same_competitor(rem)
-                        and t > fp.cross_line_times[lc]
+                        and t > marked[lc]
                         and t < next_lap_t
                         and fp.control_points[lc].segment_crosses[cp_i] == -1
                     ):
                         fp.control_points[lc].segment_crosses[cp_i] = t
-                        fp.control_points[lc].segment_finishes[cp_i] = (
-                            t - fp.cross_line_times[lc]
-                        )
+                        fp.control_points[lc].segment_finishes[cp_i] = t - marked[lc]
                         prev_found = cp_i == 0 or (
                             fp.control_points[lc].segment_crosses[cp_i - 1] != -1
                         )
@@ -452,7 +454,10 @@ def calculate_protocol(  # noqa: C901
             if n_cp > 0 and lc < fp.n_laps_finished:
                 last_cross = fp.control_points[lc].segment_crosses[n_cp - 1]
                 if last_cross != -1:
-                    finish_t = fp.cross_line_times[lc + 1]
+                    # The finish as marked plus this lap's own penalty.
+                    finish_t = fp.cross_line_times[lc + 1] - (
+                        fp.cross_line_times[lc] - marked[lc]
+                    )
                     fp.control_points[lc].segment_crosses[n_cp] = finish_t
                     fp.control_points[lc].segment_times[n_cp] = finish_t - last_cross
 
