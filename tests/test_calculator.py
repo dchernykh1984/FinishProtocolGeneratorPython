@@ -439,9 +439,33 @@ class TestAGroupWithoutAStartTime:
             assert place_status(riders[bib], 1, _cfg()) == ("DNS", "dns")
         assert riders["3"].finished and riders["3"].n_laps_finished == 2
         assert [m for m in log if "no start time" in m] == [
-            "ERROR: group G has no start time in the group times file, so none of "
-            "its laps can be timed"
+            "ERROR: group G has no start time in the group times file, but its riders "
+            "have marks: none of their laps can be timed"
         ]
+
+    @pytest.mark.parametrize(
+        ("finish_list", "points", "level"),
+        [
+            ([], [], "WARNING"),
+            ([_finish("1", BASE_T + 100, "DSQ")], [], "WARNING"),
+            ([], [[_finish("1", BASE_T + 100)]], "ERROR"),
+        ],
+        ids=["not started yet", "a DSQ is no mark", "a control point mark"],
+    )
+    def test_a_warning_until_one_of_its_riders_has_a_mark(
+        self,
+        finish_list: list[FinishCompetitorElement],
+        points: list[list[FinishCompetitorElement]],
+        level: str,
+    ) -> None:
+        # A later wave not started yet is a normal moment of a race; marks that
+        # nothing can time are not (maintainer, 2026-11-24).
+        log: list[str] = []
+        cfg = _cfg(n_remote_points=len(points))
+        calculate_protocol(
+            [_start("1", "G"), _start("2", "G")], [], finish_list, points, [], cfg, log
+        )
+        assert [m.split(":")[0] for m in log if "no start time" in m] == [level]
 
     def test_they_sort_after_every_rider_who_started(self) -> None:
         # Behind a rider who started and did not finish: DNF before DNS.

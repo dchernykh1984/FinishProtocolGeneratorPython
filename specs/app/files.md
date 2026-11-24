@@ -42,17 +42,19 @@ them is ignored.
   in the order of the file, so it is printed as often as it is listed.
 - The groups of the start protocol that the file does not list follow with no start time, as
   does a group whose line has no time: an empty one, or 0, which the finals and the start board
-  take for no start too. In the mass start types a group with no start time is an
-  ERROR, and none of its riders has started, whatever his start delay: he rides no lap and is
-  DNS ([scoring.md](scoring.md)).
+  take for no start too. In the mass start types none of the riders of a group with no start
+  time has started, whatever his start delay: he rides no lap and is DNS
+  ([scoring.md](scoring.md)). The log says so with a WARNING while none of them has a mark -- a
+  later wave not started yet -- and with an ERROR once one has a mark at the finish or a
+  control point, which nothing can time (a DSQ mark is no such mark).
 - In Eliminator Finals a line is a heat ([eliminator-finals.md](eliminator-finals.md)).
 
 ## The finish marks (`results.txt`) and the control points
 
 - `number#time#action#` per mark, as the chronometers write it. A fourth field that reads as a
   number is a penalty in seconds.
-- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or
-  `DSQ: <reason>` disqualifies. In the timed race types every mark that is not a disqualification
+- Actions: `finish` and `nextLap` cross the line, `nextStage` is a stage change, `DSQ` or `DSQ:
+  <reason>` disqualifies. In the timed race types every mark that is not a disqualification
   counts as a crossing of the line ([scoring.md](scoring.md)).
 - Control points: with "Control points" N > 0 and a "Path prefix" folder, point n is read from
   `<folder>/results_<n>.txt`, n = 1..N, in the same format.
@@ -137,8 +139,8 @@ are empty; a template that cannot be read gives the built-in styles.
   - It goes to its own path, or beside the group protocol as `<group protocol>.txt` when that is
     empty, in UTF-8. A path that names a file of the race (start protocol, group times, finish
     times, a control point stream, start check list, group or absolute protocol, styles
-    template, ladder file, the race info file next to the program) is refused with an ERROR, and the protocols are written all the same; a folder that is not
-    there is made.
+    template, ladder file, the race info file next to the program) is refused with an ERROR, and
+    the protocols are written all the same; a folder that is not there is made.
 - **The log file** `temp/fpg<N>.txt`, N the first number not yet used, when "Write log to file"
   is on.
 - **`fpg_info.txt`** on exit, next to the program; "Save Race Info to file..." writes the same
