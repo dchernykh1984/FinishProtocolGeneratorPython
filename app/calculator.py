@@ -233,7 +233,8 @@ def calculate_protocol(  # noqa: C901
                     fp.cross_line_times[0] = fe.seconds
         else:
             group = next((g for g in group_list if g.group_id == fp.group_id), None)
-            if group is not None and group.seconds:
+            # 0 and below are no start, as for the finals' heats and the start board.
+            if group is not None and group.seconds > 0:
                 fp.cross_line_times[0] = group.seconds + fp.start_delay
             elif fp.group_id not in unstarted:
                 # No start line, or one without a time: there is nothing to time the
