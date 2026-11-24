@@ -154,6 +154,15 @@ class TestFetchFailuresAreValueErrors:
                 fetch("https://x", "tok")
 
 
+def test_an_error_never_repeats_the_token() -> None:
+    # http.client refuses a path with a space by quoting it whole, token included;
+    # nothing is sent, so this needs no network.
+    with pytest.raises(ValueError) as caught:
+        fetch_start_list("http://127.0.0.1:9/my site", "SECRET123")
+    assert "SECRET123" not in str(caught.value)
+    assert "<token>" in str(caught.value)
+
+
 def test_a_site_url_without_its_scheme_is_a_bad_url_not_a_bad_answer() -> None:
     with patch("urllib.request.urlopen") as never:
         with pytest.raises(ValueError, match=r"Bad site URL 'cycling\.example\.org'"):
