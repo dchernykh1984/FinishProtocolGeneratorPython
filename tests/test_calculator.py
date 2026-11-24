@@ -469,13 +469,14 @@ def test_a_group_listed_twice_is_an_error() -> None:
 
 
 class TestStartCheckList:
-    def test_missing_check_dsq(self) -> None:
+    def test_a_missed_check_is_dns_not_dsq(self) -> None:
+        # He broke no rule on the course, so he did not start rather than was
+        # disqualified, and the laps he rode stay his (specs/001-start-check-dns).
         start_t = BASE_T + 3600
         start_list = [_start("1", "G", n_laps=1)]
         group_list = [_group("G", start_t)]
         finish_list = [_finish("1", start_t + 100, "finish")]
         # Non-empty start_check_list with competitor "99" (not matching "1")
-        # -> competitor "1" fails registration -> DSQ
         start_check_list = [_finish("99", start_t - 50, "nextLap")]
         cfg = _cfg()
         cfg.use_start_check_list = True
@@ -484,7 +485,63 @@ class TestStartCheckList:
             start_list, group_list, finish_list, [], start_check_list, cfg, log
         )
         assert any("did not pass" in m for m in log)
-        assert protocol[0].disqualified is True
+        assert protocol[0].disqualified is False
+        assert protocol[0].missed_start_check is True
+        assert protocol[0].n_laps_finished == 1 and protocol[0].finished
+        assert place_status(protocol[0], 1, cfg) == ("DNS", "dns")
+
+    def _four(
+        self, checked: tuple[str, ...] = ("1", "2")
+    ) -> tuple[list[FinishProtocolElement], RaceConfig, list[str]]:
+        """A finisher, a DNF, the fastest rider without a check mark, and a DSQ."""
+        t = BASE_T + 3600
+        start_list = [_start(bib, "G", n_laps=2) for bib in ("1", "2", "3", "4")]
+        finish_list = [
+            _finish("1", t + 100),
+            _finish("1", t + 200, "finish"),
+            _finish("2", t + 110),
+            _finish("3", t + 90),
+            _finish("3", t + 180, "finish"),
+            _finish("4", t + 95),
+            _finish("4", t + 190, "finish"),
+            _finish("4", t + 191, "DSQ"),
+        ]
+        checks = [_finish(bib, t - 30) for bib in checked]
+        cfg = _cfg(use_start_check_list=True, start_registration_period=60)
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, [_group("G", t)], finish_list, [], checks, cfg, log
+        )
+        return generate_sorted_protocol(protocol, cfg, 0), cfg, log
+
+    def test_the_statuses_go_finishers_dnf_dns_dsq(self) -> None:
+        # The DNS rode the fastest, and still goes after the rider who did not
+        # finish; the DSQ missed the check too and is DSQ all the same.
+        order, cfg, log = self._four()
+        assert [(fp.competitor_id, place_status(fp, 1, cfg)[0]) for fp in order] == [
+            ("1", "1"),
+            ("2", "DNF"),
+            ("3", "DNS"),
+            ("4", "DSQ"),
+        ]
+        assert [m for m in log if "did not pass" in m] == [
+            "ERROR: 3 did not pass start registration",
+            "ERROR: 4 did not pass start registration",
+        ]
+
+    def test_a_check_list_without_marks_checks_nobody(self) -> None:
+        start_t = BASE_T + 3600
+        cfg = _cfg(use_start_check_list=True)
+        protocol = calculate_protocol(
+            [_start("1", "G", n_laps=1)],
+            [_group("G", start_t)],
+            [_finish("1", start_t + 100, "finish")],
+            [],
+            [],
+            cfg,
+            [],
+        )
+        assert not protocol[0].missed_start_check and protocol[0].finished
 
     def test_valid_check_passes(self) -> None:
         start_t = BASE_T + 3600

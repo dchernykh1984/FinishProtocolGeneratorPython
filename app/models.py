@@ -260,6 +260,9 @@ class FinishProtocolElement:
 
         self.finished: bool = disable_dnf
         self.disqualified: bool = False
+        # No start check list mark when one was due: DNS, though he keeps the laps he
+        # rode (maintainer, 2026-11-24; specs/001-start-check-dns).
+        self.missed_start_check: bool = False
         # Human-readable "<where>: <reason>" strings for each DSQ mark that carried a
         # reason (finish line or a control point); shown in the finish-time column.
         self.dsq_reasons: list[str] = []

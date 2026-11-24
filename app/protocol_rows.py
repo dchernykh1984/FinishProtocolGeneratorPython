@@ -86,6 +86,9 @@ def prepare_statuses(protocol: list[FinishProtocolElement], cfg: RaceConfig) -> 
 
 def is_printed(fp: FinishProtocolElement, cfg: RaceConfig) -> bool:
     """Whether the competitor appears in the protocol at all (the print_* settings)."""
+    if fp.missed_start_check and not fp.disqualified:
+        # A DNS row whatever he rode, so printed when every other DNS row is.
+        return cfg.print_dnf and cfg.print_dns
     return bool(
         (fp.finished or cfg.print_dnf)
         and (
@@ -103,6 +106,8 @@ def place_status(
     """(what the place column says, the competitor's status: ok, dnf, dns or dsq)."""
     if fp.disqualified:
         return "DSQ", "dsq"
+    if fp.missed_start_check:
+        return "DNS", "dns"
     if not fp.finished:
         if fp.has_started() or (
             cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF
@@ -110,6 +115,15 @@ def place_status(
             return "DNF", "dnf"
         return "DNS", "dns"
     return str(place), "ok"
+
+
+#: The order statuses come in, in every table: finishers, DNF, DNS, then DSQ.
+_STATUS_ORDER = ("ok", "dnf", "dns", "dsq")
+
+
+def status_rank(fp: FinishProtocolElement, cfg: RaceConfig) -> int:
+    """Where the rider's status puts him: 0 for a finisher, up to 3 for DSQ."""
+    return _STATUS_ORDER.index(place_status(fp, 0, cfg)[1])
 
 
 def shared_places(
@@ -176,6 +190,7 @@ def group_places(
                     and is_printed(fp, cfg)
                     and fp.finished
                     and not fp.disqualified
+                    and not fp.missed_start_check
                 ],
                 cfg,
                 first,

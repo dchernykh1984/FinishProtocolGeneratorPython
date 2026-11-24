@@ -463,7 +463,7 @@ def _write_text_group_protocol(
         for fp in sorted_protocol:
             if fp.group_id != group_id:
                 continue
-            if not fp.finished or fp.disqualified:
+            if not fp.finished or fp.disqualified or fp.missed_start_check:
                 continue
             place_ctr += 1
             lines.append(

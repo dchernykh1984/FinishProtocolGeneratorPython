@@ -252,6 +252,41 @@ def test_the_export_runs_in_a_mode_it_never_could_before(tmp_path: Path) -> None
     assert not Path(group_protocol + ".txt").exists()
 
 
+def test_a_rider_who_missed_the_start_check_is_not_seeded(tmp_path: Path) -> None:
+    # He is DNS: no place in his group, so none to seed the finals from.
+    from app.calculator import calculate_protocol, generate_sorted_protocol
+    from app.html_writer import write_group_protocol
+    from app.models import (
+        FinishCompetitorElement,
+        GroupStartElement,
+        StartProtocolElement,
+    )
+
+    cfg = RaceConfig(
+        write_seeding_protocol=True,
+        seeding_protocol_file=str(tmp_path / "seeding.txt"),
+        use_start_check_list=True,
+        start_registration_period=60,
+    )
+    starts = [
+        StartProtocolElement.from_line(f"{bib}#Rider {bib}#Men#1#1####")
+        for bib in ("1", "2")
+    ]
+    groups = [GroupStartElement("Men", 1000.0)]
+    marks = [
+        FinishCompetitorElement("1", 1100.0, "finish"),
+        FinishCompetitorElement("2", 1090.0, "finish"),
+    ]
+    checks = [FinishCompetitorElement("1", 990.0, "nextLap")]
+    protocol = generate_sorted_protocol(
+        calculate_protocol(starts, groups, marks, [], checks, cfg, []), cfg, 0
+    )
+    write_group_protocol(str(tmp_path / "gr.html"), protocol, groups, cfg, 0)
+    lines = (tmp_path / "seeding.txt").read_text(encoding="utf-8").splitlines()
+    assert [line.split("#")[0] for line in lines] == ["1"]
+    assert lines[0].split("#")[9] == "1"
+
+
 class TestItNeverOverwritesARaceFile:
     """The field asks for a start protocol, so naming this race's own is an easy slip.
 

@@ -20,7 +20,7 @@ from app.models import (
     printed_ticks,
     recorded_ms,
 )
-from app.protocol_rows import format_time, result_count, result_seconds
+from app.protocol_rows import format_time, result_count, result_seconds, status_rank
 
 
 def _record_dsq_reason(
@@ -70,14 +70,13 @@ def _first_better(  # noqa: C901
     n_points: int,
 ) -> bool:
     """Return True if result *a* beats result *b* (faithful port of C++ logic)."""
-    if not a.disqualified and b.disqualified:
-        return True
-    if a.disqualified and not b.disqualified:
-        return False
-    if a.finished and not b.finished:
-        return True
-    if not a.finished and b.finished:
-        return False
+    # Finishers, DNF, DNS, then DSQ, whatever each rode; inside one status, who
+    # finished still goes first, as the C++ comparison had it.
+    rank_a, rank_b = status_rank(a, cfg), status_rank(b, cfg)
+    if rank_a != rank_b:
+        return rank_a < rank_b
+    if a.finished != b.finished:
+        return a.finished
 
     if cfg.is_number_of_tries():
         if a.attempt_rules:
@@ -262,7 +261,8 @@ def calculate_protocol(  # noqa: C901
                         )
             if not passed:
                 log.append(f"ERROR: {fp.competitor_id} did not pass start registration")
-                fp.disqualified = True
+                # DNS, not DSQ: he broke no rule on the course (maintainer, 2026-11-24).
+                fp.missed_start_check = True
 
         # --- DSQ and finish marks ---
         _finish_count = 0
@@ -525,8 +525,8 @@ def _report_shared_times(
     seen: dict[tuple[str, int, str], list[tuple[str, int]]] = {}
     for fp in protocol:
         seconds = result_seconds(fp, cfg)
-        if seconds <= 0:
-            continue
+        if seconds <= 0 or fp.missed_start_check:
+            continue  # a DNS rider takes no place, so there is no order to read
         key = (
             fp.group_id,
             result_count(fp, cfg),
