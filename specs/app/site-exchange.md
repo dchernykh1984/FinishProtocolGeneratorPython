@@ -64,13 +64,14 @@ does not guess. A run always builds its protocols from the local files
 - Every value comes from lap finishes only, never from control points, so a missed control point
   mark cannot move a place or a gap; a penalty is already in the lap times and a DSQ mark
   disqualifies. The riders are ranked with the protocol's comparison without its control points
-  and numbered 1, 2, 3 -- a dead heat is not shared. A disqualified rider's place is `DSQ` and a
-  rider who missed the start check's is `DNS`, both outside the numbering, the gaps and the
-  packs. Keys, each with the suffix `_group` or `_abs` of its switch: `place` (a number, `DSQ`
-  or `DNS`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and `gap_leader`, the same
-  three again with `_delta` after the suffix (how the gap changed over the last lap); for the
-  whole race the participant packs, `gap_prev_pack_abs`, `gap_next_pack_abs`,
-  `qty_prev_pack_abs` and `qty_next_pack_abs`; and `laps` as `<done>/<total>`.
+  and numbered 1, 2, 3 -- a dead heat is not shared. A disqualified rider's place is `DSQ` and
+  the place of one who has not started -- his start not seen yet, or the start check missed --
+  is `DNS`, both outside the numbering, the gaps and the packs. Keys, each with the suffix
+  `_group` or `_abs` of its switch: `place` (a number, `DSQ` or `DNS`), `qty` (the riders of the
+  scope), `gap_prev`, `gap_next` and `gap_leader`, the same three again with `_delta` after the
+  suffix (how the gap changed over the last lap); for the whole race the participant packs,
+  `gap_prev_pack_abs`, `gap_next_pack_abs`, `qty_prev_pack_abs` and `qty_next_pack_abs`; and
+  `laps` as `<done>/<total>`.
 - A gap is taken at the last lap finish both riders completed -- in Number of Tries it is the
   difference of their results, in the first rule's direction -- and is signed for the reader: a
   rider ahead is `+`, one behind `-`; it prints as `M:SS` (`H:MM:SS` past an hour) with the

@@ -18,6 +18,8 @@ DNS, with DSQ last; and a "Disable DNS" checkbox is needed beside the others.
 - "Disable DNS" means nobody is DNS: a rider without a check mark is scored as if he had one,
   and a rider whose start was never seen is DNF instead of DNS -- what "Disable DNF (everyone
   counts as finished)" is for the finish.
+- In the live statistics every DNS reads DNS, out of the numbering, the gaps and the packs -- a
+  rider who has not started yet as well (maintainer, 2026-11-24).
 
 ## User Scenarios & Testing
 
@@ -120,7 +122,7 @@ placed among the finishers by his result; a rider of a group that never started 
   whether or not "Disable DNS" is on.
 - **FR-008**: The site document MUST show the same status as the HTML protocol; the live
   statistics MUST leave a DNS of the start check out of their numbering, gaps and packs, as they
-  leave out a DSQ, and say DNS for his place.
+  leave out every other DNS and a DSQ, and say DNS for his place.
 
 ### Key Entities
 
