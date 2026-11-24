@@ -10,6 +10,8 @@ Sync Impact Report
   WindowsChronometerPython follow.
 - Templates: plan-template.md's "Constitution Check" gate reads these principles; no template
   needed changes.
+- 1.0.0 -> 1.0.1 (2026-11-24, wording): principle V says that in Number of Tries a place is
+  shared only when every scoring rule is equal, a later rule parting it (maintainer).
 -->
 
 # Finish Protocol Generator Constitution
@@ -65,10 +67,11 @@ place or gap.
 What the data cannot settle is said in the run log and left to the referee: two devices writing
 one finish line, two riders printed with the same time without riding it, a heat start recorded
 twice, a mark no heat accounts for. In the group and absolute protocols and in a finals heat,
-results equal to the recorded millisecond are a dead heat and share a place, and any other
-difference ranks them; the seeding protocol and the live statistics number such riders on. A
-finals protocol that would be wrong -- a group with qualifiers and no ladder -- is not written at
-all.
+results equal to the recorded millisecond are a dead heat and share a place -- in Number of Tries
+only when every scoring rule is equal as well, a later rule parting them (maintainer, 2026-11-24)
+-- and any other difference ranks them; the seeding protocol and the live statistics number such
+riders on. A finals protocol that would be wrong -- a group with qualifiers and no ladder -- is
+not written at all.
 
 ### VI. A failure is reported, not fatal
 
@@ -120,4 +123,4 @@ the detail and are kept consistent with it. The maintainer amends it through a p
 bumps the version -- MAJOR for a principle removed or redefined, MINOR for one added or
 materially expanded, PATCH for wording -- and updates the Last Amended date.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-23 | **Last Amended**: 2026-11-23
+**Version**: 1.0.1 | **Ratified**: 2026-11-23 | **Last Amended**: 2026-11-24
