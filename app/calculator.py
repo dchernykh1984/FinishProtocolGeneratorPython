@@ -69,7 +69,11 @@ def _first_better(  # noqa: C901
     cfg: RaceConfig,
     n_points: int,
 ) -> bool:
-    """Return True if result *a* beats result *b* (faithful port of C++ logic)."""
+    """Return True if result *a* beats result *b*.
+
+    The statuses first -- finishers, DNF, DNS, DSQ (specs/001-start-check-dns) -- then,
+    inside one status, a port of the C++ comparison.
+    """
     # Finishers, DNF, DNS, then DSQ, whatever each rode; inside one status, who
     # finished still goes first, as the C++ comparison had it.
     rank_a, rank_b = status_rank(a, cfg), status_rank(b, cfg)
