@@ -243,7 +243,7 @@ def calculate_protocol(  # noqa: C901
                 unstarted.add(fp.group_id)
                 log.append(
                     f"ERROR: group {fp.group_id} has no start time in the group times "
-                    "file, so none of its riders has started"
+                    "file, so none of its laps can be timed"
                 )
 
         # --- start check list ---

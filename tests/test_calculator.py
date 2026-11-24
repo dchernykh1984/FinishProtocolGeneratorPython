@@ -440,7 +440,7 @@ class TestAGroupWithoutAStartTime:
         assert riders["3"].finished and riders["3"].n_laps_finished == 2
         assert [m for m in log if "no start time" in m] == [
             "ERROR: group G has no start time in the group times file, so none of "
-            "its riders has started"
+            "its laps can be timed"
         ]
 
     def test_they_sort_after_every_rider_who_started(self) -> None:
