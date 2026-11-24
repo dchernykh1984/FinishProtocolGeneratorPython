@@ -148,11 +148,12 @@ def shared_places(
     ``first`` is the number the first of them takes.
 
     In Number of Tries the result is a count of attempts and the time only separates
-    equal counts, so both have to match for a place to be shared; that pair is what
-    ranks them in the first place.
+    equal counts, so both have to match for a place to be shared -- and so does every
+    later scoring rule: a tie-break parts the place it breaks. The competitor number,
+    the order's last word, parts nothing.
     """
     places: dict[int, int] = {}
-    previous = (-1, -1)
+    previous: tuple[object, ...] = (-1, -1)
     shown = first
     for offset, fp in enumerate(rows):
         seconds = result_seconds(fp, cfg)
@@ -160,7 +161,7 @@ def shared_places(
         # What was ridden counts as much as the clock: a leader lapping a backmarker
         # crosses with him on the same millisecond and shares nothing with him, and
         # in Number of Tries the attempts are the result and the time the separator.
-        current = (ticks, result_count(fp, cfg))
+        current = (ticks, result_count(fp, cfg), *_tie_breaks(fp, cfg))
         if ticks < 0 or current != previous:
             shown = first + offset
         places[id(fp)] = shown
@@ -221,6 +222,18 @@ def result_seconds(fp: FinishProtocolElement, cfg: RaceConfig) -> float:
         return fp.get_total_time()
     n = fp.n_laps_finished
     return fp.finish_lap_times[n - 1] if n > 0 else 0.0
+
+
+def _tie_breaks(
+    fp: FinishProtocolElement, cfg: RaceConfig
+) -> tuple[tuple[int, int], ...]:
+    """In Number of Tries the scoring rules after the first, each as its attempts and
+    time to the recorded millisecond: riders a tie-break parts take places of their own
+    (maintainer, 2026-11-24)."""
+    if not cfg.is_number_of_tries():
+        return ()
+    scores = (fp.attempt_score(rule) for rule in fp.attempt_rules[1:])
+    return tuple((count, printed_ticks(time, RECORDED_SIGNS)) for count, time in scores)
 
 
 def result_count(fp: FinishProtocolElement, cfg: RaceConfig) -> int:
