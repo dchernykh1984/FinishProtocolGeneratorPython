@@ -139,6 +139,13 @@ class TestFetchFailuresAreValueErrors:
                 fetch("https://x", "tok")
 
 
+def test_a_site_url_without_its_scheme_is_a_bad_url_not_a_bad_answer() -> None:
+    with patch("urllib.request.urlopen") as never:
+        with pytest.raises(ValueError, match=r"Bad site URL 'cycling\.example\.org'"):
+            fetch_start_list("cycling.example.org", "tok")
+    never.assert_not_called()
+
+
 class TestFetchStartList:
     def test_merges_devices_in_order(self) -> None:
         payload = {

@@ -22,6 +22,9 @@ def _get_json(site_url: str, endpoint: str, token: str) -> dict:
     connection dropped in the middle of the answer, arrives as a bare OSError or an
     http.client error -- and escaping, it stopped the download step without a word.
     """
+    if urllib.parse.urlparse(site_url).scheme not in ("http", "https"):
+        # Otherwise urlopen's refusal reads as a bad answer from a site never asked.
+        raise ValueError(f"Bad site URL {site_url!r}: it needs http:// or https://")
     url = (
         site_url.rstrip("/")
         + f"/api/v1/{endpoint}/?"
