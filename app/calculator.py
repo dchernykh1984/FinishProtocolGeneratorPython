@@ -248,7 +248,8 @@ def calculate_protocol(  # noqa: C901
 
         # --- start check list ---
         # A start never seen leaves nothing to check a mark against, and calling his
-        # mark "too early" would be a lie; he is DNS for not starting all the same.
+        # mark "too early" would be a lie. Not starting makes him DNS anyway, unless
+        # "Disable DNF" or "Disable DNS" says otherwise.
         if (
             cfg.use_start_check_list
             and start_check_list
