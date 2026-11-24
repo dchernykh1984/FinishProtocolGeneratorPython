@@ -2434,6 +2434,7 @@ class MainWindow(QMainWindow):
             cfg.print_dsq = _bool("PrintDSQ", cfg.print_dsq)
             cfg.disable_dnf = _bool("DisableDNF", cfg.disable_dnf)
             cfg.disable_dsq = _bool("DisableDSQ", cfg.disable_dsq)
+            cfg.disable_dns = _bool("DisableDNS", cfg.disable_dns)
             cfg.lap_name = _str("LapName", cfg.lap_name)
             cfg.lap_additional_info = _str("LapAdditionalInfo", cfg.lap_additional_info)
             cfg.bottom_text = _str("BottomText", cfg.bottom_text)
