@@ -255,6 +255,9 @@ class RaceConfig:
     print_dns: bool = False
     print_dsq: bool = False
     disable_dnf: bool = False
+    #: Everyone counts as started: nobody is DNS, not for the start check nor for a
+    #: start never seen (specs/001-start-check-dns).
+    disable_dns: bool = False
     disable_dsq: bool = False
 
     use_interface_logger: bool = True

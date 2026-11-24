@@ -1549,6 +1549,7 @@ class MainWindow(QMainWindow):
             ("Print DNS", "print_dns"),
             ("Print DSQ", "print_dsq"),
             ("Disable DNF (everyone counts as finished)", "disable_dnf"),
+            ("Disable DNS (everyone counts as started)", "disable_dns"),
             ("Disable DSQ", "disable_dsq"),
         ]
         for label, attr in checks:
@@ -2232,6 +2233,7 @@ class MainWindow(QMainWindow):
             "1" if cfg.show_qualification_place else "0",
         ]
         lines += ["QualificationPlaceLabel", cfg.qualification_place_label]
+        lines += ["DisableDNS", "1" if cfg.disable_dns else "0"]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2268,6 +2270,8 @@ class MainWindow(QMainWindow):
         first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
         cfg = self._cfg
         cfg.pack_gap_seconds = 10
+        # Off unless the file says on: no format before the tag knew it.
+        cfg.disable_dns = False
         cfg.attempt_rules_json = "[]"
         # A file saved before sections publishes into the event's own section, never
         # into the one the previous race was set to.
@@ -2744,6 +2748,7 @@ class MainWindow(QMainWindow):
             cfg.qualification_place_label = d.get(
                 "qualification_place_label", cfg.qualification_place_label
             )
+            cfg.disable_dns = d.get("disable_dns", "0") == "1"
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:

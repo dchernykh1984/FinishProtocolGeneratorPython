@@ -262,7 +262,7 @@ def calculate_protocol(  # noqa: C901
             if not passed:
                 log.append(f"ERROR: {fp.competitor_id} did not pass start registration")
                 # DNS, not DSQ: he broke no rule on the course (maintainer, 2026-11-24).
-                fp.missed_start_check = True
+                fp.missed_start_check = not cfg.disable_dns
 
         # --- DSQ and finish marks ---
         _finish_count = 0

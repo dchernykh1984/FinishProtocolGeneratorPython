@@ -5,7 +5,7 @@ protocols must not change (SC-004).
 
 ## Phase 1: Foundational
 
-- [ ] T001 Add `missed_start_check` (False by default) to `FinishProtocolElement` in
+- [x] T001 Add `missed_start_check` (False by default) to `FinishProtocolElement` in
   `app/models.py`, and `disable_dns` (False by default) to `RaceConfig` in `app/config.py`
 
 ## Phase 2: User Story 1 - A rider who missed the start check is DNS (P1)
@@ -33,20 +33,20 @@ DSQ reads 1, DNF, DNS with his laps and time, DSQ.
 **Independent test**: with the setting on, the rider without a check mark is placed by his
 result, a rider who never started reads DNF, and the setting survives a save and a restart.
 
-- [ ] T008 [US2] With "Disable DNS" the start check sets no flag, and `place_status` and
+- [x] T008 [US2] With "Disable DNS" the start check sets no flag, and `place_status` and
   `is_printed` take a rider who did not start for started, in `app/calculator.py` and
   `app/protocol_rows.py`; tests in `tests/test_calculator.py` and `tests/test_protocol_rows.py`
-- [ ] T009 [US2] The `DisableDNS` tag after `QualificationPlaceLabel`: read in `app/file_io.py`,
+- [x] T009 [US2] The `DisableDNS` tag after `QualificationPlaceLabel`: read in `app/file_io.py`,
   reset before a load and written in `app/main_window.py`; tests in
   `tests/test_race_info_source_roundtrip.py`
-- [ ] T010 [US2] The checkbox "Disable DNS (everyone counts as started)" between "Disable DNF"
+- [x] T010 [US2] The checkbox "Disable DNS (everyone counts as started)" between "Disable DNF"
   and "Disable DSQ" on the Options tab, in `app/main_window.py`; a window test in
   `tests/test_race_info_source_roundtrip.py`
-- [ ] T011 [US2] `specs/app/scoring.md` and `specs/app/files.md` describe "Disable DNS" and its tag
+- [x] T011 [US2] `specs/app/scoring.md` and `specs/app/files.md` describe "Disable DNS" and its tag
 
 ## Phase 4: Polish
 
-- [ ] T012 `uv run pre-commit run --all-files` and `uv run pytest` pass, the golden protocols are
+- [x] T012 `uv run pre-commit run --all-files` and `uv run pytest` pass, the golden protocols are
   unchanged, and `spec.md` says it is implemented in this pull request
 
 ## Dependencies
