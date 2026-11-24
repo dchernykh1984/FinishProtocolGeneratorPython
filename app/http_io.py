@@ -140,7 +140,7 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
         text = str(raw) if type(raw) is int else raw
         if not (isinstance(text, str) and text.isascii() and text.isdecimal()):
             raise ValueError(
-                f"Invalid response: point number {raw!r} is not a whole number"
+                f"Invalid response: point number {raw!r} is not a whole number from 0"
             )
         number = int(text)
         if number in points:
