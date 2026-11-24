@@ -659,16 +659,17 @@ def check_start_protocol(  # noqa: C901
         for fp in protocol:
             if fp.n_laps_finished < 2:
                 continue
-            lap_times = [
-                fp.lap_times[i] for i in range(fp.n_laps) if fp.lap_completed(i)
-            ]
-            avg = sum(lap_times) / len(lap_times)
+            # By their own numbers: an unfinished attempt keeps its slot, as printed.
+            lap_times = {
+                i + 1: fp.lap_times[i] for i in range(fp.n_laps) if fp.lap_completed(i)
+            }
+            avg = sum(lap_times.values()) / len(lap_times)
             if avg <= 0:
                 continue
-            for i, lt in enumerate(lap_times):
+            for lap, lt in lap_times.items():
                 if lt > avg * (1.0 + threshold) or lt < avg / (1.0 + threshold):
                     log.append(
-                        f"ERROR: {fp.competitor_id} lap {i + 1} time {lt:.1f}s "
+                        f"ERROR: {fp.competitor_id} lap {lap} time {lt:.1f}s "
                         f"deviates more than {cfg.laps_difference_pct}% from "
                         f"average {avg:.1f}s"
                     )

@@ -187,6 +187,18 @@ def test_dsq_is_not_a_start_but_still_disqualifies():
     assert fp.dsq_reasons
 
 
+def test_the_laps_difference_check_names_each_attempt_by_its_own_number():
+    _, _, log = run(
+        points=[marks(1010, 1108, 1205), marks(1020, 1118, 1215), marks(1030, 1220)],
+        check_laps_difference=True,
+        laps_difference_pct=10,
+    )
+    assert [message for message in log if "deviates" in message] == [
+        "ERROR: 1 lap 1 time 30.0s deviates more than 10% from average 25.0s",
+        "ERROR: 1 lap 3 time 20.0s deviates more than 10% from average 25.0s",
+    ]
+
+
 @pytest.mark.parametrize("scope", ["group", "absolute"])
 def test_html_has_splits_and_keeps_failed_attempt_slot(tmp_path, scope):
     from app.models import GroupStartElement
