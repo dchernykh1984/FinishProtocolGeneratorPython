@@ -117,10 +117,11 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
     """
     points: dict[int, list[str]] = {}
     for point in _entries(_get_json(site_url, "remote-points", token), "points"):
-        try:
-            number = int(point["point_number"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError("Invalid response: a point without its number") from exc
+        raw = point.get("point_number")
+        # A whole number only: int() would make 1.5 or true point 1 and overwrite it.
+        if isinstance(raw, bool) or not str(raw).isdigit():
+            raise ValueError("Invalid response: a point without its number")
+        number = int(str(raw))
         points[number] = _lines(point, f"point {number}")
     return points
 
