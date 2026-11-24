@@ -247,7 +247,13 @@ def calculate_protocol(  # noqa: C901
                 )
 
         # --- start check list ---
-        if cfg.use_start_check_list and start_check_list:
+        # A start never seen leaves nothing to check a mark against, and calling his
+        # mark "too early" would be a lie; he is DNS for not starting all the same.
+        if (
+            cfg.use_start_check_list
+            and start_check_list
+            and fp.cross_line_times[0] not in (0, INF)
+        ):
             passed = False
             for ck in start_check_list:
                 if fp.is_same_competitor(ck):

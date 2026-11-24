@@ -563,6 +563,24 @@ class TestStartCheckList:
         ]
         assert "ERROR: 3 did not pass start registration" in log
 
+    def test_a_rider_who_never_started_is_not_checked(self) -> None:
+        # Custom Start without a single mark: no start to check his mark against.
+        start_t = BASE_T + 3600
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START, use_start_check_list=True)
+        log: list[str] = []
+        protocol = calculate_protocol(
+            [_start("7", "G", n_laps=1)],
+            [],
+            [],
+            [],
+            [_finish("7", start_t)],
+            cfg,
+            log,
+        )
+        assert not any("registration" in m for m in log)
+        assert not protocol[0].missed_start_check
+        assert place_status(protocol[0], 1, cfg) == ("DNS", "dns")
+
     def test_a_check_list_without_marks_checks_nobody(self) -> None:
         start_t = BASE_T + 3600
         cfg = _cfg(use_start_check_list=True)
