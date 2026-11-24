@@ -120,7 +120,7 @@ placed among the finishers by his result; a rider of a group that never started 
   whether or not "Disable DNS" is on.
 - **FR-008**: The site document MUST show the same status as the HTML protocol; the live
   statistics MUST leave a DNS of the start check out of their numbering, gaps and packs, as they
-  leave out a DSQ, and say DNS for his place.
+  leave out every other DNS and a DSQ, and say DNS for his place.
 
 ### Key Entities
 
