@@ -292,7 +292,7 @@ group vs. the whole race), plus `laps`.
 
 | Field | Meaning |
 |-------|---------|
-| `place_group` / `place_abs` | Current place in the group / overall, as a number, or `"DSQ"` for a disqualified rider (no `DNF`/`DNS` labels; those still get a number). |
+| `place_group` / `place_abs` | Current place in the group / overall, as a number, `"DSQ"` for a disqualified rider, or `"DNS"` for one who has not started -- his start not seen yet, or the start check missed. A `DNF` rider still gets a number. |
 | `qty_group` / `qty_abs` | Number of competitors in the group / whole race, counting everyone with a bib (incl. DSQ, DNS, DNF). |
 | `gap_prev_group` / `gap_prev_abs` | Time behind the rider one place ahead, positive because they are ahead of you, e.g. `"+0:12"`. Omitted for the leader. |
 | `gap_next_group` / `gap_next_abs` | Time the rider one place behind trails you, negative because they are behind you, e.g. `"-0:45"`. Omitted for the last competitor. |
@@ -310,14 +310,15 @@ Notes:
   max gap (seconds)** setting defaults to **10** and is saved with race info. A pack is
   a chain of consecutive ranked riders whose unrounded common-lap gaps are at most this
   threshold, regardless of the total spread or number of riders. Zero joins only ties.
-  DSQ riders and riders without a measured lap are excluded. Missing neighbouring packs
+  DSQ and DNS riders and riders without a measured lap are excluded. Missing neighbouring packs
   or uncomputable/reversed common-lap gaps omit both the gap and size keys.
 - **All values are strings.** Times are `"M:SS"` (or `"H:MM:SS"` past an hour), always
   carrying a leading sign: a rider ahead of you is `+`, a rider behind you is `-`.
 - **Gaps and their deltas use lap-finish crossings.** A gap is measured at the last lap **both**
   riders finished, so it stays a real time even when riders are a lap apart. A delta is that gap
   now minus the gap one lap earlier.
-- **DSQ** riders show `place_* = "DSQ"`, keep `qty_*` and `laps`, and have no gaps.
+- **DSQ** and **DNS** riders show `place_* = "DSQ"` or `"DNS"`, keep `qty_*` and `laps`, and
+  have no gaps.
 - The site stores the dictionary **opaquely** (it does not know the individual keys), so new
   stats can be added here without any site change.
 
