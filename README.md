@@ -184,13 +184,14 @@ protocol remains the number of attempts available to each competitor.
 
 Each rule has a descriptive label, the number of best attempts to sum, eligible
 attempt numbers (comma-separated, starting at 1), and an `asc` or `desc` sort order.
-The first rule defines the result. Further rules only break ties, in list order;
-the final tie-break is the competitor number. `desc` reverses the comparison, but
-still selects the fastest eligible attempts. Missing results rank after completed
-results in either direction. A competitor has a result when enough eligible
-attempts for the first rule are complete, even if another attempt was not finished.
-Time gaps follow the first rule's sort direction, so a gap to the competitor ahead
-stays positive for both `asc` and `desc`.
+The first rule defines the result. Further rules break ties, in list order, and a tie
+a rule breaks parts the place as well; riders equal on every rule share a place, the
+competitor number only listing them. `desc` reverses the comparison, but still
+selects the fastest eligible attempts. Missing results rank after completed results
+in either direction. A competitor has a result when enough eligible attempts for the
+first rule are complete, even if another attempt was not finished. Time gaps follow
+the first rule's sort direction, so a gap to the competitor ahead stays positive for
+both `asc` and `desc`.
 
 For example, the best of attempts 2 and 3, with reverse qualification time as a
 tie-break, is saved as one JSON line under the `AttemptRules` config tag:
