@@ -296,6 +296,9 @@ def calculate_protocol(  # noqa: C901
             # Never started: no lap to time and no finish to reach, a finish mark or
             # not. Counting from 0 timed laps from 1970 and sorted him as a finisher.
             fp.finished = cfg.disable_dnf
+            if cfg.use_spiridonov_coefficients():
+                # His additional info is the coefficient, as everyone else's is.
+                fp.extra_info = f"{spiridonov(fp.year_of_birth):.4f}"
             result.append(fp)
             continue
 

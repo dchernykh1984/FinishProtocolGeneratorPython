@@ -456,6 +456,11 @@ class TestAGroupWithoutAStartTime:
             assert place_status(riders[bib], 1, cfg) == ("DNF", "dnf")
             assert is_printed(riders[bib], cfg)
 
+    def test_spiridonov_still_shows_their_coefficient(self) -> None:
+        cfg = _cfg(race_type="Mass/Splitted (Spiridonov)")
+        protocol = calculate_protocol([_start("1", "G")], [], [], [], [], cfg, [])
+        assert protocol[0].extra_info == f"{spiridonov('1990'):.4f}"
+
     def test_disable_dnf_still_counts_them_as_finished(self) -> None:
         log: list[str] = []
         protocol = calculate_protocol(
