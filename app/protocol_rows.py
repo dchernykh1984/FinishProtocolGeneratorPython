@@ -87,8 +87,9 @@ def prepare_statuses(protocol: list[FinishProtocolElement], cfg: RaceConfig) -> 
 def is_printed(fp: FinishProtocolElement, cfg: RaceConfig) -> bool:
     """Whether the competitor appears in the protocol at all (the print_* settings)."""
     if fp.missed_start_check and not fp.disqualified:
-        # A DNS row whatever he rode, so printed when every other DNS row is.
-        return cfg.print_dnf and cfg.print_dns
+        # A DNS row whatever he rode: "Print DNS", and "Print DNF" as well when he did
+        # not finish, as every rider who did not finish needs.
+        return cfg.print_dns and (fp.finished or cfg.print_dnf)
     started = cfg.disable_dns or fp.has_started()
     return bool(
         (fp.finished or cfg.print_dnf)

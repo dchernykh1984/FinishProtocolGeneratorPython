@@ -20,7 +20,8 @@ DSQ reads 1, DNF, DNS with his laps and time, DSQ.
 - [x] T004 [US1] `_first_better` ranks the statuses first -- finisher, DNF, DNS, DSQ, through
   `place_status` -- and keeps today's comparison inside a status, in `app/calculator.py`; tests in
   `tests/test_calculator.py`
-- [x] T005 [US1] Such a rider is printed only with "Print DNF" and "Print DNS", takes no group
+- [x] T005 [US1] Such a rider is printed only with "Print DNS" (and "Print DNF" when he did not
+  finish), takes no group
   place and is left out of the shared time warning, in `app/protocol_rows.py` and
   `app/calculator.py`; tests in `tests/test_protocol_rows.py`
 - [x] T006 [P] [US1] The seeding protocol leaves him out, in `app/html_writer.py`; test in
