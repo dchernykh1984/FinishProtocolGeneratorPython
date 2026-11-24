@@ -7,6 +7,7 @@ import io
 import json
 import tempfile
 import urllib.error
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -81,6 +82,59 @@ class TestFetchTimingStreams:
         with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
             with pytest.raises(ValueError, match="Connection error"):
                 fetch_remote_points("https://x", "tok")
+
+
+class TestFetchFailuresAreValueErrors:
+    """Every way a fetch can fail is a ValueError, which the run logs and gets past.
+
+    A site that had taken the request and then failed escaped as a bare OSError or an
+    http.client error, which stopped the download step and the run without a word.
+    """
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            TimeoutError("timed out"),
+            http.client.RemoteDisconnected("Remote end closed connection"),
+            ConnectionResetError(),
+        ],
+    )
+    def test_a_site_that_took_the_request_and_then_failed(
+        self, error: Exception
+    ) -> None:
+        with patch("urllib.request.urlopen", side_effect=error):
+            with pytest.raises(ValueError, match=r"Connection error: ."):
+                fetch_group_times("https://x", "tok")
+
+    @pytest.mark.parametrize(
+        "error", [TimeoutError("timed out"), http.client.IncompleteRead(b"")]
+    )
+    def test_an_answer_cut_off_while_it_is_read(self, error: Exception) -> None:
+        resp = _mock_json_response({})
+        resp.read.side_effect = error
+        with patch("urllib.request.urlopen", return_value=resp):
+            with pytest.raises(ValueError, match="Connection error"):
+                fetch_start_list("https://x", "tok")
+
+    @pytest.mark.parametrize(
+        ("payload", "fetch"),
+        [
+            ([], fetch_start_list),
+            (None, fetch_finish_times),
+            ({"devices": {"a": 1}}, fetch_group_times),
+            ({"devices": [{"items": "1#0 0:0:1#"}]}, fetch_start_list),
+            ({"devices": [{"items": [1]}]}, fetch_finish_times),
+            ({"points": [{"items": []}]}, fetch_remote_points),
+            ({"points": [{"point_number": "x"}]}, fetch_remote_points),
+            ({"points": [{"point_number": 1, "items": [None]}]}, fetch_remote_points),
+        ],
+    )
+    def test_an_answer_of_another_shape(
+        self, payload: object, fetch: Callable[[str, str], object]
+    ) -> None:
+        with patch("urllib.request.urlopen", return_value=_mock_json_response(payload)):
+            with pytest.raises(ValueError, match="Invalid response"):
+                fetch("https://x", "tok")
 
 
 class TestFetchStartList:

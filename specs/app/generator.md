@@ -49,8 +49,7 @@ set and the FTP address is empty; the last two say why in a dialog.
 4. The log ends with "Done." or with the errors of the publishing.
 
 An exception in step 3 -- an input file that does not exist, among others -- ends the run with
-an ERROR in the log and a dialog. Every other failure is a line in the log, but for the fetches
-from the site that are not caught ([site-exchange.md](site-exchange.md)).
+an ERROR in the log and a dialog. Every other failure is a line in the log.
 
 ## The log
 
