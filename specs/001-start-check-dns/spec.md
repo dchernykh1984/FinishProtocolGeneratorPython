@@ -88,6 +88,8 @@ placed among the finishers by his result; a rider of a group that never started 
   the absolute protocol, not in the seeding protocol for the finals. Nor is he the leader that
   gaps are measured from; his own time stays, without a gap -- a gap measures a place -- even
   when nobody else finished.
+- His laps still count in the lap statistics -- each lap's gap and rank -- as every rider's laps
+  do there, a DNF's and a DSQ's included.
 - Custom Start and Number of Tries check the start the same way, against the rider's first mark.
 - With "Disable DSQ" a DSQ mark disqualifies nobody, so a rider without a check mark who has one
   is DNS.
