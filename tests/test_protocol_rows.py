@@ -282,3 +282,46 @@ def test_riders_equal_on_every_number_of_tries_rule_share_a_place():
         1,
         3,
     )
+
+
+def test_float_noise_on_the_first_rule_does_not_order_riders_a_tie_break_parts():
+    # 140.150 s ridden at two times of day comes out of the subtraction as two floats a
+    # few ten-millionths apart; bib 1 then wins the second rule by 10 s.
+    from protocol_scenarios import _cfg, _run
+
+    from app.attempt_rules import AttemptRule, rules_json
+    from app.config import RACE_TYPE_NUMBER_OF_TRIES
+    from app.models import parse_time_string
+
+    def ride(ms):
+        start = parse_time_string(f"20416 12:00:00.{ms:03d}")
+        end = ms + 150
+        return start, parse_time_string(
+            f"20416 12:02:{20 + end // 1000:02d}.{end % 1000:03d}"
+        )
+
+    rides = {ms: ride(ms) for ms in range(1000)}
+    longer = max(rides, key=lambda ms: rides[ms][1] - rides[ms][0])
+    shorter = min(rides, key=lambda ms: rides[ms][1] - rides[ms][0])
+    (s1, f1), (s2, f2) = rides[longer], rides[shorter]
+    assert f1 - s1 != f2 - s2  # the noise this test is about
+    rules = (
+        AttemptRule("Result", 1, (1,), "asc"),
+        AttemptRule("Tie-break", 1, (2,), "asc"),
+    )
+    cfg = _cfg(
+        race_type=RACE_TYPE_NUMBER_OF_TRIES,
+        attempt_rules_json=rules_json(rules),
+        n_remote_points=1,
+    )
+
+    def mark(bib, t):
+        return FinishCompetitorElement(str(bib), t, "nextLap", 0.0)
+
+    starts = [mark(1, s1), mark(2, s2), mark(1, s1 + 600), mark(2, s2 + 600)]
+    finishes = [mark(1, f1), mark(2, f2), mark(1, s1 + 650), mark(2, s2 + 660)]
+    lines = ["1#Bib One#W#2#1#1990####", "2#Bib Two#W#2#1#1990####"]
+    race = _run(cfg, lines, [], starts, [finishes])
+    places = _w_places(race)
+    assert [fp.competitor_id for fp in race.protocol] == ["1", "2"]
+    assert (places["Bib One"], places["Bib Two"]) == (1, 2)
