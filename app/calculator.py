@@ -85,17 +85,24 @@ def _first_better(  # noqa: C901
     if cfg.is_number_of_tries():
         if a.attempt_rules:
             for rule in a.attempt_rules:
-                a_count, a_time = a.attempt_score(rule)
-                b_count, b_time = b.attempt_score(rule)
+                a_count, a_sum = a.attempt_score(rule)
+                b_count, b_sum = b.attempt_score(rule)
                 if a_count != b_count:
                     return a_count > b_count
+                # To the recorded millisecond, as the place is: the float noise of a sum
+                # must not order two riders a later rule parts (recorded_ms).
+                a_time, b_time = recorded_ms(a_sum), recorded_ms(b_sum)
                 if a_time != b_time:
                     return a_time < b_time if rule.sort == "asc" else a_time > b_time
             return _number_less(a.competitor_id, b.competitor_id)
         if a.get_n_successful_tries() != b.get_n_successful_tries():
             return a.get_n_successful_tries() > b.get_n_successful_tries()
-        if a.get_total_time() != b.get_total_time():
-            return a.get_total_time() < b.get_total_time()
+        total_a, total_b = (
+            recorded_ms(a.get_total_time()),
+            recorded_ms(b.get_total_time()),
+        )
+        if total_a != total_b:
+            return total_a < total_b
         return _number_less(a.competitor_id, b.competitor_id)
 
     if a.n_laps_finished != b.n_laps_finished:
