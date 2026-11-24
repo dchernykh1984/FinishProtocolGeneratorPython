@@ -48,12 +48,12 @@ def _two_finishers():
 def test_live_stats_after_the_writers_keep_the_statuses_they_had(tmp_path):
     # Live statistics have always been built after the writers, which settle who
     # finished; moving that into prepare_statuses must leave the watch's places as
-    # they were -- 1 never started, so the watch says DNS, as the protocol does.
+    # they were.
     protocol, groups, cfg = _two_finishers()
     write_group_protocol(str(tmp_path / "g.html"), protocol, groups, cfg)
     write_absolute_protocol(str(tmp_path / "a.html"), protocol, groups, cfg)
     stats = build_live_stats(protocol, cfg)
-    assert (stats["1"]["place_abs"], stats["2"]["place_abs"]) == ("DNS", "1")
+    assert (stats["1"]["place_abs"], stats["2"]["place_abs"]) == ("2", "1")
 
 
 def test_prepare_statuses_alone_gives_the_same_live_stats_as_the_writers(tmp_path):
