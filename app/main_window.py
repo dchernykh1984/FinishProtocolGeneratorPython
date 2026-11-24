@@ -2245,6 +2245,7 @@ class MainWindow(QMainWindow):
         ]
         lines += ["QualificationPlaceLabel", cfg.qualification_place_label]
         lines += ["DisableDNS", "1" if cfg.disable_dns else "0"]
+        lines += ["MergeByID", "1" if cfg.merge_by_id else "0"]
 
         try:
             with app_path(path).open("w", encoding="utf-8") as f:
@@ -2283,6 +2284,7 @@ class MainWindow(QMainWindow):
         cfg.pack_gap_seconds = 10
         # Off unless the file says on: no format before the tag knew it.
         cfg.disable_dns = False
+        cfg.merge_by_id = False
         cfg.attempt_rules_json = "[]"
         # A file saved before sections publishes into the event's own section, never
         # into the one the previous race was set to.
@@ -2443,6 +2445,7 @@ class MainWindow(QMainWindow):
             cfg.disable_dnf = _bool("DisableDNF", cfg.disable_dnf)
             cfg.disable_dsq = _bool("DisableDSQ", cfg.disable_dsq)
             cfg.disable_dns = _bool("DisableDNS", cfg.disable_dns)
+            cfg.merge_by_id = _bool("MergeByID", cfg.merge_by_id)
             cfg.lap_name = _str("LapName", cfg.lap_name)
             cfg.lap_additional_info = _str("LapAdditionalInfo", cfg.lap_additional_info)
             cfg.bottom_text = _str("BottomText", cfg.bottom_text)
@@ -2761,6 +2764,7 @@ class MainWindow(QMainWindow):
                 "qualification_place_label", cfg.qualification_place_label
             )
             cfg.disable_dns = d.get("disable_dns", "0") == "1"
+            cfg.merge_by_id = d.get("merge_by_id", "0") == "1"
         if not 0 <= cfg.pack_gap_seconds <= 2147483647:
             cfg.pack_gap_seconds = 10
         if not FIRST_SECTION <= cfg.http_section <= LAST_SECTION:
