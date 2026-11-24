@@ -34,16 +34,28 @@ def _get_json(site_url: str, endpoint: str, token: str) -> dict:
         with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        raise ValueError(f"HTTP {exc.code}: {exc.reason}") from exc
+        raise ValueError(_hide(f"HTTP {exc.code}: {exc.reason}", token)) from exc
     except urllib.error.URLError as exc:
-        raise ValueError(f"Connection error: {exc.reason}") from exc
+        raise ValueError(_hide(f"Connection error: {exc.reason}", token)) from exc
     except (OSError, http.client.HTTPException) as exc:
-        raise ValueError(f"Connection error: {str(exc) or type(exc).__name__}") from exc
+        reason = str(exc) or type(exc).__name__
+        raise ValueError(_hide(f"Connection error: {reason}", token)) from exc
     except ValueError as exc:
-        raise ValueError(f"Invalid response: {exc}") from exc
+        raise ValueError(_hide(f"Invalid response: {exc}", token)) from exc
     if not isinstance(data, dict):
         raise ValueError("Invalid response: not a JSON object")
     return data
+
+
+def _hide(text: str, token: str) -> str:
+    """The text without the competition's token, a secret that some errors repeat.
+
+    http.client refuses a URL with a space by quoting the whole path, token and all,
+    and the message goes to the run log.
+    """
+    for form in {token, urllib.parse.quote_plus(token)} - {""}:
+        text = text.replace(form, "<token>")
+    return text
 
 
 def _entries(data: dict, key: str) -> list[dict]:

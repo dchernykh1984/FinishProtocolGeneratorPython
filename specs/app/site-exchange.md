@@ -27,12 +27,12 @@ does not guess. A run always builds its protocols from the local files
 - The lines replace the stream's local file, in UTF-8 with a line break after each. Point n goes
   to `<control point folder>/results_<n>.txt` for n = 1 .. the control point count, a point the
   site does not list as an empty file; with no count or no folder the points are skipped.
-- The log says why and the local file stays as it was when there is no site URL or token, the
-  URL does not start with `http://` or `https://`, the site cannot be reached or answers with an
-  HTTP error, does not answer within the 10 seconds or drops the connection after taking the
-  request, or answers with anything but a JSON object of lines -- not JSON, not an object, one
-  without its `devices` or `points`, an entry without its `items`, a point without a whole
-  number or listed twice, items that are not lines.
+- The log says why, the token blanked out as `<token>`, and the local file stays as it was when
+  there is no site URL or token, the URL does not start with `http://` or `https://`, the site
+  cannot be reached or answers with an HTTP error, does not answer within the 10 seconds or
+  drops the connection after taking the request, or answers with anything but a JSON object of
+  lines -- not JSON, not an object, one without its `devices` or `points`, an entry without its
+  `items`, a point without a whole number or listed twice, items that are not lines.
 - Should anything else stop the download step, it is an ERROR in the log as well, and the run
   goes on with the local files.
 - A stream fetched from the site is not also downloaded by FTP: a configured FTP download for it
