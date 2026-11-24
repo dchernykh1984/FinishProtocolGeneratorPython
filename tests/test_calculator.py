@@ -20,6 +20,7 @@ from app.models import (
     StartProtocolElement,
     parse_time_string,
 )
+from app.protocol_rows import place_status
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -390,6 +391,70 @@ class TestTimeLimit:
 # ---------------------------------------------------------------------------
 # calculate_protocol -- start_check_list
 # ---------------------------------------------------------------------------
+
+
+class TestAGroupWithoutAStartTime:
+    """Mass start: nothing can be timed from a start that was never recorded.
+
+    Counting from 0 timed the laps from 1970 and sorted a rider with a finish mark
+    among the finishers, a delay or not, only to print him DNS afterwards.
+    """
+
+    def _run(
+        self, groups: list[GroupStartElement]
+    ) -> tuple[dict[str, FinishProtocolElement], list[str]]:
+        t = BASE_T + 3600
+        start_list = [
+            _start("1", "G", n_laps=2),
+            _start("2", "G", n_laps=2, delay=30.0),
+            _start("3", "H", n_laps=2),
+            _start("4", "H", n_laps=2),
+        ]
+        finish_list = [
+            mark
+            for bib in ("1", "2", "3")
+            for mark in (_finish(bib, t + 100), _finish(bib, t + 200, "finish"))
+        ] + [_finish("4", t + 100)]
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, groups, finish_list, [], [], _cfg(), log
+        )
+        return {fp.competitor_id: fp for fp in protocol}, log
+
+    @pytest.mark.parametrize(
+        "groups",
+        [
+            [_group("H", BASE_T + 3600)],
+            [_group("H", BASE_T + 3600), GroupStartElement("G", 0.0)],
+        ],
+        ids=["not listed", "listed without a time"],
+    )
+    def test_its_riders_did_not_start_and_ride_no_lap(
+        self, groups: list[GroupStartElement]
+    ) -> None:
+        riders, log = self._run(groups)
+        for bib in ("1", "2"):
+            assert riders[bib].n_laps_finished == 0
+            assert not riders[bib].finished
+            assert place_status(riders[bib], 1, _cfg()) == ("DNS", "dns")
+        assert riders["3"].finished and riders["3"].n_laps_finished == 2
+        assert [m for m in log if "no start time" in m] == [
+            "ERROR: group G has no start time in the group times file, so none of "
+            "its riders has started"
+        ]
+
+    def test_they_sort_after_every_rider_who_started(self) -> None:
+        # Behind a rider who started and did not finish: DNF before DNS.
+        riders, _log = self._run([_group("H", BASE_T + 3600)])
+        order = generate_sorted_protocol(list(riders.values()), _cfg(), 0)
+        assert [fp.competitor_id for fp in order] == ["3", "4", "1", "2"]
+
+    def test_disable_dnf_still_counts_them_as_finished(self) -> None:
+        log: list[str] = []
+        protocol = calculate_protocol(
+            [_start("1", "G", n_laps=2)], [], [], [], [], _cfg(disable_dnf=True), log
+        )
+        assert protocol[0].finished and protocol[0].n_laps_finished == 0
 
 
 def test_a_group_listed_twice_is_an_error() -> None:

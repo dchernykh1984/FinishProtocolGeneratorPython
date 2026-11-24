@@ -40,9 +40,10 @@ them is ignored.
   and it is saved once its start went well. A group listed more than once is therefore a slip,
   reported as an ERROR; its first line counts, and every line still gives the protocol a table,
   in the order of the file, so it is printed as often as it is listed.
-- The groups of the start protocol that the file does not list follow with a start time of 0, the start of the day count: their riders' start
-  is their start delay alone, so a rider without one has not started, and one with a delay rides
-  laps timed from it, which print as `UNKNOWN`.
+- The groups of the start protocol that the file does not list follow with no start time, as
+  does a group whose line has no time. In the mass start types a group with no start time is an
+  ERROR, and none of its riders has started, whatever his start delay: he rides no lap and is
+  DNS ([scoring.md](scoring.md)).
 - In Eliminator Finals a line is a heat ([eliminator-finals.md](eliminator-finals.md)).
 
 ## The finish marks (`results.txt`) and the control points
