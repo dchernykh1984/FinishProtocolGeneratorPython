@@ -31,7 +31,7 @@ does not guess. A run always builds its protocols from the local files
   URL does not start with `http://` or `https://`, the site cannot be reached or answers with an
   HTTP error, does not answer within the 10 seconds or drops the connection after taking the
   request, or answers with anything but a JSON object of lines -- not JSON, not an object, one
-  without its `devices` or `points`, a point without its number, items that are not lines.
+  without its `devices` or `points`, a point without a whole number, items that are not lines.
 - Should anything else stop the download step, it is an ERROR in the log as well, and the run
   goes on with the local files.
 - A stream fetched from the site is not also downloaded by FTP: a configured FTP download for it

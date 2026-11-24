@@ -128,6 +128,8 @@ class TestFetchFailuresAreValueErrors:
             ({"devices": [{"items": [1]}]}, fetch_finish_times),
             ({"points": [{"items": []}]}, fetch_remote_points),
             ({"points": [{"point_number": "x"}]}, fetch_remote_points),
+            ({"points": [{"point_number": 1.5}]}, fetch_remote_points),
+            ({"points": [{"point_number": True}]}, fetch_remote_points),
             ({"points": [{"point_number": 1, "items": [None]}]}, fetch_remote_points),
         ],
     )
