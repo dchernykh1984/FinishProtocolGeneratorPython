@@ -6,10 +6,10 @@ file does not guess.
 
 ## Reading
 
-- Every input file is read as UTF-8, or else cp1251, or else Latin-1. The `#`-separated files
-  skip their blank lines and read their fields by index, a field the line does not have reading
-  as empty; the race info file and the styles template keep every line, a blank one being an
-  empty field.
+- Every input file is read as UTF-8, a byte order mark in front of it skipped, or else cp1251,
+  or else Latin-1. The `#`-separated files skip their blank lines and read their fields by
+  index, a field the line does not have reading as empty; the race info file and the styles
+  template keep every line, a blank one being an empty field.
 - A time is `D HH:MM:SS.fff` -- days since 1970-01-01, then the time of day -- or
   `HH:MM:SS.fff`, with one or more digits after a decimal point, or no point at all; the seconds
   may be left out (`HH:MM`). Empty or `0` is no time. A time that cannot be read ends the run

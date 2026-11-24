@@ -149,6 +149,12 @@ class TestMergeFiles:
         assert ivan in content
         assert maria in content
 
+    def test_a_byte_order_mark_is_not_merged_into_a_line(self) -> None:
+        to_f = self._make(["1#Alice#G"])
+        from_f = self._make(["1#Alice#G", "2#Bob#G"], encoding="utf-8-sig")
+        assert merge_files(to_f, from_f, merge_by_id=False) == 1
+        assert Path(to_f).read_text(encoding="utf-8") == "1#Alice#G\n2#Bob#G\n"
+
 
 class TestUploadFile:
     """Unit tests for upload_file \u2014 ftplib calls are mocked, no real network."""

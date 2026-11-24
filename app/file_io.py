@@ -17,7 +17,7 @@ from app.paths import app_path
 def _read_lines(path: str) -> list[str]:
     """Read non-empty lines from a text file (auto-detect encoding)."""
     p = app_path(path)
-    for enc in ("utf-8", "cp1251", "latin-1"):
+    for enc in ("utf-8-sig", "cp1251", "latin-1"):
         try:
             text = p.read_text(encoding=enc)
             return [ln for ln in text.splitlines() if ln.strip()]
@@ -51,7 +51,7 @@ def sanitize_config_line(value: str) -> str:
 def _read_all_lines(path: str) -> list[str]:
     """Read all lines (including empty) from a text file (auto-detect encoding)."""
     p = app_path(path)
-    for enc in ("utf-8", "cp1251", "latin-1"):
+    for enc in ("utf-8-sig", "cp1251", "latin-1"):
         try:
             return p.read_text(encoding=enc).splitlines()
         except UnicodeDecodeError:
@@ -78,7 +78,7 @@ def load_template(path: str) -> HtmlStyles | None:
     """Load an HTML styles template file (C++ positional format, 11 lines)."""
     p = app_path(path)
     lines: list[str] = []
-    for enc in ("utf-8", "cp1251", "latin-1"):
+    for enc in ("utf-8-sig", "cp1251", "latin-1"):
         try:
             lines = p.read_text(encoding=enc).splitlines()
             break

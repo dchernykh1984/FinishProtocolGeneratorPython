@@ -101,3 +101,15 @@ def test_the_key_value_format_reads_disable_dns_like_its_siblings() -> None:
         assert win._cfg.disable_dns is True
     finally:
         win.deleteLater()
+
+
+def test_a_byte_order_mark_does_not_hide_the_key_value_format() -> None:
+    win = MainWindow()
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            path.write_text("# FPG Race Info\nDisableDNS=1\n", encoding="utf-8-sig")
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.disable_dns is True
+    finally:
+        win.deleteLater()

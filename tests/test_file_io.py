@@ -48,6 +48,22 @@ class TestReadLines:
         assert len(sp) == 1
         assert sp[0].competitor_id == "5"
 
+    def test_a_byte_order_mark_is_not_read_into_the_first_line(self) -> None:
+        # Notepad saves UTF-8 with one: kept, it made a group no start line names.
+        def bom(text: str) -> str:
+            return _tmp(text, encoding="utf-8-sig")
+
+        assert read_group_times(bom("M40#20652 10:00:00.000#\n"))[0].group_id == "M40"
+        assert read_start_protocol(bom("7#Anna#M40#1#1####\n"))[0].competitor_id == "7"
+        assert (
+            read_finish_times(bom("7#20652 10:30:00.000#finish#\n"))[0].competitor_id
+            == "7"
+        )
+        assert load_config_file(bom("\n".join(_fixed_13())))["sponsor"] == "MySponsor"
+        assert is_key_value_config(bom("# FPG Race Info\nRaceName=Race\n"))
+        styles = load_template(bom("width:100%\n"))
+        assert styles is not None and styles.table_style == "width:100%"
+
 
 class TestReadStartProtocol:
     def test_basic(self) -> None:

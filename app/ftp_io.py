@@ -22,7 +22,7 @@ def _decode_lines(path: Path) -> list[str] | None:
     Returns None if every encoding attempt raises UnicodeDecodeError so the
     caller can propagate an error instead of silently mangling the data.
     """
-    for enc in ("utf-8", "cp1251", "latin-1"):
+    for enc in ("utf-8-sig", "cp1251", "latin-1"):
         try:
             return [
                 ln for ln in path.read_text(encoding=enc).splitlines() if ln.strip()
