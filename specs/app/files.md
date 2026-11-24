@@ -131,8 +131,8 @@ are empty; a template that cannot be read gives the built-in styles.
     in Spiridonov the comment is the coefficient.
   - It goes to its own path, or beside the group protocol as `<group protocol>.txt` when that is
     empty, in UTF-8. A path that names a file of the race (start protocol, group times, finish
-    times, start check list, group or absolute protocol, styles template, ladder file) is
-    refused with an ERROR, and the protocols are written all the same; a folder that is not
+    times, a control point stream, start check list, group or absolute protocol, styles
+    template, ladder file, the race info file next to the program) is refused with an ERROR, and the protocols are written all the same; a folder that is not
     there is made.
 - **The log file** `temp/fpg<N>.txt`, N the first number not yet used, when "Write log to file"
   is on.

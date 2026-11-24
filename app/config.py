@@ -314,7 +314,20 @@ class RaceConfig:
         return str(Path(group_protocol_file).parent / "heats.txt")
 
     def _guarded_files(self, group_protocol_file: str) -> tuple[tuple[str, str], ...]:
-        """Every file of this race a generated one must not land on."""
+        """Every file of this race a generated one must not land on.
+
+        The control point streams and the race info file next to the program are among
+        them: a seeding protocol written over a stream wipes that point's marks, and one
+        written over fpg_info.txt wipes the settings the next start loads.
+        """
+        points = tuple(
+            (
+                f"control point {n} stream",
+                str(Path(self.remote_points_path) / f"results_{n}.txt"),
+            )
+            for n in range(1, self.n_remote_points + 1)
+            if self.remote_points_path
+        )
         return (
             ("start protocol", self.start_protocol_file),
             ("group times", self.group_time_file),
@@ -324,6 +337,8 @@ class RaceConfig:
             ("absolute protocol", self.absolute_protocol_file),
             ("HTML styles template", self.template_file),
             ("Eliminator ladders", self.eliminator_ladder_file),
+            ("race info file", "fpg_info.txt"),
+            *points,
         )
 
     def _conflict(self, written: str, group_protocol_file: str, skip: str = "") -> str:

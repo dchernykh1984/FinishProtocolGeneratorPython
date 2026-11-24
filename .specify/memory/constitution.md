@@ -8,8 +8,6 @@ Sync Impact Report
   detailed runtime guidance. Merging by rebase, never squashed, is the maintainer's standing rule.
   Development Workflow and Governance are the ones StartProtocolMakerPython and
   WindowsChronometerPython follow.
-- Known gaps, where the code does not meet a principle yet, are stated in the principles
-  themselves (II), under "Not yet".
 - Templates: plan-template.md's "Constitution Check" gate reads these principles; no template
   needed changes.
 -->
@@ -41,8 +39,7 @@ chronometers (`group#time#`, `number#time#action#`), and the same lines as the s
 back. It writes into those files only where the referee chose to download or merge into them, and
 the files it makes itself -- the seeding protocol, the heat list, the ladder table -- are refused
 a path that names another file of the race: its inputs, its protocols, its styles template, its
-ladder file, its race info file. Not yet: the control point streams and the race info file are
-not refused.
+ladder file, its race info file.
 
 ### III. Old files stay readable
 
