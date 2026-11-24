@@ -246,3 +246,39 @@ def test_a_dead_heat_in_the_middle_numbers_one_two_two_four():
 
 def test_four_riders_on_one_time_all_take_first_and_the_next_is_fifth():
     assert _places([10.0, 10.0, 10.0, 10.0, 13.0, 14.0]) == [1, 1, 1, 1, 5, 6]
+
+
+def _w_places(race):
+    """The places of group W's placed riders, by name."""
+    prepare_statuses(race.protocol, race.cfg)
+    places = group_places(race.protocol, race.groups, race.cfg)
+    return {
+        fp.name: places[id(fp)]
+        for fp in race.protocol
+        if fp.group_id == "W" and id(fp) in places
+    }
+
+
+def test_a_number_of_tries_tie_break_parts_the_place_it_breaks():
+    # Anna and Dina ride 140 s by the first rule; Anna's longer qualification puts her
+    # ahead by the second, which parts their place too (maintainer, 2026-11-24).
+    places = _w_places(SCENARIOS["tries_asc"]())
+    assert (places["Anna Tries"], places["Dina Equal"]) == (1, 2)
+
+
+def test_riders_equal_on_every_number_of_tries_rule_share_a_place():
+    from protocol_scenarios import _tries
+
+    from app.attempt_rules import AttemptRule
+
+    rules = (
+        AttemptRule("Best of 2 and 3", 1, (2, 3), "asc"),
+        AttemptRule("Second", 1, (2,), "asc"),
+    )
+    places = _w_places(_tries(rules))
+    # Both ride 140 s by either rule: the number only lists Anna first.
+    assert (places["Anna Tries"], places["Dina Equal"], places["Vera Tries"]) == (
+        1,
+        1,
+        3,
+    )
