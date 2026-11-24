@@ -231,29 +231,42 @@ def result_count(fp: FinishProtocolElement, cfg: RaceConfig) -> int:
     return fp.n_laps_finished
 
 
+def leads(fp: FinishProtocolElement) -> bool:
+    """Whether this row can be a table's leader, the one gaps are measured from."""
+    return fp.finished and not fp.disqualified and not fp.missed_start_check
+
+
 def result_parts(
     fp: FinishProtocolElement,
     leader: FinishProtocolElement | None,
     cfg: RaceConfig,
 ) -> ResultParts:
-    """The result of a finisher measured against the leader of their table."""
+    """The result of a finisher measured against the leader of their table.
+
+    A rider who missed the start check is nobody's leader, being DNS, and keeps his
+    time all the same -- also in a table where nobody else finished.
+    """
     parts = ResultParts()
-    if not (fp.finished and not fp.disqualified) or leader is None:
+    if not (fp.finished and not fp.disqualified):
+        return parts
+    if leader is None and not fp.missed_start_check:
         return parts
     tries = cfg.is_number_of_tries()
     last_t = result_seconds(fp, cfg)
-    if tries:
-        last_leader_t = leader.get_total_time()
-    else:
-        n = fp.n_laps_finished
-        last_leader_t = (
-            leader.finish_lap_times[n - 1] if 0 < n <= leader.n_laps_finished else 0.0
-        )
     if last_t <= 0:
         return parts
     parts.time = format_time(last_t, cfg.n_signs_after_point)
-    if cfg.show_time_difference:
-        diff = fp.get_time_diff(leader) if tries else last_t - last_leader_t
+    if cfg.show_time_difference and leader is not None:
+        if tries:
+            diff = fp.get_time_diff(leader)
+        else:
+            n = fp.n_laps_finished
+            leader_t = (
+                leader.finish_lap_times[n - 1]
+                if 0 < n <= leader.n_laps_finished
+                else 0.0
+            )
+            diff = last_t - leader_t
         sign = "+" if diff > 0 else ""
         parts.gap = f"({sign}{format_time(diff, cfg.n_signs_after_point)})"
     if cfg.show_n_finished_laps:

@@ -85,7 +85,8 @@ placed among the finishers by his result; a rider of a group that never started 
 - A DNS rider who rode is printed under the same settings as any other DNS row: only with "Print
   DNS".
 - A DNS rider takes no place in his group anywhere: not in the place column, not in brackets in
-  the absolute protocol, not in the seeding protocol for the finals.
+  the absolute protocol, not in the seeding protocol for the finals. Nor is he the leader that
+  gaps are measured from; his own time stays even when nobody else finished.
 - Custom Start and Number of Tries check the start the same way, against the rider's first mark.
 - With "Disable DSQ" a DSQ mark disqualifies nobody, so a rider without a check mark who has one
   is DNS.

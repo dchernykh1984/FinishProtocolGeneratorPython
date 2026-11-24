@@ -17,8 +17,10 @@ from app.models import (
 from app.protocol_rows import (
     group_places,
     is_printed,
+    leads,
     place_status,
     prepare_statuses,
+    result_parts,
     shared_places,
 )
 
@@ -88,6 +90,19 @@ def test_a_rider_who_missed_the_start_check_prints_and_places_as_a_dns():
     assert place_status(fp, 1, cfg) == ("DNS", "dns")
     everything = RaceConfig(print_dnf=True, print_dns=True)
     assert group_places([fp], [GroupStartElement("G", 100.0)], everything) == {}
+
+
+def test_a_dns_of_the_start_check_is_nobodys_leader_and_keeps_his_time():
+    # A gap measured from a DNS row would rank the rows after it against a rider
+    # who has no place; his own time still shows when nobody else finished.
+    fp = FinishProtocolElement(
+        StartProtocolElement.from_line("1#A#G#1#1####"), False, 0
+    )
+    fp.finished, fp.n_laps_finished, fp.missed_start_check = True, 1, True
+    fp.finish_lap_times[0] = 95.5
+    assert not leads(fp)
+    parts = result_parts(fp, None, RaceConfig())
+    assert parts.time == "00:01:35.5" and parts.gap == ""
 
 
 def test_place_status_names_dsq_dnf_dns_and_places():

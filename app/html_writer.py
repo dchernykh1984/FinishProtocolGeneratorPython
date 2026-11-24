@@ -16,6 +16,7 @@ from app.protocol_rows import (
     lap_parts,
     lap_ranks,
     laps_to_show,
+    leads,
     place_status,
     prepare_statuses,
     result_parts,
@@ -406,7 +407,7 @@ def write_group_protocol(  # noqa: C901
                     buf.write(_lap_cell(fp, lc, cfg, cols))
 
             if cfg.show_finish_time:
-                if fp.finished and not fp.disqualified and leader is None:
+                if leads(fp) and leader is None:
                     leader = fp
                 buf.write(_result_cell(fp, leader, cfg, rows))
 
@@ -651,7 +652,7 @@ def write_absolute_protocol(  # noqa: C901
                 buf.write(_lap_cell(fp, lc, cfg, cols))
 
         if cfg.show_finish_time:
-            if fp.finished and not fp.disqualified and abs_leader is None:
+            if leads(fp) and abs_leader is None:
                 abs_leader = fp
             buf.write(_result_cell(fp, abs_leader, cfg, rows))
 
