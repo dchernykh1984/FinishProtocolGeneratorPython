@@ -163,6 +163,15 @@ def test_an_error_never_repeats_the_token() -> None:
     assert "<token>" in str(caught.value)
 
 
+def test_a_short_token_does_not_garble_the_message() -> None:
+    exc = urllib.error.HTTPError(
+        "u", 401, "Unauthorized", http.client.HTTPMessage(), None
+    )
+    with patch("urllib.request.urlopen", side_effect=exc):
+        with pytest.raises(ValueError, match=r"^HTTP 401: Unauthorized$"):
+            fetch_start_list("https://x", "1")
+
+
 def test_a_site_url_without_its_scheme_is_a_bad_url_not_a_bad_answer() -> None:
     with patch("urllib.request.urlopen") as never:
         with pytest.raises(ValueError, match=r"Bad site URL 'cycling\.example\.org'"):

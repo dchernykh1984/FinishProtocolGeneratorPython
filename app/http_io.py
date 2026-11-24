@@ -51,11 +51,13 @@ def _hide(text: str, token: str) -> str:
     """The text without the competition's token, a secret that some errors repeat.
 
     http.client refuses a URL with a space by quoting the whole path, token and all,
-    and the message goes to the run log.
+    and the message goes to the run log. Only the URL's parameter is blanked, so a short
+    token cannot garble the rest of the message.
     """
-    for form in {token, urllib.parse.quote_plus(token)} - {""}:
-        text = text.replace(form, "<token>")
-    return text
+    if not token:
+        return text
+    shown = urllib.parse.urlencode({"competition_token": token})
+    return text.replace(shown, "competition_token=<token>")
 
 
 def _entries(data: dict, key: str) -> list[dict]:
