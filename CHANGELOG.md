@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.18.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.0...v0.18.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **calculator:** legacy Number of Tries riders without an attempt sort by number, not into a crash ([645b7ce](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/645b7ce7db19260eb5dd5319844a140703dd016e))
+* **calculator:** Number of Tries orders rule sums to the recorded millisecond, as its places read them ([1576f82](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1576f822b77e011dcd9a40cd8a17aa9432a66e53))
+* **protocol:** a Number of Tries tie-break parts the place it breaks ([269a153](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/269a153a0db5c9292628867c9b3643ca87da9b4f))
+
+
+### Documentation
+
+* a Number of Tries tie-break parts a place, a tie on every rule shares one ([58e55f2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/58e55f276444306289a8b0a611147592985bf35f))
+* **calculator:** a same-millisecond pair is left out of the warning, shared or parted by a later rule ([4de9948](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4de9948ab66cb2c458d3701feaccd5c881462ace))
+* **constitution:** in Number of Tries a place is shared only on every scoring rule ([c2f7433](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c2f74334e0776616ada4ff4ce623c1ab0c43c568))
+* **protocol:** group places are shared as shared_places shares them, not by the printed time ([99fd0d3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/99fd0d3fe1adda4c3cf3b9f7018073f8cf3dddc7))
+* **specs:** mend the line break the rules bullet's rewrap left behind ([c77d1e0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c77d1e054446f65b7429cca26f45325e950f3c17))
+* **specs:** Number of Tries compares its sums to the recorded millisecond ([1627ba1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1627ba1d81ffefc62bbb7271618c0f81f7265b21))
+
 ## [0.18.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.17.1...v0.18.0) (2026-11-24)
 
 
