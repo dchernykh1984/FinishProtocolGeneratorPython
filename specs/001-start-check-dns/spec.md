@@ -110,8 +110,8 @@ placed among the finishers by his result; a rider of a group that never started 
   info file without it MUST load with it off.
 - **FR-007**: The log MUST keep reporting a rider who did not pass the start registration,
   whether or not "Disable DNS" is on.
-- **FR-008**: The site document and the live statistics MUST show the same status as the HTML
-  protocol.
+- **FR-008**: The site document MUST show the same status as the HTML protocol, and the live
+  statistics MUST rank the riders in the same order.
 
 ### Key Entities
 
