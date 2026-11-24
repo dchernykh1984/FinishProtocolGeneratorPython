@@ -35,12 +35,11 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
 - A rider who rode all his laps, or who has a `finish` mark, is a finisher; a second `finish`
   mark is a WARNING. Number of Tries decides it by its rules (below). With "Disable DNF
   (everyone counts as finished)" everyone is, and is ranked by the laps he rode.
-- Without "Disable DNF", a rider whose start was never seen is no finisher. That is settled when
-  the protocols are written, after the order is made, so he keeps the position of a finisher.
-- One who is not a finisher is DNF once he has started -- in the mass start types once his
-  start, his group's start plus his delay, is above 0 (a group the group times do not list starts
-  at 0, [files.md](files.md)); in Custom Start and Number of Tries once he has a mark -- and DNS
-  otherwise.
+- A rider whose group has no start time rides no lap, and a `finish` mark does not make him a
+  finisher unless "Disable DNF" makes everyone one.
+- One who is not a finisher is DNF once he has started -- in the mass start types once his group
+  has a start time ([files.md](files.md)), in Custom Start and Number of Tries once he has a mark
+  -- and DNS otherwise.
 - A `DSQ` or `DSQ: <reason>` mark in the finish marks or at a control point disqualifies, unless
   "Disable DSQ"; a reason is kept as `finish: <reason>` or `CP <n>: <reason>`. With the start
   check list on and holding any mark, a rider without a mark in it later than his start minus

@@ -208,6 +208,7 @@ def calculate_protocol(  # noqa: C901
             "WARNING: Spiridonov with control points: split times will be incorrect"
         )
 
+    unstarted: set[str] = set()
     for start in start_list:
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
         fp.attempt_rules = rules
@@ -232,14 +233,18 @@ def calculate_protocol(  # noqa: C901
                 ):
                     fp.cross_line_times[0] = fe.seconds
         else:
-            found = False
-            for gs in group_list:
-                if fp.group_id == gs.group_id:
-                    fp.cross_line_times[0] = gs.seconds + fp.start_delay
-                    found = True
-                    break
-            if not found:
-                log.append(f"ERROR: group start time not found for {fp.competitor_id}")
+            group = next((g for g in group_list if g.group_id == fp.group_id), None)
+            if group is not None and group.seconds:
+                fp.cross_line_times[0] = group.seconds + fp.start_delay
+            elif fp.group_id not in unstarted:
+                # No start line, or one without a time: there is nothing to time the
+                # group from, so none of its riders started, whatever his delay. Once
+                # per group is enough to send the referee to the group times file.
+                unstarted.add(fp.group_id)
+                log.append(
+                    f"ERROR: group {fp.group_id} has no start time in the group times "
+                    "file, so none of its riders has started"
+                )
 
         # --- start check list ---
         if cfg.use_start_check_list and start_check_list:
@@ -284,6 +289,13 @@ def calculate_protocol(  # noqa: C901
 
         if cfg.is_number_of_tries():
             calculate_attempts(fp, finish_list, remote_points, cfg, log)
+            result.append(fp)
+            continue
+
+        if fp.cross_line_times[0] == 0:
+            # Never started: no lap to time and no finish to reach, a finish mark or
+            # not. Counting from 0 timed laps from 1970 and sorted him as a finisher.
+            fp.finished = cfg.disable_dnf
             result.append(fp)
             continue
 
