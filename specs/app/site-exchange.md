@@ -66,7 +66,7 @@ does not guess. A run always builds its protocols from the local files
   and numbered 1, 2, 3 -- a dead heat is not shared. A disqualified rider's place is `DSQ` and a
   rider who missed the start check's is `DNS`, both outside the numbering, the gaps and the
   packs. Keys, each with the suffix `_group` or `_abs` of its switch:
-  `place` (a number or `DSQ`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and
+  `place` (a number, `DSQ` or `DNS`), `qty` (the riders of the scope), `gap_prev`, `gap_next` and
   `gap_leader`, the same three again with `_delta` after the suffix (how the gap changed over
   the last lap); for the whole race the participant packs, `gap_prev_pack_abs`,
   `gap_next_pack_abs`, `qty_prev_pack_abs` and `qty_next_pack_abs`; and `laps` as
