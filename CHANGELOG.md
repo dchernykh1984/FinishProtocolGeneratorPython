@@ -1,5 +1,110 @@
 # Changelog
 
+## [0.18.0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.17.1...v0.18.0) (2026-11-24)
+
+
+### Features
+
+* **calculator:** a rider who missed the start check is DNS, after the DNF riders ([eef4a07](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/eef4a072f59264a90372d4dc8306f095516559d8))
+* **calculator:** report a group the group times file lists more than once ([5eac369](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5eac369e5e40889ecb10634252fedfcd2ce032d9))
+* **live:** a rider who has not started reads DNS on the watch, out of the numbering ([bbda667](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/bbda667856e4cd7c8dbc838cddb6e180a3a2e528))
+* **ui:** Disable DNS, everyone counts as started, saved with the race ([e696445](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e696445799110fcd542a463b766f1d1d1c2f44e7))
+
+
+### Bug Fixes
+
+* **calculator:** a group start of 0 is no start, as for the finals and the start board ([39ce1af](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/39ce1af40102d577ae3298b31bf5bdd6809f7be3))
+* **calculator:** a group without a start time is a warning until one of its riders has a mark ([27c3856](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/27c3856c94af8e2138e274275669cbc747d4a403))
+* **calculator:** a group without a start time is an error and its riders did not start ([7b03c42](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7b03c42014a9df33a4d9e8d7bd1a4c0ee49f0c24))
+* **calculator:** a rider who never started still shows his Spiridonov coefficient ([e920923](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e9209230eca9c6bfb252593da56567b3db6e3bed))
+* **calculator:** a rider whose start was never seen is not checked against the start check list ([cf09dee](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/cf09deeca84c8b57508c85190fa4dbda0bbd686e))
+* **calculator:** the no start time error says what is lost, true with Disable DNS too ([69b5646](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/69b56467c3ad3b356e7484aa1864383258b38a8b))
+* **config:** a generated file is refused the control point streams and fpg_info.txt ([fcb97eb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/fcb97eba1d0a156cd3627926c99b9307f158c81e))
+* **http:** a bad control point number is named in the error, not called missing ([f7e5618](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f7e5618f9e5e2b2c5dc5f3d0165965b37dba8aab))
+* **http:** a control point number from the site must be a whole number ([5f63520](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5f63520abdd50a7d4571647f86431c6674fbb5bc))
+* **http:** a control point number must be plain digits, not any digit isdigit takes ([234da24](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/234da24bf23453e05e1345d867e7f1189344345e))
+* **http:** a control point the site lists twice is refused, not overwritten ([62470f8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/62470f8b32ad695496ff20636085ed0b76341b5d))
+* **http:** a device or point the site sends without items keeps the local file ([9819f68](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9819f689e10fe4edd8783942b78ccf24a38f1f58))
+* **http:** a fetch error never repeats the competition token in the log ([214cc3f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/214cc3f95dff290e212472c26ca5b1bf491682c9))
+* **http:** a negative control point number is named for what is wrong with it ([80a785f](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/80a785fe9e38643cb23bed6fa22da65baea5064a))
+* **http:** a site answer without its devices or points keeps the local file ([2e02628](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2e0262863b3f3b6b35acc66e2380889a600df7b7))
+* **http:** a site that fails after taking a fetch is logged, and the run goes on ([ca245a4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/ca245a462a6316982e737612210cfc0cca9baf70))
+* **http:** a site URL without http:// is a bad URL, not a bad answer ([dd24c22](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/dd24c22c4279d42f3f99ff35964084068766d1df))
+* **http:** only the URL's token is blanked out of a fetch error ([4fe1431](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4fe1431bc1bd04a9a24abeefea96fb8a3b894648))
+* **live:** a DNS of the start check stays out of the live numbering, gaps and packs ([dec6070](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/dec607064f2e9d49de794215c6cddd9a1c6eda23))
+* **live:** every DNS stays out of the live numbering, as the protocol says DNS ([5f6cd4c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5f6cd4ca3472a1b7257d45409cfeb2d15417f2bc))
+* **protocol:** a DNS of the start check is never the leader the gaps are measured from ([ab585ef](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/ab585efef1cedcd60ff13db55f3ecbf60c0ccab6))
+* **protocol:** a DNS of the start check needs Print DNF only when he did not finish ([3adfcfa](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/3adfcfa56c625c0138a3856914699ab5b16d12fe))
+* **protocol:** a DNS of the start check shows his time without a gap ([b8ce500](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b8ce500b9d7936c240a4963d1be420169b618fc5))
+* **ui:** a control point the site has beyond the configured count is a warning ([7644941](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7644941aeb669e2e9ddf7d99d59c4d8b2780219d))
+* **ui:** a download step that stops says the downloads after it were not tried ([0c7c3dc](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/0c7c3dc951bae02ff6cc9690f2926484f24db3f2))
+* **ui:** a download step that stops without words still names what stopped it ([7ca1e5e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7ca1e5eb3eb1e4b5afc335dbbbc2a6a02a806679))
+* **ui:** a site point outside the configured numbers is named outside, not beyond ([e0a13e2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e0a13e257839c7728347a5cd399ca1793958b9c9))
+* **ui:** the key=value race info format reads Disable DNS as it reads DNF and DSQ ([fe22c61](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/fe22c61ed32734b127208bbbb7ac48b171c29dce))
+
+
+### Reverts
+
+* **live:** keep a rider who has not started numbered on the watch, as before ([8e7f094](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8e7f09458400ea1c3fc42d138702e5c1d748ed4d))
+
+
+### Documentation
+
+* a plan or task list written from Spec Kit's templates is made ASCII before commit ([c02b822](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c02b82221445bccd8c8dfee641be5cd89b0c4b12))
+* adopt a constitution for spec-first changes ([0ae23cf](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/0ae23cfcbf3ff228a9d4dd76b75fbfba6ca8acde))
+* **calculator:** say which settings change a rider who never started ([76b4a9e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/76b4a9e2c20376d71c0564c1f6940408a8aa0f45))
+* **calculator:** the order puts the statuses first, then the C++ comparison ([7c1f944](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7c1f944077553f4654bdce762206a2284f6109f5))
+* **constitution:** a generated file is refused every file of the race ([088f044](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/088f0441d3ca98244d30f4566cc1855f2288d9c5))
+* **constitution:** live statistics rank from lap finishes alone, outside the shared calculation ([9803469](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/98034698897b5c5ed19a2ec643c811da4e36ade2))
+* **constitution:** name the files the ASCII rule leaves out ([b1c24ae](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b1c24aebe11ea1725675f9c3a872f6b44f337b89))
+* **constitution:** name the input files a generated file is refused ([18dedc2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/18dedc2d03515da8459c00819fb3e0f2bcf4fc93))
+* **constitution:** record where the code does not meet a principle yet ([1fabdc4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1fabdc4023ff44e6c3a42c9136cea1be3d2e68bc))
+* **constitution:** state the gaps in the principles, where they show ([4ee98cd](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4ee98cd03e8ce756f5ed9dbf952bb790504b6839))
+* **constitution:** the seeding protocol and live statistics do not share a dead heat ([1ed2ff0](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1ed2ff0d466bc5e4913e779e214a1925cbad09a4))
+* describe the generator as it works today ([d3a6475](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d3a6475e171e1c2995996a78014682a328fc454b))
+* opening issues waits for an explicit yes too, as speckit-taskstoissues does it ([0edad03](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/0edad039202037de725f34039735ddcd18b47a8b))
+* **specs:** a decimal point in a time needs a digit after it ([bc144d7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/bc144d70c2efcfa092f131d373c976d6e71b06c8))
+* **specs:** a DNS of the start check rides in the live packs like any rider not DSQ ([5d0bbeb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5d0bbeb7dd63f5bb1a440398e7380a80a0b75269))
+* **specs:** a group the group times do not list starts at 0, its riders at their delay ([9afdc4c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9afdc4c4e8923826285c70a7352c456aa2f630f3))
+* **specs:** a live gap in Number of Tries is the difference of the results ([2a8c574](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2a8c5743c55d9ee3cf0a3bdccdcd6e69d41a106b))
+* **specs:** a negative lap or stage count is kept as written ([28f6389](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/28f638933684ed55b25ece29536d49a7e47d817e))
+* **specs:** a rider whose start was never seen is no finisher, settled after the order ([5182262](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/5182262e9fecd23e4da41c4383024b4fc0cc7fd7))
+* **specs:** a site answer of the wrong shape stops the run unreported ([f0d029c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f0d029cbd728fb8d26e0d11a194cc097e5d35ab3))
+* **specs:** a site that times out after taking the request stops the run unreported ([3323f0c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/3323f0c0ee33a3fe1771239aed6bd7a686bce0df))
+* **specs:** a time may leave out its seconds, and one that cannot be read ends the run ([f5d9e85](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f5d9e85e178f6a5f53b58bae3b1c31bccf660fee))
+* **specs:** after an uncaught fetch only auto-refresh or a restart frees the buttons ([9f46092](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9f4609283e747c3e85305b33384bbf091d9475d6))
+* **specs:** break the start check DNS into tasks ([8d0d57b](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8d0d57befc968c5f160e7c30ff41c4e952567489))
+* **specs:** Disable DNS leaves the finals alone, where DNS means a heat still to come ([51915fa](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/51915fa2750251620a6c983153863e10bcdb8112))
+* **specs:** each running worker gets its own 5 seconds at exit ([d5b0452](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d5b0452b6db0ee9cfe25a05182080ef45ea4a472))
+* **specs:** lap columns need Show lap times ([e4efb35](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e4efb355fc850fb37a536d397559135fda9ec5e3))
+* **specs:** legacy Number of Tries ranks by counted attempts, then their sum ([69b0688](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/69b068822a12eee9ab317e2fa1f2b20cb22e76f1))
+* **specs:** list the seeding protocol's rules one by one ([43dd1a6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/43dd1a6b9e5428a80fb0ea2fe167743be2b10b1d))
+* **specs:** live statistics need a site URL ([d393056](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/d39305678b2e7c2c5492510e420d9e7a99f22470))
+* **specs:** mend two line breaks a rewrap left behind ([1bff240](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/1bff2404ffb3974a7d3192c85b71966fac35de37))
+* **specs:** plan the start check DNS and Disable DNS ([80bbd07](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/80bbd074102ff61c5bc8a580a77966317d4a97e8))
+* **specs:** rewrap the paragraphs that ran past the line width ([50f875c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/50f875c14580a21dea0dec7fe2c8b1f1ae33e5a5))
+* **specs:** SC-004 names what else this pull request changes in the protocols ([b63a4f3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b63a4f345edc8c4ab061dcdf731f3401ad67b0b9))
+* **specs:** specify a rider who missed the start check as DNS, and Disable DNS ([a348cb7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a348cb78b59cd259234ffbcc38a4f385345cb17b))
+* **specs:** the absolute protocol hides empty lap columns too ([f986b6e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f986b6e0bf98aa5eddeddf0d967e83ad3a905408))
+* **specs:** the double mark check compares finish and nextLap marks only ([a3f8ae4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a3f8ae46517962ce9b2bf7c7ce37f18b8cd75740))
+* **specs:** the errors and warnings filter ignores case ([3a0d266](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/3a0d26626e558358668bd72a17074a0f98f0a256))
+* **specs:** the lap columns come from the first rider with at least one lap ([4cf0d69](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4cf0d692d677e851eb783fbde84d28949af8280b))
+* **specs:** the lap rows and their buttons need Show lap times ([49c5c89](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/49c5c8906180af2369b89bef965cb37373f9445c))
+* **specs:** the laps of a DNS still count in the lap statistics, as every rider's do ([2fbdc53](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2fbdc5315c09d3cb6d46e0685f72e7362c3d91d6))
+* **specs:** the live place can read DNS as well as a number or DSQ ([68912e1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/68912e1a94d5e1db8ccbb37552a39d486b00255d))
+* **specs:** the log file is created with its first line ([94b2d29](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/94b2d291789dd69f3ed8aa708fbb072402ffeef8))
+* **specs:** the order compares the time from each rider's own start ([a161067](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a161067f5322fb15b1dbc6e6aed14eac42353d8d))
+* **specs:** the race info file and the template keep their blank lines ([24845f7](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/24845f77af378bd16b444346c0b2d0797f6da279))
+* **specs:** the seeding protocol also takes the groups the group times do not list ([19fa4b6](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/19fa4b6b92fff7fcb3e45ecb9eba944c119a2cff))
+* **specs:** the seeding protocol is written per line of the group times file ([b775a6a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b775a6aa10033d73ebd35a5a1a41a2751160735e))
+* **specs:** the seeding protocol writes laps and stages as read, an empty one as 1 ([f0ed3a1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f0ed3a1e1696b58e0a733f0d3a46229f7ef03684))
+* **specs:** the time difference label is saved only with the finish time ([b1b7f99](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b1b7f990b99c9c39ab770a0325cf017a592697ff))
+* **specs:** the uncaught site fetches are the exception to a logged failure ([25e6f04](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/25e6f04c50ed1a152187cbf87ec09893093187b0))
+* **specs:** who finishes in Number of Tries without rules ([78274fc](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/78274fcaab2b56f3d5a444f6a0793854b6accddd))
+* **specs:** with Disable DNS the start column still says NOT STARTED where no mark is ([880cb39](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/880cb394e7594a37785f958e435484e2b88ff01a))
+* **specs:** with Disable DSQ a DSQ mark clears a start check list disqualification ([47466d8](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/47466d831a7150e960d480bfeb2e51e4991ab5e7))
+* **specs:** with hidden empty columns a lap in progress past a control point shows ([2a79aa5](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/2a79aa5f5e24550802b8cd14ee0309bac4809fd0))
+
 ## [0.17.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.17.0...v0.17.1) (2026-11-09)
 
 
