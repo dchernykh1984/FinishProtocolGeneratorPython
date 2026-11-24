@@ -10,7 +10,8 @@ is already folded into the lap-finish times, and a DSQ mark disqualifies the rid
 Keys (any subset, gated by the two config toggles):
 
 * place_group / place_abs -- current position as a number, or "DSQ", or "DNS" for a
-  rider who missed the start check: neither has a race position to measure from.
+  rider who has not started -- his start not seen yet, or the start check missed:
+  neither has a race position to measure from (maintainer, 2026-11-24).
 * qty_group / qty_abs -- bib-holders in the group / whole race (incl. DSQ/DNS/DNF).
 * gap_prev_* / gap_next_* -- time to the neighbour one place ahead / behind, measured at
   the last lap-finish both completed. Signed from the reader's point of view: a rider
@@ -37,6 +38,7 @@ from functools import cmp_to_key
 from app.calculator import _first_better
 from app.config import RaceConfig
 from app.models import INF, FinishProtocolElement
+from app.protocol_rows import place_status, status_rank
 
 
 def _rank_finish_only(
@@ -163,11 +165,11 @@ def _rank_scope(  # noqa: C901
     Returns competitor_id -> entry. Non-DSQ riders get place (number), qty, and any of
     gap_prev/gap_next (neighbours), gap_leader (scope winner), and gap_prev_delta/
     gap_next_delta/gap_leader_delta (per-lap change of those gaps). DSQ riders get place
-    "DSQ" only, excluded from the numbering and gaps, and so do riders who missed the
-    start check with "DNS": ranked after everyone on course, they would hand the last
+    "DSQ" only, excluded from the numbering and gaps, and so do DNS riders with "DNS":
+    one who missed the start check, ranked after everyone on course, would hand the last
     of them a gap to a rider laps ahead. qty counts everyone.
     """
-    ranked = [e for e in elements if not _unplaced(e)]
+    ranked = [e for e in elements if not _unplaced(e, cfg)]
     qty = str(len(elements))
     out: dict[str, dict[str, str]] = {}
     for i, elem in enumerate(ranked):
@@ -192,15 +194,15 @@ def _rank_scope(  # noqa: C901
                 entry["gap_next_delta"] = delta
         out[elem.competitor_id] = entry
     for elem in elements:
-        if _unplaced(elem):
-            place = "DSQ" if elem.disqualified else "DNS"
+        if _unplaced(elem, cfg):
+            place = place_status(elem, 0, cfg)[0]
             out[elem.competitor_id] = {"place": place, "qty": qty}
     return out
 
 
-def _unplaced(elem: FinishProtocolElement) -> bool:
-    """Out of the live numbering, gaps and packs: DSQ, or a DNS of the start check."""
-    return elem.disqualified or elem.missed_start_check
+def _unplaced(elem: FinishProtocolElement, cfg: RaceConfig) -> bool:
+    """Out of the live numbering, gaps and packs: a DNS or a DSQ, as in the protocol."""
+    return status_rank(elem, cfg) >= 2
 
 
 # scope-entry key -> output key template ("{s}" is the scope suffix, "_group" or "_abs")
@@ -228,13 +230,15 @@ def _participant_packs(
 ) -> list[list[FinishProtocolElement]]:
     """Chain adjacent classified riders using the same common-lap gaps as stats.
 
-    No crossing means no measured pack membership. DSQ riders, and riders who missed
-    the start check, never bridge packs.
+    No crossing means no measured pack membership. DSQ and DNS riders never bridge
+    packs.
     An unavailable or reversed common-lap gap cannot establish a connection.
     """
     packs: list[list[FinishProtocolElement]] = []
     for elem in ranked:
-        if _unplaced(elem) or _elapsed_at_lap(elem, cfg, _laps_done(elem, cfg)) is None:
+        if _unplaced(elem, cfg) or (
+            _elapsed_at_lap(elem, cfg, _laps_done(elem, cfg)) is None
+        ):
             continue
         gap = None
         if packs:
