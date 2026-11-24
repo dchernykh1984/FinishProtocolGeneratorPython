@@ -119,6 +119,26 @@ def test_merge_by_id_survives_a_save_and_a_restart() -> None:
         win.deleteLater()
 
 
+def test_a_key_value_file_without_the_tags_loads_them_off() -> None:
+    # The key=value format is only read, never written: a file without the tags must
+    # not keep what was ticked before it was loaded.
+    win = MainWindow()
+    try:
+        box = win.findChild(QCheckBox, "merge_by_id")
+        assert box is not None
+        box.setChecked(True)
+        win._cfg.disable_dns = True
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            path.write_text("# FPG Race Info\nRaceName=Race\n", encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+        assert win._cfg.merge_by_id is False
+        assert not box.isChecked()
+        assert win._cfg.disable_dns is False
+    finally:
+        win.deleteLater()
+
+
 def test_the_key_value_format_reads_disable_dns_like_its_siblings() -> None:
     win = MainWindow()
     try:
