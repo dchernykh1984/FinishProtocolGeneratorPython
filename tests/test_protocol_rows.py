@@ -21,6 +21,7 @@ from app.protocol_rows import (
     place_status,
     prepare_statuses,
     result_parts,
+    result_seconds,
     shared_places,
 )
 
@@ -124,6 +125,32 @@ def test_a_finisher_without_a_leader_shows_no_result():
     fp.finished, fp.n_laps_finished = True, 1
     fp.finish_lap_times[0] = 95.5
     assert result_parts(fp, None, RaceConfig()).time == ""
+
+
+def test_a_legacy_tries_rider_without_an_attempt_has_no_result_under_disable_dnf(
+    tmp_path,
+):
+    # "Disable DNF" makes him a finisher, and a legacy rule totals no completed attempt
+    # as infinity, which no protocol can print: he has no result, and neither the check
+    # of the start protocol nor the writers may stop the run on him.
+    from protocol_scenarios import _cfg, _mark, _run, _start
+
+    from app.calculator import check_start_protocol
+    from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+    cfg = _cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES, disable_dnf=True, print_dns=True)
+    lines = [f"{bib}#Rider {bib}#W#2#1#1990###1:1,2#" for bib in (1, 2)]
+    marks = [_mark(1, 1000), _mark(1, 1100)]
+    race = _run(cfg, lines, [], marks)
+    starts = [_start(line, cfg) for line in lines]
+    check_start_protocol(race.protocol, marks, starts, [], cfg, [])
+    write_group_protocol(str(tmp_path / "g.html"), race.protocol, race.groups, cfg)
+    write_absolute_protocol(str(tmp_path / "a.html"), race.protocol, race.groups, cfg)
+    leader, without = race.protocol
+    assert without.competitor_id == "2" and without.finished
+    assert result_seconds(without, cfg) == 0.0
+    assert result_parts(without, leader, cfg).time == ""
+    assert result_parts(leader, leader, cfg).time == "00:01:40.0"
 
 
 def test_place_status_names_dsq_dnf_dns_and_places():

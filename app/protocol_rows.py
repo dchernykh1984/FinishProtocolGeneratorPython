@@ -220,7 +220,9 @@ def result_seconds(fp: FinishProtocolElement, cfg: RaceConfig) -> float:
     if not (fp.finished and not fp.disqualified):
         return 0.0
     if cfg.is_number_of_tries():
-        return fp.get_total_time()
+        # Infinite under a legacy rule with no attempt completed: there is no result.
+        total = fp.get_total_time()
+        return total if total < INF else 0.0
     n = fp.n_laps_finished
     return fp.finish_lap_times[n - 1] if n > 0 else 0.0
 
