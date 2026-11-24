@@ -80,7 +80,10 @@ def test_a_rider_who_missed_the_start_check_prints_and_places_as_a_dns():
     assert not is_printed(fp, cfg)
     cfg.print_dns = True
     assert is_printed(fp, cfg)
+    # A finisher needs no "Print DNF", which is what "Disable DNF" makes everyone.
     cfg.print_dnf = False
+    assert is_printed(fp, cfg)
+    fp.finished = False
     assert not is_printed(fp, cfg)
     assert place_status(fp, 1, cfg) == ("DNS", "dns")
     everything = RaceConfig(print_dnf=True, print_dns=True)

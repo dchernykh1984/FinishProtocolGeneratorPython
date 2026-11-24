@@ -47,8 +47,9 @@ The design passes every gate; nothing needs justifying under Complexity Tracking
 3. **"Disable DNS" is read where the status is decided**: the start check does not set the flag,
    `place_status` calls a rider who did not finish and did not start DNF, and `is_printed` takes
    such a rider for started, so he prints as a DNF row.
-4. **Printing**: a rider who missed the start check needs what every DNS row needs, "Print DNF"
-   and "Print DNS".
+4. **Printing**: a rider who missed the start check needs "Print DNS", and "Print DNF" as well
+   when he did not finish, as every rider who did not finish needs -- so "Disable DNF", which makes
+   everyone a finisher, does not hide him.
 5. **The tag**: a load resets the setting before it reads the file, so the key=value format and
    every file written before the tag give off.
 

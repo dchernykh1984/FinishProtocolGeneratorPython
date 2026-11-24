@@ -51,7 +51,8 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
   DNF and is printed as a DNF row is.
 - Who is printed: one who is not a finisher only with "Print DNF"; one who rode no lap only with
   "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ";
-  a DNS of the start check, whatever he rode, only with both "Print DNF" and "Print DNS".
+  a DNS of the start check, whatever he rode, only with "Print DNS" -- and "Print DNF" too when
+  he did not finish, as every rider who did not finish needs.
 
 ## The order
 
