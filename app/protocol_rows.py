@@ -244,7 +244,8 @@ def result_parts(
     """The result of a finisher measured against the leader of their table.
 
     A rider who missed the start check is nobody's leader, being DNS, and keeps his
-    time all the same -- also in a table where nobody else finished.
+    time all the same -- also in a table where nobody else finished -- but no gap: a
+    gap measures a place, and his laps can even outnumber the leader's.
     """
     parts = ResultParts()
     if not (fp.finished and not fp.disqualified):
@@ -256,7 +257,7 @@ def result_parts(
     if last_t <= 0:
         return parts
     parts.time = format_time(last_t, cfg.n_signs_after_point)
-    if cfg.show_time_difference and leader is not None:
+    if cfg.show_time_difference and leader is not None and not fp.missed_start_check:
         if tries:
             diff = fp.get_time_diff(leader)
         else:
