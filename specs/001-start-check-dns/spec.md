@@ -143,4 +143,5 @@ placed among the finishers by his result; a rider of a group that never started 
 - Inside the DNS status riders keep today's order: more laps first, then the time; riders who
   rode nothing by start delay, then by number.
 - In the live statistics a DNS rider keeps the number his position gives him, as DNF and DNS
-  riders do today; DSQ stays outside the numbering.
+  riders do today; DSQ stays outside the numbering. On the course as he is, he rides in the
+  participant packs like any rider who is not DSQ.
