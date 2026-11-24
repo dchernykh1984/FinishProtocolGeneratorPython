@@ -2266,7 +2266,7 @@ class MainWindow(QMainWindow):
     def _load_race_info_from_path(self, path: str) -> None:  # noqa: C901
         # Auto-detect encoding and peek at first line to identify format
         text: str | None = None
-        for enc in ("utf-8", "cp1251", "latin-1"):
+        for enc in ("utf-8-sig", "cp1251", "latin-1"):
             try:
                 text = app_path(path).read_text(encoding=enc)
                 break
