@@ -131,9 +131,16 @@ class TestFetchFailuresAreValueErrors:
             ({"points": [{"point_number": 1.5}]}, fetch_remote_points),
             ({"points": [{"point_number": True}]}, fetch_remote_points),
             (
-                {"points": [{"point_number": 1}, {"point_number": "1"}]},
+                {
+                    "points": [
+                        {"point_number": 1, "items": []},
+                        {"point_number": "1", "items": []},
+                    ]
+                },
                 fetch_remote_points,
             ),
+            ({"points": [{"point_number": 1}]}, fetch_remote_points),
+            ({"devices": [{"device_id": "a"}]}, fetch_start_list),
             ({"points": [{"point_number": 1, "items": [None]}]}, fetch_remote_points),
         ],
     )

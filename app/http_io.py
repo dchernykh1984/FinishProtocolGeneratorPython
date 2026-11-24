@@ -59,7 +59,10 @@ def _entries(data: dict, key: str) -> list[dict]:
 
 def _lines(entry: dict, what: str) -> list[str]:
     """An entry's lines; anything but a list of strings would be written as garbage."""
-    items = entry.get("items", [])
+    if "items" not in entry:
+        # An empty stream it is not: written as one it would wipe the local file.
+        raise ValueError(f"Invalid response: {what} has no items")
+    items = entry["items"]
     if not isinstance(items, list) or not all(isinstance(i, str) for i in items):
         raise ValueError(f"Invalid response: the items of {what} are not lines")
     return items
