@@ -289,6 +289,29 @@ class TestItNeverOverwritesARaceFile:
         cfg.seeding_protocol_file = getattr(cfg, attribute)
         assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == label
 
+    def test_a_control_point_stream_is_guarded(self, tmp_path: Path) -> None:
+        # Written over a stream, the export would wipe that point's marks.
+        cfg = self._cfg(tmp_path)
+        cfg.remote_points_path = str(tmp_path / "points")
+        cfg.n_remote_points = 3
+        cfg.seeding_protocol_file = str(tmp_path / "points" / "results_2.txt")
+        assert (
+            cfg.seeding_protocol_conflict(cfg.group_protocol_file)
+            == "control point 2 stream"
+        )
+
+    def test_the_race_info_file_is_guarded(self, tmp_path: Path) -> None:
+        # The settings the next start loads, next to the program.
+        from app.paths import app_path
+
+        cfg = self._cfg(tmp_path)
+        cfg.seeding_protocol_file = str(app_path("fpg_info.txt"))
+        assert cfg.seeding_protocol_conflict(cfg.group_protocol_file) == (
+            "race info file"
+        )
+        cfg.eliminator_ladder_file = "fpg_info.txt"
+        assert cfg.ladder_file_conflict(cfg.group_protocol_file) == "race info file"
+
     def test_a_file_of_its_own_is_fine(self, tmp_path: Path) -> None:
         cfg = self._cfg(tmp_path)
         cfg.seeding_protocol_file = str(tmp_path / "finals" / "start.txt")
