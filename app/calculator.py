@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import time
+from collections import Counter
 
 from app.attempt_calculator import calculate_attempts
 from app.attempt_rules import parse_attempt_rules
@@ -470,6 +471,22 @@ def report_double_marks(
             "one crossing recorded twice; check whether a second device is writing "
             "the same finish line"
         )
+
+
+def report_repeated_groups(group_list: list[GroupStartElement], log: list[str]) -> None:
+    """Groups the group times file lists more than once.
+
+    A group is saved once: after a false start it is started again without being saved,
+    and it is saved when its start went well. A second line is therefore a slip -- the
+    first one still counts, and every line still prints a table of its own -- and the
+    referee is the one to take it out of the file.
+    """
+    for group_id, count in Counter(g.group_id for g in group_list).items():
+        if count > 1:
+            log.append(
+                f"ERROR: group {group_id} is listed {count} times in the group times "
+                "file; a group is saved once, after a start that went well"
+            )
 
 
 def _report_shared_times(

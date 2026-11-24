@@ -35,10 +35,12 @@ them is ignored.
 
 ## The group times (`groups.txt`)
 
-- `group#time#` per line, as the chronometer appends it when a group starts.
-- A group's first line is its start. Every line gives the protocol a table, in the order of the
-  file, so a group listed twice is printed twice. The groups of the start protocol that the file
-  does not list follow with a start time of 0, the start of the day count: their riders' start
+- `group#time#` per line, as the chronometer appends it when a started group is saved.
+- A group is saved once: after a false start the group is started again without being saved,
+  and it is saved once its start went well. A group listed more than once is therefore a slip,
+  reported as an ERROR; its first line counts, and every line still gives the protocol a table,
+  in the order of the file, so it is printed as often as it is listed.
+- The groups of the start protocol that the file does not list follow with a start time of 0, the start of the day count: their riders' start
   is their start delay alone, so a rider without one has not started, and one with a delay rides
   laps timed from it, which print as `UNKNOWN`.
 - In Eliminator Finals a line is a heat ([eliminator-finals.md](eliminator-finals.md)).

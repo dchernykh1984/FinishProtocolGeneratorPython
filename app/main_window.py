@@ -32,6 +32,7 @@ from app.calculator import (
     check_start_protocol,
     generate_sorted_protocol,
     report_double_marks,
+    report_repeated_groups,
 )
 from app.config import (
     ALL_RACE_TYPES,
@@ -758,6 +759,7 @@ class _GenerateWorker(QThread):
 
             self.log_message.emit("Reading group times...")
             group_list = read_group_times(cfg.group_time_file)
+            report_repeated_groups(group_list, log)
             known_group_ids = {gs.group_id for gs in group_list}
             seen_extra: set[str] = set()
             for s in start_list:

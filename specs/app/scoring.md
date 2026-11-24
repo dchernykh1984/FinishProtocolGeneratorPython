@@ -118,8 +118,9 @@ After the protocols are written the log reports:
   millisecond (WARNING);
 - a number with two `finish` or `nextLap` marks closer than "Minimal lap time" -- one crossing
   recorded twice, likely by a second device on the line (ERROR; not in Number of Tries);
-- a mark, at the finish or a control point, of a number the start protocol does not have, and a
-  number the start protocol has twice (ERROR);
+- a mark, at the finish or a control point, of a number the start protocol does not have, a
+  number the start protocol has twice, and a group the group times file lists more than once
+  (ERROR);
 - more crossings than the laps allow (ERROR): laps, one more in Custom Start, twice the
   attempts in Number of Tries without control points;
 - with "Check laps difference" and a "Max deviation (%)" p above 0, for a rider with two laps or
