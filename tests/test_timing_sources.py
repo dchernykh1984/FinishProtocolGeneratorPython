@@ -168,7 +168,8 @@ class TestRemotePointsSiteSource:
                 ok, err, log = _run(cfg)
         assert ok and not err
         assert any(
-            "WARNING" in m and "control point(s) 3 beyond the 2" in m for m in log
+            "WARNING" in m and "control point(s) 3 outside the 1..2 configured" in m
+            for m in log
         )
 
     def test_fetch_error_preserves_local(self) -> None:

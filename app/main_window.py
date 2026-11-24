@@ -370,7 +370,7 @@ class _FTPWorker(QThread):
             # Never written anywhere, so say so: the count is likely set too low.
             self.log_message.emit(
                 f"  WARNING: the site has control point(s) "
-                f"{', '.join(map(str, beyond))} beyond the {cfg.n_remote_points} "
+                f"{', '.join(map(str, beyond))} outside the 1..{cfg.n_remote_points} "
                 "configured; their marks are not used"
             )
         ok = True
