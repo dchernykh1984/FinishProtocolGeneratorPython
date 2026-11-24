@@ -93,7 +93,8 @@ placed among the finishers by his result; a rider of a group that never started 
 - Custom Start and Number of Tries check the start the same way, against the rider's first mark.
 - With "Disable DSQ" a DSQ mark disqualifies nobody, so a rider without a check mark who has one
   is DNS.
-- Eliminator Finals reads no start check list, so nothing changes there.
+- Eliminator Finals reads no start check list, and "Disable DNS" leaves it alone: there DNS says
+  that a heat has not started yet, and DNF would claim it was ridden.
 
 ## Requirements
 
@@ -131,7 +132,7 @@ placed among the finishers by his result; a rider of a group that never started 
   and none of them reads DSQ, unless he has a DSQ mark.
 - **SC-002**: In every table the statuses come in the order finishers, DNF, DNS, DSQ, with no
   exception.
-- **SC-003**: With "Disable DNS" on, no row of any protocol reads DNS.
+- **SC-003**: With "Disable DNS" on, no row of a timed race's protocols reads DNS.
 - **SC-004**: A race without a start check list and without "Disable DNS" generates the very same
   protocols as before, byte for byte.
 - **SC-005**: The setting survives a save and a restart of the program.

@@ -18,7 +18,8 @@ say why, this file does not guess.
 - **The finish marks**, as in a timed race; `finish` and `nextLap` cross the line.
 - Settings for the whole meeting: "Small final", "Seeding" ("Split adjacent seeds (UCI)", or
   "Keep adjacent seeds together"; any other name is the UCI one), "Laps per heat", "Minimal lap
-  time" and "Digits after decimal". "Disable DSQ" drops the disqualification marks altogether.
+  time" and "Digits after decimal". "Disable DSQ" drops the disqualification marks altogether;
+  "Disable DNS" does not apply, since a heat's DNS says it has not been started yet.
 - A ladder file, group times or finish marks file that cannot be read is an ERROR and reads as
   empty, since none exists before the first heat; the start protocol has to be there.
 
