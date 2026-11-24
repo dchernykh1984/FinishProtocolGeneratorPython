@@ -114,9 +114,8 @@ that the split times will be incorrect.
   `sort` (`asc` or `desc`). A rule counts the fastest `attempts` completed attempts among
   `attempt_numbers`, the earlier one winning a tie, and sums them. Riders are compared rule by
   rule: more counted attempts first, then the sum in the rule's direction, to the recorded
-  millisecond, then the number. The
-  first rule alone gives the printed result and decides who finished; its counted attempts are
-  printed bold.
+  millisecond, then the number. The first rule alone gives the printed result and decides who
+  finished; its counted attempts are printed bold.
 - With no rules (`[]`) every rider's comment holds the legacy rule `N:a,b,...`: the best N of
   the listed attempts. A rider whose comment is not that rule is an ERROR ("invalid
   NumberOfTries format") and counts no attempt. A rider is then a finisher once all his attempts
