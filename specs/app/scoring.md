@@ -64,7 +64,7 @@ differ:
 1. The status: finishers, then DNF, then DNS, then DSQ, whatever each rode; inside one status a
    rider who finished goes first.
 2. Number of Tries: rule by rule (below); with no rules, more counted attempts, then the smaller
-   sum of them; then the number.
+   sum of them, to the recorded millisecond; then the number.
 3. More laps first.
 4. In Custom Start, a rider with a first mark before one without.
 5. Two riders with no lap and no control point passed: one who started before one who did not,
@@ -113,7 +113,8 @@ that the split times will be incorrect.
 - The rules ("AttemptRules", JSON): an ordered list of `label`, `attempts`, `attempt_numbers`,
   `sort` (`asc` or `desc`). A rule counts the fastest `attempts` completed attempts among
   `attempt_numbers`, the earlier one winning a tie, and sums them. Riders are compared rule by
-  rule: more counted attempts first, then the sum in the rule's direction, then the number. The
+  rule: more counted attempts first, then the sum in the rule's direction, to the recorded
+  millisecond, then the number. The
   first rule alone gives the printed result and decides who finished; its counted attempts are
   printed bold.
 - With no rules (`[]`) every rider's comment holds the legacy rule `N:a,b,...`: the best N of
