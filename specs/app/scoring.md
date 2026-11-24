@@ -57,7 +57,8 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
 
 ## The order
 
-A port of the C++ comparison (`_first_better`); one rule is tried after another until two riders
+The statuses first ([specs/001-start-check-dns](../001-start-check-dns/spec.md)), then a port of
+the C++ comparison (`_first_better`); one rule is tried after another until two riders
 differ:
 
 1. The status: finishers, then DNF, then DNS, then DSQ, whatever each rode; inside one status a
