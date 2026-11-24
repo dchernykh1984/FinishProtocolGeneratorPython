@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.18.2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.1...v0.18.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **calculator:** a control point penalty before the last lap stays in the result ([f9c9be9](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f9c9be9557cc994949fa62790d238eb5f34caef4))
+* **calculator:** the laps difference check names an attempt by its own number, not by its count ([c367c65](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c367c65ce6894a2314f69a9338024ed58d130f8b))
+* **config:** Merge by competitor number (ID) only is saved with the race info ([17a24db](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/17a24db43553d914fcde72c402328fe71dcd52c7))
+* **files:** a UTF-8 byte order mark is read past, not into the first line of an input file ([e6b067c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e6b067cfb34374bcf0bd6c7e0a776057e2e37024))
+* **protocol:** a legacy Number of Tries rider with no attempt under Disable DNF has no result, not a crash ([7950fdb](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/7950fdbff1d7c9f81407c432fb179c5cad9e087a))
+* **protocol:** laps equal to the recorded millisecond share their lap rank ([beb474a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/beb474aeeaf8d38e2656733850e5b50028be2beb))
+
+
+### Documentation
+
+* a rider who has not started reads DNS in the live statistics, not a number ([87fbb5e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/87fbb5e18d898e7c5ec52e08e4f4c64d165f78d4))
+* the protocol section is written after the settings an older version knows, no longer the last line ([70d7ebe](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/70d7ebe5f724deece04304e40c1e75740aa950e4))
+
 ## [0.18.1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.0...v0.18.1) (2026-11-24)
 
 
