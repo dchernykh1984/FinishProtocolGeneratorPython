@@ -46,6 +46,9 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
   start minus the registration period is DNS, and keeps the laps and the time he rode
   ([specs/001-start-check-dns](../001-start-check-dns/spec.md)); a DSQ mark still makes him DSQ.
   The log says that he did not pass start registration.
+- "Disable DNS (everyone counts as started)": nobody is DNS. The start check makes nobody DNS,
+  the log still naming who missed it, and a rider who did not finish counts as started, so he is
+  DNF and is printed as a DNF row is.
 - Who is printed: one who is not a finisher only with "Print DNF"; one who rode no lap only with
   "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ";
   a DNS of the start check, whatever he rode, only with both "Print DNF" and "Print DNS".

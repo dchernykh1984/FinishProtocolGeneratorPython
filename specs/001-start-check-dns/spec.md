@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-24
 
-**Status**: Draft
+**Status**: Implemented in this pull request
 
 **Input**: The maintainer, 2026-11-24: a rider without a mark in the start check list is not to be
 disqualified but to be DNS, a status of its own; the protocol lists finishers, then DNF, then DNS,

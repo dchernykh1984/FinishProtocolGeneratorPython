@@ -770,6 +770,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["qualification_place_label"] = v
+        tok = nxt()
+
+    if tok == "DisableDNS":
+        v = nxt()
+        if v is not None:
+            result["disable_dns"] = v
 
     return result
 

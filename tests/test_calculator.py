@@ -20,7 +20,7 @@ from app.models import (
     StartProtocolElement,
     parse_time_string,
 )
-from app.protocol_rows import place_status
+from app.protocol_rows import is_printed, place_status
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -449,6 +449,13 @@ class TestAGroupWithoutAStartTime:
         order = generate_sorted_protocol(list(riders.values()), _cfg(), 0)
         assert [fp.competitor_id for fp in order] == ["3", "4", "1", "2"]
 
+    def test_disable_dns_makes_them_dnf_and_prints_them_as_such(self) -> None:
+        riders, _log = self._run([_group("H", BASE_T + 3600)])
+        cfg = _cfg(disable_dns=True, print_dnf=True, print_dns=False)
+        for bib in ("1", "2"):
+            assert place_status(riders[bib], 1, cfg) == ("DNF", "dnf")
+            assert is_printed(riders[bib], cfg)
+
     def test_disable_dnf_still_counts_them_as_finished(self) -> None:
         log: list[str] = []
         protocol = calculate_protocol(
@@ -491,7 +498,7 @@ class TestStartCheckList:
         assert place_status(protocol[0], 1, cfg) == ("DNS", "dns")
 
     def _four(
-        self, checked: tuple[str, ...] = ("1", "2")
+        self, checked: tuple[str, ...] = ("1", "2"), disable_dns: bool = False
     ) -> tuple[list[FinishProtocolElement], RaceConfig, list[str]]:
         """A finisher, a DNF, the fastest rider without a check mark, and a DSQ."""
         t = BASE_T + 3600
@@ -507,7 +514,11 @@ class TestStartCheckList:
             _finish("4", t + 191, "DSQ"),
         ]
         checks = [_finish(bib, t - 30) for bib in checked]
-        cfg = _cfg(use_start_check_list=True, start_registration_period=60)
+        cfg = _cfg(
+            use_start_check_list=True,
+            start_registration_period=60,
+            disable_dns=disable_dns,
+        )
         log: list[str] = []
         protocol = calculate_protocol(
             start_list, [_group("G", t)], finish_list, [], checks, cfg, log
@@ -518,7 +529,10 @@ class TestStartCheckList:
         # The DNS rode the fastest, and still goes after the rider who did not
         # finish; the DSQ missed the check too and is DSQ all the same.
         order, cfg, log = self._four()
-        assert [(fp.competitor_id, place_status(fp, 1, cfg)[0]) for fp in order] == [
+        assert [
+            (fp.competitor_id, place_status(fp, place, cfg)[0])
+            for place, fp in enumerate(order, 1)
+        ] == [
             ("1", "1"),
             ("2", "DNF"),
             ("3", "DNS"),
@@ -528,6 +542,21 @@ class TestStartCheckList:
             "ERROR: 3 did not pass start registration",
             "ERROR: 4 did not pass start registration",
         ]
+
+    def test_disable_dns_places_him_by_his_result(self) -> None:
+        # Nobody is DNS: the fastest rider is first, and the log still says why
+        # he would not have been.
+        order, cfg, log = self._four(disable_dns=True)
+        assert [
+            (fp.competitor_id, place_status(fp, place, cfg)[0])
+            for place, fp in enumerate(order, 1)
+        ] == [
+            ("3", "1"),
+            ("1", "2"),
+            ("2", "DNF"),
+            ("4", "DSQ"),
+        ]
+        assert "ERROR: 3 did not pass start registration" in log
 
     def test_a_check_list_without_marks_checks_nobody(self) -> None:
         start_t = BASE_T + 3600

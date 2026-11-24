@@ -11,7 +11,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QCheckBox
 
 from app.config import (
     START_LIST_SOURCE_LOCAL,
@@ -61,5 +61,31 @@ def test_save_then_load_preserves_send_statistics_toggles() -> None:
             win._load_race_info_from_path(path)
         assert win._cfg.send_group_statistics is True
         assert win._cfg.send_absolute_statistics is True
+    finally:
+        win.deleteLater()
+
+
+def test_disable_dns_survives_a_save_and_a_restart() -> None:
+    win = MainWindow()
+    try:
+        box = win.findChild(QCheckBox, "disable_dns")
+        assert box is not None
+        assert box.text() == "Disable DNS (everyone counts as started)"
+        box.setChecked(True)
+        assert win._cfg.disable_dns is True
+        with tempfile.TemporaryDirectory() as td:
+            path = str(Path(td) / "fpg_info.txt")
+            win._save_race_info_to_path(path)
+            lines = Path(path).read_text(encoding="utf-8").splitlines()
+            assert lines[-2:] == ["DisableDNS", "1"]
+            box.setChecked(False)
+            win._load_race_info_from_path(path)
+            assert win._cfg.disable_dns is True
+            assert box.isChecked()
+            # A file written before the tag existed loads with it off.
+            Path(path).write_text("\n".join(lines[:-2]) + "\n", encoding="utf-8")
+            win._load_race_info_from_path(path)
+            assert win._cfg.disable_dns is False
+            assert not box.isChecked()
     finally:
         win.deleteLater()

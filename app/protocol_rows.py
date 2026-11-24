@@ -89,13 +89,10 @@ def is_printed(fp: FinishProtocolElement, cfg: RaceConfig) -> bool:
     if fp.missed_start_check and not fp.disqualified:
         # A DNS row whatever he rode, so printed when every other DNS row is.
         return cfg.print_dnf and cfg.print_dns
+    started = cfg.disable_dns or fp.has_started()
     return bool(
         (fp.finished or cfg.print_dnf)
-        and (
-            fp.n_laps_finished != 0
-            or cfg.print_dns
-            or (cfg.print_dnf and fp.has_started())
-        )
+        and (fp.n_laps_finished != 0 or cfg.print_dns or (cfg.print_dnf and started))
         and (not fp.disqualified or cfg.print_dsq)
     )
 
@@ -109,8 +106,10 @@ def place_status(
     if fp.missed_start_check:
         return "DNS", "dns"
     if not fp.finished:
-        if fp.has_started() or (
-            cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF
+        if (
+            cfg.disable_dns
+            or fp.has_started()
+            or (cfg.skip_first_lap_effective() and fp.cross_line_times[0] != INF)
         ):
             return "DNF", "dnf"
         return "DNS", "dns"

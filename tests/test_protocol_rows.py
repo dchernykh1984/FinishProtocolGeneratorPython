@@ -100,6 +100,9 @@ def test_place_status_names_dsq_dnf_dns_and_places():
     prepare_statuses(custom.protocol, custom.cfg)
     never = next(fp for fp in custom.protocol if fp.name == "Vera Never")
     assert place_status(never, 1, custom.cfg) == ("DNS", "dns")
+    # Disable DNS: everyone counts as started, so a rider never seen did not finish.
+    custom.cfg.disable_dns = True
+    assert place_status(never, 1, custom.cfg) == ("DNF", "dnf")
 
 
 def test_group_places_count_printed_finishers_and_do_not_change_the_groups():
