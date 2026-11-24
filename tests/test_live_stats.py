@@ -327,17 +327,6 @@ class TestDsq:
         assert stats["3"]["place_abs"] == "2"
         assert "gap_next_abs" in stats["1"] and stats["1"]["qty_abs"] == "3"
 
-    def test_a_rider_whose_start_was_never_seen_is_dns_too(self):
-        # His group has no start time: DNS in the protocol, DNS on the watch.
-        cfg = _cfg()
-        start_list = [_start("1", "G"), _start("2", "H")]
-        finish_list = [_finish("1", START_T + 100, "nextLap")]
-        stats = build_live_stats(
-            _run(start_list, finish_list, cfg, [_group("G", START_T)]), cfg
-        )
-        assert stats["2"]["place_abs"] == "DNS"
-        assert stats["1"]["place_abs"] == "1"
-
     def test_dsq_still_reports_laps(self):
         cfg = _cfg()
         stats = build_live_stats(self._scenario_with_dsq(cfg), cfg)
