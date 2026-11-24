@@ -776,6 +776,12 @@ def load_config_file(path: str) -> dict[str, str]:  # noqa: C901
         v = nxt()
         if v is not None:
             result["disable_dns"] = v
+        tok = nxt()
+
+    if tok == "MergeByID":
+        v = nxt()
+        if v is not None:
+            result["merge_by_id"] = v
 
     return result
 

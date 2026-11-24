@@ -77,16 +77,44 @@ def test_disable_dns_survives_a_save_and_a_restart() -> None:
             path = str(Path(td) / "fpg_info.txt")
             win._save_race_info_to_path(path)
             lines = Path(path).read_text(encoding="utf-8").splitlines()
-            assert lines[-2:] == ["DisableDNS", "1"]
+            at = lines.index("DisableDNS")
+            assert lines[at : at + 2] == ["DisableDNS", "1"]
             box.setChecked(False)
             win._load_race_info_from_path(path)
             assert win._cfg.disable_dns is True
             assert box.isChecked()
             # A file written before the tag existed loads with it off.
-            Path(path).write_text("\n".join(lines[:-2]) + "\n", encoding="utf-8")
+            Path(path).write_text("\n".join(lines[:at]) + "\n", encoding="utf-8")
             win._load_race_info_from_path(path)
             assert win._cfg.disable_dns is False
             assert not box.isChecked()
+    finally:
+        win.deleteLater()
+
+
+def test_merge_by_id_survives_a_save_and_a_restart() -> None:
+    win = MainWindow()
+    try:
+        box = win.findChild(QCheckBox, "merge_by_id")
+        assert box is not None
+        box.setChecked(True)
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fpg_info.txt"
+            win._save_race_info_to_path(str(path))
+            lines = path.read_text(encoding="utf-8").splitlines()
+            assert lines[-2:] == ["MergeByID", "1"]
+            box.setChecked(False)
+            win._load_race_info_from_path(str(path))
+            assert win._cfg.merge_by_id is True
+            assert box.isChecked()
+            # A file written before the tag existed loads with it off.
+            path.write_text("\n".join(lines[:-2]) + "\n", encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+            assert win._cfg.merge_by_id is False
+            assert not box.isChecked()
+            path.write_text("# FPG Race Info\nMergeByID=1\n", encoding="utf-8")
+            win._load_race_info_from_path(str(path))
+            assert win._cfg.merge_by_id is True
     finally:
         win.deleteLater()
 

@@ -95,7 +95,7 @@ as switched off, with its label empty.
    `AttemptRules`, `HttpProtocolFormat`, `ProtocolLanguage`, `WriteSeedingProtocol`,
    `SeedingProtocolFile`, `HttpSection`, `EliminatorLadderFile`, `NotRiddenLabel`,
    `EliminatorSmallFinal`, `EliminatorSeeding`, `EliminatorLaps`, `ShowQualificationPlace`,
-   `QualificationPlaceLabel`, `DisableDNS`.
+   `QualificationPlaceLabel`, `DisableDNS`, `MergeByID`.
 
 - Tags are read in the order they are written and a version stops at the first one it does not
   know, so a new tag goes last. The reader still takes the retired `HttpCompetitionId` and
