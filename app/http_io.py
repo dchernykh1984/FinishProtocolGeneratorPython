@@ -122,6 +122,9 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
         if isinstance(raw, bool) or not str(raw).isdigit():
             raise ValueError("Invalid response: a point without its number")
         number = int(str(raw))
+        if number in points:
+            # The site merges a point's devices; a second entry would overwrite it.
+            raise ValueError(f"Invalid response: point {number} is listed twice")
         points[number] = _lines(point, f"point {number}")
     return points
 
