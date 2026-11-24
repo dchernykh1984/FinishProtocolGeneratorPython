@@ -137,7 +137,9 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
         # and refuse a digit like a superscript that isdigit() still lets through.
         text = str(raw) if type(raw) is int else raw
         if not (isinstance(text, str) and text.isascii() and text.isdecimal()):
-            raise ValueError("Invalid response: a point without its number")
+            raise ValueError(
+                f"Invalid response: point number {raw!r} is not a whole number"
+            )
         number = int(text)
         if number in points:
             # The site merges a point's devices; a second entry would overwrite it.
