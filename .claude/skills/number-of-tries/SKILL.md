@@ -20,7 +20,9 @@ description: Diagnose or change Number of Tries scoring rules, attempt timing wi
   in the rule's direction. Fall back to numeric bib order when all rules tie.
 - The first rule alone defines the displayed result and completion status. A failed
   excluded attempt does not cause overall DNF if enough primary attempts are complete.
-  Later rules only break ties; qualification does not freeze later start order.
+  Later rules break ties, and a tie a rule breaks parts the place too; riders equal on
+  every rule share it (maintainer, 2026-11-24). Qualification does not freeze later
+  start order.
 - Bold only attempts actually selected by the first rule. Equal times select the
   earlier attempt. Gaps use the first rule's direction; the rider ahead is positive
   in live stats even for a descending primary rule.

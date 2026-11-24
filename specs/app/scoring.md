@@ -79,9 +79,11 @@ differ:
 
 - A table's finishers are numbered in its order. Two with the same result to the recorded
   millisecond over the same laps share the first of their places, and the next rider takes his
-  own count: 1, 2, 2, 4. In Number of Tries the counted attempts must match as well. The place
-  column of a rider who is not a finisher says DNF or DNS, of a disqualified one DSQ. A DNS of
-  the start check takes no place: none in his group, none in brackets in the absolute protocol.
+  own count: 1, 2, 2, 4. In Number of Tries the counted attempts must match as well, and so must
+  every later rule: a tie-break parts the place it breaks, and riders equal on every rule share
+  one, the number only listing them (maintainer, 2026-11-24). The place column of a rider who is
+  not a finisher says DNF or DNS, of a disqualified one DSQ. A DNS of the start check takes no
+  place: none in his group, none in brackets in the absolute protocol.
 - A time prints as `HH:MM:SS` with "Digits after decimal" decimals (0-4), with `N day(s)` in
   front past 24 hours and as `UNKNOWN` past 356 days. A half rounds to the even digit, counted
   from the millisecond the chronometer wrote when the time is a recorded one and from the time
