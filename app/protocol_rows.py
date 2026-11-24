@@ -176,8 +176,9 @@ def group_places(
 ) -> dict[int, int]:
     """Each printed finisher's place within their group, in protocol order (by id()).
 
-    A group's first place is the one its start line gives it, and two finishers the
-    protocol prints the same time against share a place.
+    A group's first place is the one its start line gives it, and finishers share a
+    place as ``shared_places`` shares one: the same recorded millisecond over the same
+    laps or counted attempts -- and in Number of Tries the same on every later rule.
     """
     firsts = {g.group_id: g.place for g in reversed(group_list)}
     places: dict[int, int] = {}
