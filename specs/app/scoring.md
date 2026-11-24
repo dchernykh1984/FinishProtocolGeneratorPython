@@ -38,21 +38,21 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
 - A rider whose group has no start time rides no lap, and a `finish` mark does not make him a
   finisher unless "Disable DNF" makes everyone one.
 - One who is not a finisher is DNF once he has started -- in the mass start types once his group
-  has a start time ([files.md](files.md)), in Custom Start and Number of Tries once he has a mark
-  -- and DNS otherwise.
+  has a start time ([files.md](files.md)), in Custom Start and Number of Tries once he has a
+  mark -- and DNS otherwise.
 - A `DSQ` or `DSQ: <reason>` mark in the finish marks or at a control point disqualifies, unless
   "Disable DSQ"; a reason is kept as `finish: <reason>` or `CP <n>: <reason>`.
-- With the start check list on and holding any mark, a rider without a mark in it later than his
-  start minus the registration period is DNS, and keeps the laps and the time he rode
-  ([specs/001-start-check-dns](../001-start-check-dns/spec.md)); a DSQ mark still makes him DSQ.
-  The log says that he did not pass start registration.
+- With the start check list on and holding any mark, a rider whose start was seen and who has no
+  mark in it later than that start minus the registration period is DNS, and keeps the laps and
+  the time he rode ([specs/001-start-check-dns](../001-start-check-dns/spec.md)); a DSQ mark
+  still makes him DSQ. The log says that he did not pass start registration.
 - "Disable DNS (everyone counts as started)": nobody is DNS. The start check makes nobody DNS,
   the log still naming who missed it, and a rider who did not finish counts as started, so he is
   DNF and is printed as a DNF row is.
 - Who is printed: one who is not a finisher only with "Print DNF"; one who rode no lap only with
-  "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print DSQ";
-  a DNS of the start check, whatever he rode, only with "Print DNS" -- and "Print DNF" too when
-  he did not finish, as every rider who did not finish needs.
+  "Print DNS", or with "Print DNF" once he has started; a disqualified one only with "Print
+  DSQ"; a DNS of the start check, whatever he rode, only with "Print DNS" -- and "Print DNF" too
+  when he did not finish, as every rider who did not finish needs.
 
 ## The order
 
@@ -78,21 +78,21 @@ differ:
 - A table's finishers are numbered in its order. Two with the same result to the recorded
   millisecond over the same laps share the first of their places, and the next rider takes his
   own count: 1, 2, 2, 4. In Number of Tries the counted attempts must match as well. The place
-  column of a rider who is not a finisher says DNF or DNS, of a disqualified one DSQ. A DNS of the
-  start check takes no place: none in his group, none in brackets in the absolute protocol.
-- A time prints as `HH:MM:SS` with "Digits after decimal" decimals (0-4), with `N day(s)` in front
-  past 24 hours and as `UNKNOWN` past 356 days. A half rounds to the even digit, counted from the
-  millisecond the chronometer wrote when the time is a recorded one and from the time as it
-  stands when it is worked out (a Spiridonov time, a penalty).
+  column of a rider who is not a finisher says DNF or DNS, of a disqualified one DSQ. A DNS of
+  the start check takes no place: none in his group, none in brackets in the absolute protocol.
+- A time prints as `HH:MM:SS` with "Digits after decimal" decimals (0-4), with `N day(s)` in
+  front past 24 hours and as `UNKNOWN` past 356 days. A half rounds to the even digit, counted
+  from the millisecond the chronometer wrote when the time is a recorded one and from the time
+  as it stands when it is worked out (a Spiridonov time, a penalty).
 - The result is the time from the start to the finish of the last lap ridden; the gap is the
   result minus the table leader's time over the same laps.
 
 ## Spiridonov
 
-The coefficient is `(0.02266 a^2 - 1.25437 a + 117.37067) / 100`, `a` this year minus the year of
-birth, and 1.0 when the year of birth is not a number. Every crossing time is divided by it and
-the rider's additional info shows it to four decimals. With control points the log warns that the
-split times will be incorrect.
+The coefficient is `(0.02266 a^2 - 1.25437 a + 117.37067) / 100`, `a` this year minus the year
+of birth, and 1.0 when the year of birth is not a number. Every crossing time is divided by it
+and the rider's additional info shows it to four decimals. With control points the log warns
+that the split times will be incorrect.
 
 ## Number of Tries
 
