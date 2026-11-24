@@ -182,7 +182,7 @@ class _FTPWorker(QThread):
         except Exception as exc:
             self.log_message.emit(
                 f"  ERROR: the download step stopped, and the downloads after it were "
-                f"not tried: {exc}"
+                f"not tried: {str(exc) or type(exc).__name__}"
             )
             failed = True
         if failed:
