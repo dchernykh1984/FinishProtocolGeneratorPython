@@ -138,7 +138,9 @@ placed among the finishers by his result; a rider of a group that never started 
   exception.
 - **SC-003**: With "Disable DNS" on, no row of a timed race's protocols reads DNS.
 - **SC-004**: A race without a start check list and without "Disable DNS" generates the very
-  same protocols as before, byte for byte.
+  same protocols as before, byte for byte -- the golden protocols among them -- but where this
+  pull request fixes something else as well: a group without a start time, now DNS with no lap,
+  and a DNF that laps alone did not put ahead of a DNS, now always before him.
 - **SC-005**: The setting survives a save and a restart of the program.
 
 ## Assumptions
