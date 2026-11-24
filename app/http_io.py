@@ -121,10 +121,12 @@ def fetch_remote_points(site_url: str, token: str) -> dict[int, list[str]]:
     points: dict[int, list[str]] = {}
     for point in _entries(_get_json(site_url, "remote-points", token), "points"):
         raw = point.get("point_number")
-        # A whole number only: int() would make 1.5 or true point 1 and overwrite it.
-        if isinstance(raw, bool) or not str(raw).isdigit():
+        # A whole number only: int() would make 1.5 or true point 1 and overwrite it,
+        # and refuse a digit like a superscript that isdigit() still lets through.
+        text = str(raw) if type(raw) is int else raw
+        if not (isinstance(text, str) and text.isascii() and text.isdecimal()):
             raise ValueError("Invalid response: a point without its number")
-        number = int(str(raw))
+        number = int(text)
         if number in points:
             # The site merges a point's devices; a second entry would overwrite it.
             raise ValueError(f"Invalid response: point {number} is listed twice")

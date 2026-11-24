@@ -130,6 +130,8 @@ class TestFetchFailuresAreValueErrors:
             ({"points": [{"point_number": "x"}]}, fetch_remote_points),
             ({"points": [{"point_number": 1.5}]}, fetch_remote_points),
             ({"points": [{"point_number": True}]}, fetch_remote_points),
+            ({"points": [{"point_number": "\u00b2"}]}, fetch_remote_points),
+            ({"points": [{"point_number": -1, "items": []}]}, fetch_remote_points),
             (
                 {
                     "points": [
