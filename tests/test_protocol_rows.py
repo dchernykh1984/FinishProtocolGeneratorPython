@@ -17,6 +17,7 @@ from app.models import (
 from app.protocol_rows import (
     group_places,
     is_printed,
+    lap_ranks,
     leads,
     place_status,
     prepare_statuses,
@@ -326,6 +327,22 @@ def _two_rides_of_140_150():
     longer, shorter = rides[-1], rides[0]
     assert longer[1] - longer[0] != shorter[1] - shorter[0]  # the noise in question
     return longer, shorter
+
+
+def test_laps_equal_to_the_recorded_millisecond_share_their_lap_rank():
+    from protocol_scenarios import _cfg, _run
+
+    from app.config import RACE_TYPE_CUSTOM_START
+
+    (s1, f1), (s2, f2) = _two_rides_of_140_150()
+    marks = [
+        FinishCompetitorElement(bib, t, "nextLap")
+        for bib, t in (("1", s1), ("1", f1), ("2", s2), ("2", f2))
+    ]
+    lines = ["1#Bib One#W#1#1####", "2#Bib Two#W#1#1####"]
+    race = _run(_cfg(race_type=RACE_TYPE_CUSTOM_START), lines, [], marks)
+    ranks = [lap_ranks(fp, 0, race.protocol) for fp in race.protocol]
+    assert [(r.place_lap, r.place_finish) for r in ranks if r] == [(1, 1), (1, 1)]
 
 
 def _two_riders(rules, second_attempts):

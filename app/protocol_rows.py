@@ -20,6 +20,7 @@ from app.models import (
     GroupStartElement,
     printed_signs,
     printed_ticks,
+    recorded_ms,
 )
 
 
@@ -364,10 +365,11 @@ def lap_ranks(
     for other in peers:
         if not other.lap_completed(j):
             continue
-        if other.lap_times[j] < fp.lap_times[j]:
+        # To the recorded millisecond, as places are: float noise is no faster lap.
+        if recorded_ms(other.lap_times[j]) < recorded_ms(fp.lap_times[j]):
             place_lap += 1
             best_lap = min(best_lap, other.lap_times[j])
-        if other.finish_lap_times[j] < fp.finish_lap_times[j]:
+        if recorded_ms(other.finish_lap_times[j]) < recorded_ms(fp.finish_lap_times[j]):
             place_finish += 1
             best_finish = min(best_finish, other.finish_lap_times[j])
     return LapRanks(
