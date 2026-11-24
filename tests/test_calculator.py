@@ -1127,6 +1127,19 @@ class TestNumberTieBreak:
         sorted_proto = generate_sorted_protocol(protocol, cfg, 0)
         assert [fp.competitor_id for fp in sorted_proto] == ["3", "10", "30"]
 
+    def test_legacy_tries_riders_without_an_attempt_go_by_number(self) -> None:
+        # No completed attempt totals infinity: two such riders go by number, never into
+        # an OverflowError that would leave the run without a protocol.
+        from protocol_scenarios import _cfg as scenario_cfg
+        from protocol_scenarios import _mark, _run
+
+        from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+        cfg = scenario_cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES, attempt_rules_json="[]")
+        lines = [f"{bib}#Rider {bib}#W#3#1#1990###1:1,2,3#" for bib in (3, 1, 2)]
+        race = _run(cfg, lines, [], [_mark(3, 1000), _mark(3, 1150)])
+        assert [fp.competitor_id for fp in race.protocol] == ["3", "1", "2"]
+
     def test_results_equal_to_the_millisecond_go_by_number(self) -> None:
         # Custom Start: a result is the difference of the rider's own two marks, so
         # two riders who rode the very same 39.363 hold floats 2.4e-7 apart
