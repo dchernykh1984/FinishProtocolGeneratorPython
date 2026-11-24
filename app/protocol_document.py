@@ -27,6 +27,7 @@ from app.protocol_rows import (
     lap_parts,
     lap_ranks,
     laps_to_show,
+    leads,
     place_status,
     prepare_statuses,
     result_parts,
@@ -315,7 +316,7 @@ def _table(
     for fp in members:
         if not is_printed(fp, cfg):
             continue
-        if fp.finished and not fp.disqualified and leader is None:
+        if leads(fp) and leader is None:
             leader = fp
         row = _row(
             fp,
