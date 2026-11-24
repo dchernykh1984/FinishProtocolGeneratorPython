@@ -9,6 +9,7 @@ from app.calculator import (
     calculate_protocol,
     check_start_protocol,
     generate_sorted_protocol,
+    report_repeated_groups,
     spiridonov,
 )
 from app.config import RACE_TYPE_CUSTOM_START, RaceConfig
@@ -389,6 +390,17 @@ class TestTimeLimit:
 # ---------------------------------------------------------------------------
 # calculate_protocol -- start_check_list
 # ---------------------------------------------------------------------------
+
+
+def test_a_group_listed_twice_is_an_error() -> None:
+    # A false start is started again without saving, so a second line is a slip.
+    log: list[str] = []
+    groups = [_group("A", BASE_T), _group("B", BASE_T), _group("A", BASE_T + 60)]
+    report_repeated_groups(groups, log)
+    assert log == [
+        "ERROR: group A is listed 2 times in the group times file; a group is saved "
+        "once, after a start that went well"
+    ]
 
 
 class TestStartCheckList:
