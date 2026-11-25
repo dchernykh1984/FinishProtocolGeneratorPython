@@ -290,6 +290,28 @@ def test_a_gap_unchanged_to_the_recorded_millisecond_has_no_signed_delta():
         assert stats["1"]["gap_next_abs_delta"] == "+0:00.0"
 
 
+def test_a_worked_out_change_of_a_gap_under_a_millisecond_keeps_its_digits():
+    # Spiridonov, coefficient over 2: a gap 1 ms longer on lap 2 comes out under half
+    # a millisecond longer, within the millisecond of lap 1's -- a real change.
+    from app.config import RACE_TYPE_SPIRIDONOV
+    from app.models import recorded_ms
+
+    starts = [StartProtocolElement.from_line(f"{b}#N#G#2#1#1926####") for b in "12"]
+    cfg = _cfg(race_type=RACE_TYPE_SPIRIDONOV, n_signs_after_point=4)
+    for a in range(100000, 101000):
+        offsets = {"1": (a, a + 100000), "2": (a + 5000, a + 105001)}
+        marks = [
+            _finish(b, START_T + ms / 1000) for b, o in offsets.items() for ms in o
+        ]
+        protocol = _run(starts, marks, cfg, [_group("G", START_T)])
+        one, two = (fp.finish_lap_times for fp in protocol)
+        lap1, lap2 = two[0] - one[0], two[1] - one[1]
+        if recorded_ms(lap1) == recorded_ms(lap2):
+            break
+    delta = build_live_stats(protocol, cfg)["2"]["gap_prev_abs_delta"]
+    assert delta == _format_gap(lap2 - lap1, 4) != "+0:00.0000"
+
+
 class TestPlaceQtyLaps:
     def test_places_and_qty_absolute(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
