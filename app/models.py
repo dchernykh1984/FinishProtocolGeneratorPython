@@ -362,7 +362,10 @@ class FinishProtocolElement:
             for n in rule.attempt_numbers
             if self.lap_completed(n - 1) and self.lap_times[n - 1] > 0
         ]
-        return sorted(eligible, key=lambda i: (self.lap_times[i], i))[: rule.attempts]
+        # To the recorded millisecond: float noise is no faster attempt.
+        return sorted(eligible, key=lambda i: (recorded_ms(self.lap_times[i]), i))[
+            : rule.attempts
+        ]
 
     def attempt_score(self, rule: AttemptRule) -> tuple[int, float]:
         indices = self.selected_attempts(rule)
@@ -375,7 +378,7 @@ class FinishProtocolElement:
         eligible = [
             i for i in indices if self.lap_completed(i) and self.lap_times[i] > 0
         ]
-        return sorted(eligible, key=lambda i: (self.lap_times[i], i))[
+        return sorted(eligible, key=lambda i: (recorded_ms(self.lap_times[i]), i))[
             : self.n_tries_for_result
         ]
 

@@ -419,3 +419,26 @@ def test_float_noise_on_a_tie_break_parts_no_place():
     places = _w_places(race)
     assert [fp.competitor_id for fp in race.protocol] == ["1", "2"]  # by number
     assert (places["Bib One"], places["Bib Two"]) == (1, 1)
+
+
+def test_attempts_equal_to_the_recorded_millisecond_count_the_earlier_one():
+    from protocol_scenarios import _cfg, _run
+
+    from app.attempt_rules import AttemptRule, rules_json
+    from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+    (s1, f1), (s2, f2) = _two_rides_of_140_150()
+    # Attempt 2, an hour later, is the shorter float of the same 140.150 s.
+    starts = [FinishCompetitorElement("1", t, "nextLap") for t in (s1, s2 + 3600)]
+    ends = [FinishCompetitorElement("1", t, "nextLap") for t in (f1, f2 + 3600)]
+    best = rules_json((AttemptRule("Best", 1, (1, 2), "asc"),))
+    for rules, comment in ((best, ""), ("[]", "1:1,2")):  # the rules, the legacy rule
+        cfg = _cfg(
+            race_type=RACE_TYPE_NUMBER_OF_TRIES,
+            attempt_rules_json=rules,
+            n_remote_points=1,
+        )
+        race = _run(cfg, [f"1#Rider#W#2#1#1990###{comment}#"], [], starts, [ends])
+        fp = race.protocol[0]
+        assert fp.lap_times[1] < fp.lap_times[0]  # the noise in question
+        assert fp.counted_attempts() == [0]
