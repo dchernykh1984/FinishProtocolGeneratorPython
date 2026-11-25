@@ -287,7 +287,9 @@ def result_parts(
             )
             diff = last_t - leader_t
         if recorded_ms(last_t) == recorded_ms(leader_t):
-            diff = 0.0  # a dead heat: the float noise of the subtraction is no gap
+            # A dead heat to the recorded millisecond has no gap: not a recorded
+            # time's float noise, nor a Spiridonov time's digits past it.
+            diff = 0.0
         sign = "+" if diff > 0 else ""
         parts.gap = f"({sign}{format_time(diff, cfg.n_signs_after_point)})"
     if cfg.show_n_finished_laps:

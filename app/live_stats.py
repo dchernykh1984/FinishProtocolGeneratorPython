@@ -126,7 +126,9 @@ def _gap_value(
     if e_behind is None or e_ahead is None:
         return None
     if recorded_ms(e_behind) == recorded_ms(e_ahead):
-        return 0.0  # a dead heat: the float noise of the subtraction is no gap
+        # A dead heat to the recorded millisecond has no gap: not a recorded time's
+        # float noise, nor a Spiridonov time's digits past it.
+        return 0.0
     if cfg.is_number_of_tries():
         return behind.get_time_diff(ahead)
     return e_behind - e_ahead
