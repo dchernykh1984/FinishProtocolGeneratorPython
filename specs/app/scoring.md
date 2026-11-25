@@ -89,7 +89,8 @@ differ:
   from the millisecond the chronometer wrote when the time is a recorded one and from the time
   as it stands when it is worked out (a Spiridonov time, a penalty).
 - The result is the time from the start to the finish of the last lap ridden; the gap is the
-  result minus the table leader's time over the same laps.
+  result minus the table leader's time over the same laps, and a dead heat to the recorded
+  millisecond has none: it prints `(00:00:00)`, with no sign.
 
 ## Spiridonov
 
