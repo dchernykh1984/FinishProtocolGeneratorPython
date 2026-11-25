@@ -237,6 +237,36 @@ def test_a_gap_of_the_pack_threshold_to_the_recorded_millisecond_joins_the_pack(
         assert stats["3"]["qty_prev_pack_abs"] == "2"
 
 
+def test_a_worked_out_gap_under_a_millisecond_is_no_tie_for_a_pack_of_zero():
+    # Spiridonov divides every crossing by the coefficient, over 2 at a hundred: two
+    # crossings 1 ms apart come out under half a millisecond apart, on two
+    # milliseconds, and are places 1 and 2 -- no dead heat to join at 0.
+    from app.calculator import spiridonov
+    from app.config import RACE_TYPE_SPIRIDONOV
+    from app.models import recorded_ms
+
+    coefficient = spiridonov("1926")
+
+    def worked(ms: int) -> float:  # the elapsed time of a crossing ms after the start
+        crossing = _finish("x", START_T + ms / 1000).seconds
+        return crossing / coefficient - START_T / coefficient
+
+    e = next(
+        e
+        for e in range(100000, 101000)
+        if recorded_ms(worked(e)) < recorded_ms(worked(e + 1))
+    )
+    starts = [StartProtocolElement.from_line(f"{b}#N#G#1#1#1926####") for b in "123"]
+    offsets = {"1": e, "2": e + 1, "3": e + 90000}
+    marks = [_finish(b, START_T + ms / 1000) for b, ms in offsets.items()]
+    cfg = _cfg(
+        race_type=RACE_TYPE_SPIRIDONOV, pack_gap_seconds=0, n_signs_after_point=4
+    )
+    stats = build_live_stats(_run(starts, marks, cfg, [_group("G", START_T)]), cfg)
+    assert stats["2"]["place_abs"] == "2"
+    assert stats["3"]["qty_prev_pack_abs"] == "1"
+
+
 def test_a_gap_unchanged_to_the_recorded_millisecond_has_no_signed_delta():
     # 5 s apart after lap 1 exactly and after lap 2 to the millisecond, lap 2 being
     # the two noisy rides of 140.150 s, either way round.
