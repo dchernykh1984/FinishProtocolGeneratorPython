@@ -312,6 +312,31 @@ def test_a_worked_out_change_of_a_gap_under_a_millisecond_keeps_its_digits():
     assert delta == _format_gap(lap2 - lap1, 4) != "+0:00.0000"
 
 
+def test_a_worked_out_gap_that_did_not_change_has_no_signed_delta():
+    # Spiridonov, one birth year, 5.000 s apart after both laps: the worked-out gap
+    # did not change, at whatever time of day the float noise of the division falls.
+    from app.config import RACE_TYPE_SPIRIDONOV
+
+    def mark(bib: str, ms: int) -> FinishCompetitorElement:  # ms after 12:00:00
+        h, rest = divmod(12 * 3600000 + ms, 3600000)
+        m, rest = divmod(rest, 60000)
+        s, f = divmod(rest, 1000)
+        time = f"20416 {h:02d}:{m:02d}:{s:02d}.{f:03d}"
+        return FinishCompetitorElement.from_line(f"{bib}#{time}#nextLap#")
+
+    starts = [StartProtocolElement.from_line(f"{b}#N#G#2#1#1990####") for b in "12"]
+    groups = [GroupStartElement.from_line("G#20416 12:00:00.000#")]
+    cfg = _cfg(race_type=RACE_TYPE_SPIRIDONOV, n_signs_after_point=1)
+    deltas = set()
+    for a in range(100000, 100400, 7):
+        for lap2 in (110000, 110123, 111457):
+            marks = [mark("1", a), mark("2", a + 5000)]
+            marks += [mark("1", a + lap2), mark("2", a + 5000 + lap2)]
+            stats = build_live_stats(_run(starts, marks, cfg, groups), cfg)
+            deltas.add(stats["2"]["gap_prev_abs_delta"])
+    assert deltas == {"+0:00.0"}
+
+
 class TestPlaceQtyLaps:
     def test_places_and_qty_absolute(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
