@@ -277,6 +277,7 @@ def result_parts(
     if cfg.show_time_difference and leader is not None and not fp.missed_start_check:
         if tries:
             diff = fp.get_time_diff(leader)
+            leader_t = leader.get_total_time()
         else:
             n = fp.n_laps_finished
             leader_t = (
@@ -285,6 +286,8 @@ def result_parts(
                 else 0.0
             )
             diff = last_t - leader_t
+        if recorded_ms(last_t) == recorded_ms(leader_t):
+            diff = 0.0  # a dead heat: the float noise of the subtraction is no gap
         sign = "+" if diff > 0 else ""
         parts.gap = f"({sign}{format_time(diff, cfg.n_signs_after_point)})"
     if cfg.show_n_finished_laps:

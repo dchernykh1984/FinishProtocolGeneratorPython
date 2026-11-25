@@ -345,6 +345,25 @@ def test_laps_equal_to_the_recorded_millisecond_share_their_lap_rank():
     assert [(r.place_lap, r.place_finish) for r in ranks if r] == [(1, 1), (1, 1)]
 
 
+def test_a_dead_heat_to_the_recorded_millisecond_prints_the_gap_of_an_exact_one():
+    from protocol_scenarios import _cfg, _run
+
+    from app.config import RACE_TYPE_CUSTOM_START
+
+    longer, shorter = _two_rides_of_140_150()
+    for (s1, f1), (s2, f2) in ((longer, shorter), (shorter, longer)):
+        marks = [
+            FinishCompetitorElement(bib, t, "nextLap")
+            for bib, t in (("1", s1), ("1", f1), ("2", s2), ("2", f2))
+        ]
+        lines = ["1#Bib One#W#1#1####", "2#Bib Two#W#1#1####"]
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START, n_signs_after_point=3)
+        race = _run(cfg, lines, [], marks)
+        leader = race.protocol[0]
+        gaps = [result_parts(fp, leader, cfg).gap for fp in race.protocol]
+        assert gaps == ["(00:00:00.000)", "(00:00:00.000)"]
+
+
 def _two_riders(rules, second_attempts):
     """Bibs 1 and 2 of group W: attempt 1 the two noisy rides of 140.150 s (bib 1 the
     longer float), attempt 2 of the given seconds each."""
