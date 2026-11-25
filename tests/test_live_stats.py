@@ -202,6 +202,51 @@ def test_a_dead_heat_to_the_recorded_millisecond_is_a_tie_on_the_watch():
             assert stats["3"]["qty_prev_pack_abs"] == "2"
 
 
+def test_a_gap_of_the_pack_threshold_to_the_recorded_millisecond_joins_the_pack():
+    # Two rides 10.000 s apart, a float above or below it, and a third rider 59 s
+    # behind: "at most" the threshold holds whichever way the noise falls.
+    from test_protocol_rows import _two_rides_of_140_150
+
+    from app.config import RACE_TYPE_CUSTOM_START
+
+    longer, shorter = _two_rides_of_140_150()
+    for one, two in ((shorter, longer), (longer, shorter)):
+        rides = {"1": one, "2": (two[0], two[1] + 10), "3": (two[0] + 1, two[1] + 70)}
+        marks = [
+            FinishCompetitorElement(bib, t, "nextLap")
+            for bib, ride in rides.items()
+            for t in ride
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
+        protocol = _run([_start(bib, "G", 1) for bib in rides], marks, cfg)
+        stats = build_live_stats(protocol, cfg)
+        assert cfg.pack_gap_seconds == 10
+        assert stats["3"]["qty_prev_pack_abs"] == "2"
+
+
+def test_a_gap_unchanged_to_the_recorded_millisecond_has_no_signed_delta():
+    # 5 s apart after lap 1 exactly and after lap 2 to the millisecond, lap 2 being
+    # the two noisy rides of 140.150 s, either way round.
+    from test_protocol_rows import _two_rides_of_140_150
+
+    from app.config import RACE_TYPE_CUSTOM_START
+
+    longer, shorter = _two_rides_of_140_150()
+    for one, two in ((longer, shorter), (shorter, longer)):
+        rides = {"1": (one[0] - 100, *one), "2": (two[0] - 105, *two)}
+        marks = [
+            FinishCompetitorElement(bib, t, "nextLap")
+            for bib, ride in rides.items()
+            for t in ride
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
+        protocol = _run([_start(bib, "G", 2) for bib in rides], marks, cfg)
+        stats = build_live_stats(protocol, cfg)
+        assert stats["2"]["gap_prev_abs"] == "+0:05.0"
+        assert stats["2"]["gap_prev_abs_delta"] == "+0:00.0"
+        assert stats["1"]["gap_next_abs_delta"] == "+0:00.0"
+
+
 class TestPlaceQtyLaps:
     def test_places_and_qty_absolute(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())

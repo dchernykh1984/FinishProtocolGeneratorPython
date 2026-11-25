@@ -155,7 +155,9 @@ def _gap_and_delta(
     if common >= 2:
         prev = _gap_value(behind, ahead, cfg, common - 1)
         if prev is not None:
-            delta = _format_gap(now - prev, n_signs)
+            # Equal to the recorded millisecond: the float noise is no change.
+            same = recorded_ms(now) == recorded_ms(prev)
+            delta = _format_gap(0.0 if same else now - prev, n_signs)
     return _format_gap(sign * now, n_signs), delta
 
 
@@ -247,7 +249,10 @@ def _participant_packs(
             prev = packs[-1][-1]
             common = min(_laps_done(elem, cfg), _laps_done(prev, cfg))
             gap = _gap_value(elem, prev, cfg, common)
-        if gap is None or not 0 <= gap <= cfg.pack_gap_seconds:
+        # To the recorded millisecond: the float noise does not decide "at most".
+        if gap is None or not (
+            0 <= recorded_ms(gap) <= recorded_ms(cfg.pack_gap_seconds)
+        ):
             packs.append([])
         packs[-1].append(elem)
     return packs
