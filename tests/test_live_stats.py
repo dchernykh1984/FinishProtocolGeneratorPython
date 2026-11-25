@@ -202,6 +202,19 @@ def test_a_dead_heat_to_the_recorded_millisecond_is_a_tie_on_the_watch():
             assert stats["3"]["qty_prev_pack_abs"] == "2"
 
 
+def test_a_number_of_tries_dead_heat_is_a_tie_on_the_watch():
+    from test_protocol_rows import _two_riders
+
+    from app.attempt_rules import AttemptRule
+
+    for sort in ("asc", "desc"):
+        # Attempt 1 is the two noisy rides of 140.150 s.
+        race = _two_riders((AttemptRule("Result", 1, (1,), sort),), (50, 60))
+        race.cfg.send_absolute_statistics = True
+        stats = build_live_stats(race.protocol, race.cfg)
+        assert stats["2"]["gap_prev_abs"] == "+0:00.0"
+
+
 def test_a_gap_of_the_pack_threshold_to_the_recorded_millisecond_joins_the_pack():
     # Two rides 10.000 s apart, a float above or below it, and a third rider 59 s
     # behind: "at most" the threshold holds whichever way the noise falls.
