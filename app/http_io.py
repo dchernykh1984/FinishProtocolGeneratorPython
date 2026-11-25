@@ -261,7 +261,7 @@ def upload_protocol(  # noqa: C901
             return REFUSED_DATA
         if errors_out is not None:
             errors_out.append(
-                f"HTTP upload to {upload_url} failed: {exc.code} {exc.reason}"
+                f"HTTP upload to {upload_url} failed: {exc.code} {_detail(exc)}"
             )
         return -1
     except Exception as exc:
