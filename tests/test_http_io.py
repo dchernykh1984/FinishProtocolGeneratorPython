@@ -467,6 +467,20 @@ class TestUploadProtocol:
         assert result == -1
         assert "no protocol section 7" in errors[0]
 
+    def test_a_refusal_whose_answer_is_cut_off_still_names_the_status(self) -> None:
+        body = MagicMock()
+        body.read.side_effect = http.client.IncompleteRead(b'{"detail": "The ev')
+        exc = urllib.error.HTTPError(
+            "u", 400, "Bad Request", http.client.HTTPMessage(), body
+        )
+        errors: list[str] = []
+        with patch("urllib.request.urlopen", side_effect=exc):
+            result = upload_protocol(
+                "https://s", "tok", "group", _local(), errors_out=errors
+            )
+        assert result == -1
+        assert errors[0].endswith("failed: 400 Bad Request")
+
 
 class TestDeleteProtocol:
     def test_returns_minus1_when_site_url_empty(self) -> None:

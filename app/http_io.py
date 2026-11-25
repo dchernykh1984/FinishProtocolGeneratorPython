@@ -278,7 +278,8 @@ def _detail(exc: urllib.error.HTTPError) -> str:
     """The site's own reason for a refusal, when it gave one."""
     try:
         return str(json.loads(exc.read().decode("utf-8")).get("detail") or exc.reason)
-    except ValueError, AttributeError, TypeError, OSError:
+    # An answer cut off or unreadable leaves the status's own reason.
+    except ValueError, AttributeError, TypeError, OSError, http.client.HTTPException:
         return str(exc.reason)
 
 
