@@ -952,6 +952,32 @@ class TestUseAllButtons:
         assert "Lap 0 splits" in content
         assert "showhideall" in content
 
+    def test_group_buttons_cover_a_lap_in_progress_hide_empty_columns_shows(
+        self, tmp_path: Path
+    ) -> None:
+        import re
+
+        from protocol_scenarios import _cfg, _mark, _run
+
+        cfg = _cfg(
+            n_remote_points=1,
+            hide_empty_columns=True,
+            use_buttons=True,
+            use_all_buttons=True,
+        )
+        finish = [_mark(1, 1100), _mark(1, 1200), _mark(2, 1110), _mark(2, 1210)]
+        # Both rode two of three laps; 2 is past the control point of lap 3.
+        cp = [_mark(1, 1050), _mark(1, 1150)]
+        cp += [_mark(2, 1060), _mark(2, 1160), _mark(2, 1260)]
+        lines = ["1#A#W#3#1####", "2#B#W#3#1####"]
+        race = _run(cfg, lines, [("W", 1000)], finish, [cp])
+        path = tmp_path / "g.html"
+        write_group_protocol(str(path), race.protocol, race.groups, cfg, 1)
+        content = path.read_text(encoding="utf-8")
+        assert "<B>Lap 3" in content
+        toggled = set(re.findall(r"showhideall\(0, '([^']*)', 1\)", content))
+        assert set(re.findall(r'id="0_([^"]*)_\d+"', content)) <= toggled
+
     def test_group_use_all_buttons_empty_lap_cell(self) -> None:
         t0 = _CP_BASE + 3600
         start_list = [
