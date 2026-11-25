@@ -68,8 +68,9 @@ When "Send group statistics" / "Send absolute statistics" is on, every regenerat
 POSTs a `bib -> {key: value}` snapshot (place, qty, gap_prev/gap_next/gap_leader, their
 per-lap deltas, laps) to `/live-stats/`. The site stores the dict opaquely, so new keys
 can be added on this side with no site change. Gap sign is from the reader's point of
-view: a rider ahead of you is `+`, a rider behind you is `-`; the delta keeps its own
-meaning (`+` grew, `-` shrank).
+view: a rider ahead of you is `+`, a rider behind you is `-`, and a dead heat to the
+recorded millisecond has no gap, `+0:00` either way; the delta keeps its own meaning
+(`+` grew, `-` shrank).
 
 ## Network gotcha
 
