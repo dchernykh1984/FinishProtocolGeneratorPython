@@ -364,6 +364,18 @@ def test_a_dead_heat_to_the_recorded_millisecond_prints_the_gap_of_an_exact_one(
         assert gaps == ["(00:00:00.000)", "(00:00:00.000)"]
 
 
+def test_a_number_of_tries_dead_heat_prints_the_gap_of_an_exact_one():
+    from app.attempt_rules import AttemptRule
+
+    for sort in ("asc", "desc"):
+        # Attempt 1 is the two noisy rides of 140.150 s.
+        race = _two_riders((AttemptRule("Result", 1, (1,), sort),), (50, 60))
+        race.cfg.n_signs_after_point = 3
+        leader = race.protocol[0]
+        gaps = [result_parts(fp, leader, race.cfg).gap for fp in race.protocol]
+        assert gaps == ["(00:00:00.000)", "(00:00:00.000)"]
+
+
 def _two_riders(rules, second_attempts):
     """Bibs 1 and 2 of group W: attempt 1 the two noisy rides of 140.150 s (bib 1 the
     longer float), attempt 2 of the given seconds each."""
