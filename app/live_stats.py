@@ -37,7 +37,7 @@ from functools import cmp_to_key
 
 from app.calculator import _first_better
 from app.config import RaceConfig
-from app.models import INF, FinishProtocolElement
+from app.models import INF, FinishProtocolElement, recorded_ms
 from app.protocol_rows import place_status, status_rank
 
 
@@ -125,6 +125,8 @@ def _gap_value(
     e_ahead = _elapsed_at_lap(ahead, cfg, lap)
     if e_behind is None or e_ahead is None:
         return None
+    if recorded_ms(e_behind) == recorded_ms(e_ahead):
+        return 0.0  # a dead heat: the float noise of the subtraction is no gap
     if cfg.is_number_of_tries():
         return behind.get_time_diff(ahead)
     return e_behind - e_ahead
