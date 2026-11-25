@@ -309,8 +309,9 @@ Notes:
 
 - **Participant packs are absolute statistics only.** The HTTP tab's **Participant pack
   max gap (seconds)** setting defaults to **10** and is saved with race info. A pack is
-  a chain of consecutive ranked riders whose unrounded common-lap gaps are at most this
-  threshold, regardless of the total spread or number of riders. Zero joins only ties.
+  a chain of consecutive ranked riders whose common-lap gaps, taken to the recorded
+  millisecond (a Spiridonov gap as it stands) rather than to the printed digits, are at
+  most this threshold, regardless of the total spread or number of riders. Zero joins only ties.
   DSQ and DNS riders and riders without a measured lap are excluded. Missing neighbouring packs
   or uncomputable/reversed common-lap gaps omit both the gap and size keys.
 - **All values are strings.** Times are `"M:SS"` (or `"H:MM:SS"` past an hour), always
