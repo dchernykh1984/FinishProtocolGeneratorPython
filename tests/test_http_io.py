@@ -454,6 +454,19 @@ class TestUploadProtocol:
         assert b'name="protocol_type"' in captured[0]
         assert b"group" in captured[0]
 
+    def test_a_refusal_says_what_the_site_answered(self) -> None:
+        body = io.BytesIO(b'{"detail": "The event has no protocol section 7"}')
+        exc = urllib.error.HTTPError(
+            "u", 400, "Bad Request", http.client.HTTPMessage(), body
+        )
+        errors: list[str] = []
+        with patch("urllib.request.urlopen", side_effect=exc):
+            result = upload_protocol(
+                "https://s", "tok", "group", _local(), errors_out=errors, section=7
+            )
+        assert result == -1
+        assert "no protocol section 7" in errors[0]
+
 
 class TestDeleteProtocol:
     def test_returns_minus1_when_site_url_empty(self) -> None:
