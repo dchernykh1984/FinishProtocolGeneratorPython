@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.18.3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.2...v0.18.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **calculator:** a lap count of -2 or below in the start protocol runs as -1 does, not into a crash ([b9be6f2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/b9be6f2bf8bbd520558a0d8118ffcc42f010ab9e))
+* **calculator:** a legacy Number of Tries rule listing an attempt twice is invalid, not a ride counted twice ([42d6078](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/42d6078fe655c0cdb5ab95a1190415648b59dfab))
+* **http:** a refusal whose answer is cut off still names its status instead of failing the publishing ([a0b9e2a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a0b9e2ae7c9691cb29076831994528d9a6cfe3f7))
+* **http:** an upload the site refuses says what the site answered ([9a15b38](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/9a15b388a25d748da1a3af53476b9027101af7a0))
+* **live:** a dead heat to the recorded millisecond is a tie on the watch, its gap unsigned by float noise and its pack whole ([abf1946](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/abf194688c319ed9d079f1ffdfb1511272eb53b1))
+* **live:** a pack's threshold and a gap's delta are compared to the recorded millisecond, not decided by float noise ([53636ce](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/53636ce721ae05f06c320ea7ff5a420715f2696a))
+* **live:** a worked-out change of a gap under a millisecond keeps its digits, only a recorded one is taken at its millisecond ([aad29a1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/aad29a15bad8b32cab30dfcccf030f941ed2bee4))
+* **live:** a worked-out gap meets the pack's threshold as it stands, only a recorded one at its millisecond ([007b387](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/007b387b01e72a067e4add53a0fa841d9a8de93a))
+* **live:** a worked-out gap that did not change reads an unsigned delta, the change and not each gap taken at its millisecond ([8190558](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/81905584e647834a7f2f869ce5aa927537522152))
+* **protocol:** a dead heat to the recorded millisecond prints the gap of an exact one, with no sign from float noise ([f1e60f3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/f1e60f398ec19f3d48a7a88e43d871562341d7d4))
+* **protocol:** of two attempts equal to the recorded millisecond the earlier one is counted and bold ([8ca5971](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8ca5971fd0bfa1b5428781c250986c5961ec2e6e))
+* **protocol:** the group protocol's buttons show and hide a lap in progress that Hide empty lap columns shows ([41ceca1](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/41ceca1fb699e5a7956c1681fb4c11ef2fa9441f))
+
+
+### Documentation
+
+* a dead heat to the recorded millisecond has no gap, (00:00:00) in the protocol and +0:00 either way on the watch ([4021020](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/4021020ccb2f8e3537ecef6b9b32cd67a102bf20))
+* a participant pack takes a recorded gap to its millisecond and a Spiridonov gap as it stands ([a6a3e5a](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/a6a3e5ad18e1f05d420936d17c20322f8f2137c4))
+* **live:** a dead heat to the recorded millisecond reads +0:00 either way, not negative behind ([c03d39c](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/c03d39cf963bbbfda6c5247683144e12c789bf5e))
+
 ## [0.18.2](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.1...v0.18.2) (2026-11-24)
 
 
