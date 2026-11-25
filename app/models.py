@@ -76,6 +76,16 @@ def recorded_ms(t: float) -> int:
     return round(t * 10**RECORDED_SIGNS)
 
 
+def at_recorded_ms(t: float) -> float:
+    """A time at its millisecond when it is a recorded one, as it stands when it was
+    worked out -- the test printed_ticks makes: a Spiridonov time's digits past the
+    millisecond are real, and rounding them away would make a difference a tie."""
+    ms = recorded_ms(t)
+    if abs(t * 10**RECORDED_SIGNS - ms) < _RECORDED_GRID:
+        return ms / 10**RECORDED_SIGNS
+    return t
+
+
 def printed_signs(n_signs: int) -> int:
     """How many digits after the point a protocol prints, within what it can show."""
     return min(max(n_signs, 0), 4)

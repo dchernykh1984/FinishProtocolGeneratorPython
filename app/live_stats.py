@@ -37,7 +37,7 @@ from functools import cmp_to_key
 
 from app.calculator import _first_better
 from app.config import RaceConfig
-from app.models import INF, FinishProtocolElement, recorded_ms
+from app.models import INF, FinishProtocolElement, at_recorded_ms, recorded_ms
 from app.protocol_rows import place_status, status_rank
 
 
@@ -249,10 +249,8 @@ def _participant_packs(
             prev = packs[-1][-1]
             common = min(_laps_done(elem, cfg), _laps_done(prev, cfg))
             gap = _gap_value(elem, prev, cfg, common)
-        # To the recorded millisecond: the float noise does not decide "at most".
-        if gap is None or not (
-            0 <= recorded_ms(gap) <= recorded_ms(cfg.pack_gap_seconds)
-        ):
+        # A recorded gap at its millisecond: the float noise does not decide "at most".
+        if gap is None or not 0 <= at_recorded_ms(gap) <= cfg.pack_gap_seconds:
             packs.append([])
         packs[-1].append(elem)
     return packs
