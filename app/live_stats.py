@@ -155,9 +155,8 @@ def _gap_and_delta(
     if common >= 2:
         prev = _gap_value(behind, ahead, cfg, common - 1)
         if prev is not None:
-            # Equal to the recorded millisecond: the float noise is no change.
-            same = recorded_ms(now) == recorded_ms(prev)
-            delta = _format_gap(0.0 if same else now - prev, n_signs)
+            # A recorded gap at its millisecond: the float noise is no change.
+            delta = _format_gap(at_recorded_ms(now) - at_recorded_ms(prev), n_signs)
     return _format_gap(sign * now, n_signs), delta
 
 
