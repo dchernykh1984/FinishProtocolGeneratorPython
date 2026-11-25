@@ -299,7 +299,8 @@ class FinishProtocolElement:
             self._attempt_indices = []
             self._attempts_string_valid = False
 
-        sz = start.n_laps + 2
+        # A lap count below -1 is kept, as -1 is (files.md), and sized as -1 is.
+        sz = max(start.n_laps, -1) + 2
         self.cross_line_times: list[float] = [0.0] * sz
         self.lap_times: list[float] = [0.0] * sz
         self.finish_lap_times: list[float] = [0.0] * sz
