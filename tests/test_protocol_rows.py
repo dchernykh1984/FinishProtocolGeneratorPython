@@ -376,6 +376,49 @@ def test_a_number_of_tries_dead_heat_prints_the_gap_of_an_exact_one():
         assert gaps == ["(00:00:00.000)", "(00:00:00.000)"]
 
 
+def test_a_spiridonov_dead_heat_to_the_recorded_millisecond_has_no_gap():
+    # Born 1926, the coefficient over 2: crossings 1 ms apart are worked out within
+    # one millisecond, printed apart at 4 decimals -- a dead heat all the same.
+    from protocol_scenarios import _cfg, _run
+
+    from app.calculator import spiridonov
+    from app.config import RACE_TYPE_SPIRIDONOV
+    from app.models import parse_time_string, recorded_ms
+
+    coefficient = spiridonov("1926")
+    start = parse_time_string("20416 12:00:00.000")
+
+    def crossing(ms: int) -> float:  # ms after the start
+        s, f = divmod(ms, 1000)
+        return parse_time_string(f"20416 12:{s // 60:02d}:{s % 60:02d}.{f:03d}")
+
+    def worked(ms: int) -> float:
+        return crossing(ms) / coefficient - start / coefficient
+
+    e = next(
+        e
+        for e in range(100000, 101000)
+        if recorded_ms(worked(e)) == recorded_ms(worked(e + 1))
+    )
+    cfg = _cfg(
+        race_type=RACE_TYPE_SPIRIDONOV,
+        n_signs_after_point=4,
+        send_absolute_statistics=True,
+    )
+    marks = [
+        FinishCompetitorElement("1", crossing(e + 1), "nextLap"),
+        FinishCompetitorElement("2", crossing(e), "nextLap"),
+    ]
+    lines = ["1#Bib One#W#1#1#1926####", "2#Bib Two#W#1#1#1926####"]
+    race = _run(cfg, lines, [("W", start)], marks)
+    leader = race.protocol[0]
+    parts = [result_parts(fp, leader, cfg) for fp in race.protocol]
+    assert parts[0].time != parts[1].time
+    assert _w_places(race) == {"Bib One": 1, "Bib Two": 1}
+    assert [p.gap for p in parts] == ["(00:00:00.0000)", "(00:00:00.0000)"]
+    assert build_live_stats(race.protocol, cfg)["2"]["gap_prev_abs"] == "+0:00.0000"
+
+
 def _two_riders(rules, second_attempts):
     """Bibs 1 and 2 of group W: attempt 1 the two noisy rides of 140.150 s (bib 1 the
     longer float), attempt 2 of the given seconds each."""
