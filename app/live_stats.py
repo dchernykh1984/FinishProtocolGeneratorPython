@@ -15,8 +15,9 @@ Keys (any subset, gated by the two config toggles):
 * qty_group / qty_abs -- bib-holders in the group / whole race (incl. DSQ/DNS/DNF).
 * gap_prev_* / gap_next_* -- time to the neighbour one place ahead / behind, measured at
   the last lap-finish both completed. Signed from the reader's point of view: a rider
-  ahead of them is positive ("+1:23"), a rider behind them negative ("-1:23"). Omitted
-  when it cannot be computed.
+  ahead of them is positive ("+1:23"), a rider behind them negative ("-1:23"), and a
+  dead heat to the recorded millisecond reads "+0:00" either way. Omitted when it
+  cannot be computed.
 * gap_leader_* -- time behind the scope leader ("+2:05"); omitted for the leader.
 * gap_prev_*_delta / gap_next_*_delta / gap_leader_*_delta -- how the prev/next/leader
   gap changed over the last lap ("+" grew, "-" shrank); needs 2 laps, else absent.
@@ -143,10 +144,10 @@ def _gap_and_delta(
     """Formatted gap at the last common lap, and how it changed over the last lap.
 
     `sign` orients the reported gap from the reader's point of view: a rider ahead of
-    them reads "+1:23", a rider behind them "-1:23". The delta keeps its own meaning
-    regardless of `sign` -- it is the gap now minus the gap one lap earlier, so "+" =
-    the gap grew, "-" = it shrank (caught up). It needs at least two common laps, else
-    it is None.
+    them reads "+1:23", a rider behind them "-1:23", and a dead heat to the recorded
+    millisecond "+0:00" either way. The delta keeps its own meaning regardless of
+    `sign` -- it is the gap now minus the gap one lap earlier, so "+" = the gap grew,
+    "-" = it shrank (caught up). It needs at least two common laps, else it is None.
     """
     n_signs = cfg.n_signs_after_point
     common = min(_laps_done(behind, cfg), _laps_done(ahead, cfg))
