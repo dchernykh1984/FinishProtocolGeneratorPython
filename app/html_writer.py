@@ -242,13 +242,14 @@ def write_group_protocol(  # noqa: C901
     n_fp = len(sorted_protocol)
     _write_header(buf, cfg, n_fp, n_points)
 
-    all_max_laps = 0
-    if cfg.hide_empty_columns:
-        for fp in sorted_protocol:
-            all_max_laps = max(all_max_laps, fp.visible_laps())
-    else:
-        for fp in sorted_protocol:
-            all_max_laps = max(all_max_laps, fp.n_laps)
+    # The buttons reach every lap column of every table, as the tables count them.
+    all_max_laps = max(
+        (
+            laps_to_show(sorted_protocol, g.group_id, cfg, n_points)[0]
+            for g in group_list
+        ),
+        default=0,
+    )
 
     buf.write("<CENTER>")
     if cfg.use_buttons and n_points > 0 and cfg.show_lap_times:
