@@ -134,6 +134,36 @@ class TestCalculateProtocolDns:
 
 
 # ---------------------------------------------------------------------------
+# calculate_protocol -- a negative lap count
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("laps", [-2, -5])
+def test_a_lap_count_below_minus_one_is_kept_and_runs_as_minus_one(
+    laps: int, tmp_path
+) -> None:
+    # files.md keeps a negative lap count; below -1 the lap lists came out empty.
+    from app.html_writer import write_group_protocol
+
+    cfg = _cfg(print_dnf=True)
+    group_list = [_group("G", BASE_T + 3600)]
+
+    def group_protocol(n_laps: int) -> str:
+        start_list = [_start("1", "G", n_laps=n_laps)]
+        finish_list = [_finish("1", BASE_T + 4200)]
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, []
+        )
+        assert protocol[0].n_laps == n_laps
+        path = tmp_path / f"{n_laps}.html"
+        sorted_protocol = generate_sorted_protocol(protocol, cfg, 0)
+        write_group_protocol(str(path), sorted_protocol, group_list, cfg)
+        return path.read_text(encoding="utf-8")
+
+    assert group_protocol(laps) == group_protocol(-1)
+
+
+# ---------------------------------------------------------------------------
 # calculate_protocol -- one competitor, three laps
 # ---------------------------------------------------------------------------
 
