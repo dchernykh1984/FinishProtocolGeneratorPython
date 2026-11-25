@@ -279,7 +279,9 @@ class FinishProtocolElement:
         _attempts_str = str(start.extra_info)
         _strict = re.match(r"^\d+:\d+(,\d+)*$", _attempts_str)
         _m = re.match(r"^(\d+):", _attempts_str)
-        if _strict:
+        _listed = _attempts_str.partition(":")[2].split(",")
+        # An attempt listed twice would count twice: malformed, as the rules hold it.
+        if _strict and len({int(n) for n in _listed}) == len(_listed):
             self.n_tries_for_result: int = int(_m.group(1))  # type: ignore[union-attr]
             _m2 = re.match(r"^\d+:(.+)$", _attempts_str)
             self._attempt_indices: list[int] = (

@@ -1324,6 +1324,24 @@ class TestNumberOfTries:
         assert protocol[0].n_tries_for_result == 0
         assert protocol[0].get_total_time() == 0.0
 
+    def test_an_attempt_listed_twice_is_an_invalid_rule(self) -> None:
+        # "2:1,1,2" counted attempt 1 twice; the rules refuse a duplicate number too.
+        from app.config import RACE_TYPE_NUMBER_OF_TRIES
+
+        start_t = BASE_T + 3600
+        start_list = [_start_not("1", "G", n_laps=2, extra_info="2:1,1,2")]
+        finish_list = [
+            _finish("1", start_t + gap, "nextLap") for gap in (10, 20, 30, 50)
+        ]
+        cfg = _cfg(race_type=RACE_TYPE_NUMBER_OF_TRIES)
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, [_group("G", start_t)], finish_list, [], [], cfg, log
+        )
+        assert any("invalid NumberOfTries format: '2:1,1,2'" in m for m in log)
+        assert protocol[0].counted_attempts() == []
+        assert protocol[0].get_total_time() == 0.0
+
     def test_best_1_of_3(self) -> None:
         # n_laps=3 -> n_to_find=6 -> 3 attempts (30, 10, 20)
         # extra_info "1:1,2,3" -> n_tries_for_result=1, best = 10

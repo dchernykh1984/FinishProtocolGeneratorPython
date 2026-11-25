@@ -117,9 +117,9 @@ that the split times will be incorrect.
   millisecond, then the number. The first rule alone gives the printed result and decides who
   finished; its counted attempts are printed bold.
 - With no rules (`[]`) every rider's comment holds the legacy rule `N:a,b,...`: the best N of
-  the listed attempts. A rider whose comment is not that rule is an ERROR ("invalid
-  NumberOfTries format") and counts no attempt. A rider is then a finisher once all his attempts
-  are completed, or once a completed one ended on a `finish` mark.
+  the listed attempts. A rider whose comment is not that rule, or lists an attempt twice, is an
+  ERROR ("invalid NumberOfTries format") and counts no attempt. A rider is then a finisher once
+  all his attempts are completed, or once a completed one ended on a `finish` mark.
 
 ## Checks
 
