@@ -75,7 +75,8 @@ does not guess. A run always builds its protocols from the local files
 - A gap is taken at the last lap finish both riders completed -- in Number of Tries it is the
   difference of their results, in the first rule's direction -- and is signed for the reader: a
   rider ahead is `+`, one behind `-`; it prints as `M:SS` (`H:MM:SS` past an hour) with the
-  protocol's decimals. Riders whose gap is at most the pack gap are one pack.
+  protocol's decimals. Riders whose gap, taken to the recorded millisecond (a Spiridonov gap as
+  it stands) rather than to the printed digits, is at most the pack gap are one pack.
 
 ## FTP
 
