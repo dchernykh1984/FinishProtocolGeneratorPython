@@ -178,6 +178,30 @@ class TestParticipantPacks:
         assert all(not any("_pack_" in key for key in s) for s in stats.values())
 
 
+def test_a_dead_heat_to_the_recorded_millisecond_is_a_tie_on_the_watch():
+    # Two time trial rides of 140.150 s a float apart, either way round, and a third
+    # rider 15 s behind: the pair reads as an exact tie and is one pack.
+    from test_protocol_rows import _two_rides_of_140_150
+
+    from app.config import RACE_TYPE_CUSTOM_START
+
+    longer, shorter = _two_rides_of_140_150()
+    for one, two in ((longer, shorter), (shorter, longer)):
+        rides = {"1": one, "2": two, "3": (two[0] + 5, two[1] + 20)}
+        marks = [
+            FinishCompetitorElement(bib, t, "nextLap")
+            for bib, ride in rides.items()
+            for t in ride
+        ]
+        for threshold in (10, 0):
+            cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START, pack_gap_seconds=threshold)
+            protocol = _run([_start(bib, "G", 1) for bib in rides], marks, cfg)
+            stats = build_live_stats(protocol, cfg)
+            assert stats["1"]["gap_next_abs"] == "+0:00.0"
+            assert stats["2"]["gap_prev_abs"] == "+0:00.0"
+            assert stats["3"]["qty_prev_pack_abs"] == "2"
+
+
 class TestPlaceQtyLaps:
     def test_places_and_qty_absolute(self):
         stats = build_live_stats(_one_group_scenario(_cfg()), _cfg())
