@@ -180,7 +180,9 @@ uv run python -m app.main
 
 Select **Number of Tries** on the Main tab to show the scoring-rule editor below
 **Race type**. Rules apply to the whole event. The numeric lap count in the start
-protocol remains the number of attempts available to each competitor.
+protocol remains the number of attempts available to each competitor. A count that is
+negative or not a whole number gives none: the log names the competitor and the value
+in an ERROR, and once he has a mark he is DNF. An empty count or 0 is one attempt.
 
 Each rule has a descriptive label, the number of best attempts to sum, eligible
 attempt numbers (comma-separated, starting at 1), and an `asc` or `desc` sort order.

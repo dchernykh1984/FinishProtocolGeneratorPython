@@ -52,6 +52,51 @@ def test_worker_uses_highest_stream_as_finish_and_writes_only_intermediate_split
     app.processEvents()
 
 
+def test_an_invalid_attempt_count_is_logged_and_every_protocol_still_written(
+    tmp_path,
+):
+    # -1 with two starts crashed the run before any protocol was written.
+    app = QApplication.instance() or QApplication([])
+    (tmp_path / "start.txt").write_text(
+        "1#Rider 1#G#-1#1#1990#T#C##\n2#Rider 2#G#2#1#1990#T#C##\n", encoding="utf-8"
+    )
+    (tmp_path / "groups.txt").write_text("G#0 00:00:00.000#\n", encoding="utf-8")
+    marks = [(1, 1000), (1, 1030), (1, 1100), (1, 1130)]
+    marks += [(2, 1005), (2, 1045), (2, 1105), (2, 1145)]
+    (tmp_path / "results.txt").write_text(
+        "".join(
+            f"{b}#0 00:{t // 60:02d}:{t % 60:02d}.000#nextLap#\n" for b, t in marks
+        ),
+        encoding="utf-8",
+    )
+    cfg = RaceConfig(
+        race_type=RACE_TYPE_NUMBER_OF_TRIES,
+        attempt_rules_json=rules_json((AttemptRule("R", 1, (1, 2), "asc"),)),
+        start_protocol_file=str(tmp_path / "start.txt"),
+        group_time_file=str(tmp_path / "groups.txt"),
+        finish_time_file=str(tmp_path / "results.txt"),
+        group_protocol_file=str(tmp_path / "gr.html"),
+        absolute_protocol_file=str(tmp_path / "abs.html"),
+    )
+    worker = _GenerateWorker(cfg)
+    errors, completed, log = [], [], []
+    worker.error.connect(errors.append)
+    worker.finished_ok.connect(lambda: completed.append(True))
+    worker.log_message.connect(log.append)
+    worker.run()
+    assert not errors
+    assert completed == [True]
+    assert (
+        "ERROR: 1 invalid number of attempts in the start protocol: '-1', "
+        "counted as 0 (no attempt)"
+    ) in log
+    for name in ("gr.html", "abs.html"):
+        rows = (tmp_path / name).read_text(encoding="utf-8").split("<tr")
+        assert ">DNF<" in next(row for row in rows if "Rider 1" in row)
+        assert "00:00:40.0" in next(row for row in rows if "Rider 2" in row)
+    app.processEvents()
+
+
 def test_invalid_rules_fail_before_replacing_protocol_files(tmp_path):
     app = QApplication.instance() or QApplication([])
     path = tmp_path / "gr.html"

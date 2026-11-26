@@ -63,7 +63,7 @@ def calculate_attempts(
         fp.finished = cfg.disable_dnf or (
             fp.get_n_successful_tries() == fp.attempt_rules[0].attempts
         )
-    elif fp.n_laps_finished == fp.n_laps:
+    elif fp.n_laps > 0 and fp.n_laps_finished == fp.n_laps:  # 0 attempts finish none
         fp.finished = True
 
 

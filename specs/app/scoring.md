@@ -105,7 +105,10 @@ that the split times will be incorrect.
 
 ## Number of Tries
 
-- The laps of a start line are the rider's attempts. Without control points his finish marks
+- The laps of a start line are the rider's attempts. A count that is negative or not a whole
+  number (`abc`, `1.5`) is 0 attempts, with an ERROR naming the rider and the value: no attempt
+  of his counts, and he is DNF once he has a mark (maintainer, 2026-11-26); empty and 0 are 1
+  attempt, as in every race type ([files.md](files.md)). Without control points his finish marks
   alternate start, finish; with N control points the finish marks are the starts, points
   1..N-1 the intermediate marks and point N the finishes, and the run stops unless all N streams
   are read.

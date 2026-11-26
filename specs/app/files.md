@@ -25,7 +25,7 @@ them is ignored.
 | 0 | number | The competitor's id, compared as text; read as a whole number too, for stage riders |
 | 1 | name | |
 | 2 | group | |
-| 3 | laps | Laps, or attempts, to ride; empty, 0 or not a number is 1, a negative number is kept |
+| 3 | laps | Laps, or attempts, to ride; empty, 0 or not a number is 1, a negative number is kept. In Number of Tries a count that is negative or not a whole number (`abc`, `1.5`) is 0 attempts, with an ERROR naming the rider and the value ([scoring.md](scoring.md)) |
 | 4 | stages | With N > 1 the marks of the numbers `number` .. `number + N - 1` all count for the line; empty, 0 or not a number is 1, a negative number is kept |
 | 5 | year of birth | Printed; the age of the Spiridonov coefficient |
 | 6 | team | |
@@ -134,8 +134,9 @@ are empty; a template that cannot be read gives the built-in styles.
     twice, then the start protocol's groups the file does not list; within a group in finishing
     order.
   - Field 9 is the place in the group: 1, 2, 3, a dead heat not shared. Fields 0-8 are as the
-    generator read them: laps and stages that were empty, 0 or not a number come out as 1, and
-    in Spiridonov the comment is the coefficient.
+    generator read them: laps and stages that were empty, 0 or not a number come out as 1, an
+    attempt count that Number of Tries counted as 0 comes out as 0, and in Spiridonov the
+    comment is the coefficient.
   - It goes to its own path, or beside the group protocol as `<group protocol>.txt` when that is
     empty, in UTF-8. A path that names a file of the race (start protocol, group times, finish
     times, a control point stream, start check list, group or absolute protocol, styles

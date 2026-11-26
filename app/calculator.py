@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 import time
 from collections import Counter
+from dataclasses import replace
 
 from app.attempt_calculator import calculate_attempts
 from app.attempt_rules import parse_attempt_rules
@@ -37,6 +38,27 @@ def _record_dsq_reason(
     entry = f"{where}: {reason}"
     if entry not in fp.dsq_reasons:
         fp.dsq_reasons.append(entry)
+
+
+def _counted_attempts(
+    start: StartProtocolElement, log: list[str]
+) -> StartProtocolElement:
+    """His start line as Number of Tries counts it: an attempt count that is negative
+    or not a whole number is 0 -- no attempt, the rider DNF -- with an ERROR
+    (maintainer, 2026-11-26). Empty and 0 stay the 1 every race type reads them as.
+    """
+    text = start.laps_text.strip()
+    try:
+        valid = int(text or 0) >= 0 and start.n_laps >= 0
+    except ValueError:
+        valid = False
+    if valid:
+        return start
+    log.append(
+        f"ERROR: {start.competitor_id} invalid number of attempts in the start "
+        f"protocol: {text or str(start.n_laps)!r}, counted as 0 (no attempt)"
+    )
+    return replace(start, n_laps=0)
 
 
 def spiridonov(year_of_birth: str) -> float:
@@ -223,7 +245,8 @@ def calculate_protocol(  # noqa: C901
 
     # Each group with no start time, and whether a rider of it has a mark already.
     unstarted: dict[str, bool] = {}
-    for start in start_list:
+    for line in start_list:
+        start = _counted_attempts(line, log) if cfg.is_number_of_tries() else line
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
         fp.attempt_rules = rules
         if rules:

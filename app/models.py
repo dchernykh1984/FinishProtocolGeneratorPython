@@ -157,6 +157,9 @@ class StartProtocolElement:
     #: Field 9 read as a plain number. Eliminator Finals puts the qualification place
     #: there instead of a time of day; every other mode ignores this.
     start_place: int = 0
+    #: Field 3 as written. n_laps reads text and ``1.5`` as 1, which Number of Tries
+    #: must not: there such a count is no attempt at all (calculator).
+    laps_text: str = ""
 
     @classmethod
     def from_line(
@@ -191,6 +194,7 @@ class StartProtocolElement:
             start_delay=(0.0 if place_field or not f(9) else parse_time_string(f(9))),
             number=number,
             start_place=to_int(f(9)),
+            laps_text=f(3),
         )
 
 
@@ -410,7 +414,8 @@ class FinishProtocolElement:
 
     def has_started(self) -> bool:
         if self.attempt_mode:
-            return self.attempts_seen > 0
+            # A start mark of his: with a count of 0 he has marks but no attempt.
+            return self.cross_line_times[0] != INF
         return self.cross_line_times[0] not in (0, INF)
 
     def get_time_diff(
