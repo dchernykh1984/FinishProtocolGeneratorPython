@@ -12,6 +12,8 @@ Sync Impact Report
   needed changes.
 - 1.0.0 -> 1.0.1 (2026-11-24, wording): principle V says that in Number of Tries a place is
   shared only when every scoring rule is equal, a later rule parting it (maintainer).
+- 1.0.1 -> 1.0.2 (2026-11-26, wording): principle VI says that the errors of a run auto-refresh
+  started go to the log alone, with no dialog (maintainer).
 -->
 
 # Finish Protocol Generator Constitution
@@ -77,8 +79,9 @@ not written at all.
 
 A fetch, an upload, a delete, or a document that cannot be built or that the site refuses is
 logged and the rest of the run goes on; refused data falls back to publishing the HTML. Of a
-run's failures only one that stops the run itself is shown in a dialog. Background work is
-stopped before the window closes, and the settings are saved on exit.
+run's failures only one that stops the run itself is shown in a dialog -- not for a run
+auto-refresh started, whose errors go to the log alone (maintainer, 2026-11-26). Background
+work is stopped before the window closes, and the settings are saved on exit.
 
 ### VII. Behaviour is proven by tests
 
@@ -123,4 +126,4 @@ the detail and are kept consistent with it. The maintainer amends it through a p
 bumps the version -- MAJOR for a principle removed or redefined, MINOR for one added or
 materially expanded, PATCH for wording -- and updates the Last Amended date.
 
-**Version**: 1.0.1 | **Ratified**: 2026-11-23 | **Last Amended**: 2026-11-24
+**Version**: 1.0.2 | **Ratified**: 2026-11-23 | **Last Amended**: 2026-11-26
