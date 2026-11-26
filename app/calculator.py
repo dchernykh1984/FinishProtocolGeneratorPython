@@ -291,7 +291,14 @@ def calculate_protocol(  # noqa: C901
                 if fe.is_dsq:
                     fp.disqualified = not cfg.disable_dsq
                     _record_dsq_reason(fp, fe, "finish")
-                if fe.action == "finish" and not cfg.is_number_of_tries():
+                # Only one after his own start: a warm-up pass in Finish mode, or a
+                # results file shared by several waves, finishes nobody (maintainer,
+                # 2026-11-26). In Custom Start his earliest mark is that start.
+                if (
+                    fe.action == "finish"
+                    and not cfg.is_number_of_tries()
+                    and fe.seconds > fp.cross_line_times[0]
+                ):
                     _finish_count += 1
                     if _finish_count > 1:
                         log.append(
