@@ -214,6 +214,90 @@ class TestCalculateProtocolSimple:
 
 
 # ---------------------------------------------------------------------------
+# calculate_protocol -- a finish mark at or before the rider's own start
+# ---------------------------------------------------------------------------
+
+
+class TestAFinishMarkBeforeHisStart:
+    """Only a finish mark after his own start finishes a rider (maintainer,
+    2026-11-26): a warm-up pass with the chronometer in Finish mode does not."""
+
+    def test_a_warm_up_pass_makes_no_finisher_of_one_lap_of_three(self) -> None:
+        start_t = BASE_T + 3600
+        cfg = _cfg(print_dnf=True)
+        log: list[str] = []
+        protocol = calculate_protocol(
+            [_start("1", "G"), _start("2", "G")],
+            [_group("G", start_t)],
+            [
+                _finish("1", start_t - 600, "finish"),  # 10 min before the start
+                _finish("1", start_t + 300),
+                _finish("2", start_t + 300),
+                _finish("2", start_t + 600),
+            ],
+            [],
+            [],
+            cfg,
+            log,
+        )
+        ranked = generate_sorted_protocol(protocol, cfg, 0)
+        assert [(fp.competitor_id, fp.n_laps_finished) for fp in ranked] == [
+            ("2", 2),
+            ("1", 1),
+        ]
+        assert [place_status(fp, 1, cfg) for fp in ranked] == [("DNF", "dnf")] * 2
+        # Counted as a rider without that mark, the missing lap is reported too.
+        assert "WARNING: lap 2 not found for 1" in log
+        assert not any("multiple finish marks" in line for line in log)
+
+    def test_an_interval_starter_warmed_up_before_his_own_start_is_dnf(
+        self, tmp_path
+    ) -> None:
+        from app.html_writer import write_group_protocol
+
+        start_t = BASE_T + 3600
+        cfg = _cfg(print_dnf=True)
+        group_list = [_group("G", start_t)]
+        start_list = [
+            _start("1", "G", n_laps=1),
+            _start("2", "G", n_laps=1, delay=600.0),
+        ]
+        # After the group's start, but 5 minutes before his own one.
+        finish_list = [
+            _finish("1", start_t + 300, "finish"),
+            _finish("2", start_t + 300, "finish"),
+        ]
+        log: list[str] = []
+        protocol = calculate_protocol(
+            start_list, group_list, finish_list, [], [], cfg, log
+        )
+        ranked = generate_sorted_protocol(protocol, cfg, 0)
+        assert [place_status(fp, 1, cfg)[0] for fp in ranked] == ["1", "DNF"]
+        assert "WARNING: lap 1 not found for 2" in log
+        path = tmp_path / "group.html"
+        write_group_protocol(str(path), ranked, group_list, cfg)
+        rows = path.read_text(encoding="utf-8").split("<tr")
+        assert ">DNF<" in next(row for row in rows if "Name 2" in row)
+
+    def test_in_custom_start_his_earliest_mark_is_his_start_not_his_finish(
+        self,
+    ) -> None:
+        cfg = _cfg(race_type=RACE_TYPE_CUSTOM_START)
+        start_t = BASE_T + 3600
+        fp = calculate_protocol(
+            [_start("1", "G", n_laps=2)],
+            [_group("G", start_t)],
+            [_finish("1", start_t, "finish"), _finish("1", start_t + 300)],
+            [],
+            [],
+            cfg,
+            [],
+        )[0]
+        assert fp.n_laps_finished == 1
+        assert place_status(fp, 1, cfg) == ("DNF", "dnf")
+
+
+# ---------------------------------------------------------------------------
 # calculate_protocol -- two competitors, sorted result
 # ---------------------------------------------------------------------------
 

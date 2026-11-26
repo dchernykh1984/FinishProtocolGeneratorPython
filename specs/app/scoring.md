@@ -32,8 +32,12 @@ Mass/Splitted, its Spiridonov variant and Custom Start:
 
 ## Finishers, DNF, DNS, DSQ
 
-- A rider who rode all his laps, or who has a `finish` mark, is a finisher; a second `finish`
-  mark is a WARNING. Number of Tries decides it by its rules (below). With "Disable DNF
+- A rider who rode all his laps, or who has a `finish` mark later than his own start -- his
+  group's start plus his start delay, in Custom Start his earliest mark -- is a finisher; a
+  second such mark is a WARNING. A `finish` mark at or before his start (a warm-up pass with the
+  chronometer in Finish mode, one results file for several waves) finishes nothing: he counts as
+  a rider without it -- short of his laps he is DNF, and the log says "lap N not found"
+  (maintainer, 2026-11-26). Number of Tries decides it by its rules (below). With "Disable DNF
   (everyone counts as finished)" everyone is, and is ranked by the laps he rode.
 - A rider whose group has no start time rides no lap, and a `finish` mark does not make him a
   finisher unless "Disable DNF" makes everyone one.
