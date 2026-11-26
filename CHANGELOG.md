@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.18.4](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.3...v0.18.4) (2026-11-26)
+
+
+### Bug Fixes
+
+* **calculator:** in Number of Tries a negative or non-whole attempt count counts as 0 with an ERROR, not a crash ([e11af3e](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/e11af3e6050997c29d198008a6e9802f57a356e3))
+* **calculator:** only a finish mark after the rider's own start makes him a finisher ([afe0748](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/afe07483d849f8ebb28aaa59673703e6fc728c0a))
+* **window:** an error of a run auto-refresh started goes to the log alone, with no dialog ([8507f08](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/8507f08d8bae49e341b270919284aff6a604f881))
+
+
+### Documentation
+
+* **constitution:** principle VI says the errors of a run auto-refresh started go to the log alone ([54b3036](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/commit/54b30366e95658f36095dd2791831e0130f758cf))
+
 ## [0.18.3](https://github.com/dchernykh1984/FinishProtocolGeneratorPython/compare/v0.18.2...v0.18.3) (2026-11-25)
 
 
