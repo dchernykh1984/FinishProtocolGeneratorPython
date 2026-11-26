@@ -44,8 +44,9 @@ def _start_line_for_tries(
     start: StartProtocolElement, log: list[str]
 ) -> StartProtocolElement:
     """His start line as Number of Tries counts it: an attempt count that is negative
-    or not a whole number is 0 -- no attempt, the rider DNF -- with an ERROR
-    (maintainer, 2026-11-26). Empty and 0 stay the 1 every race type reads them as.
+    or not a whole number is 0 -- no attempt: DNF once he has a mark, DNS without
+    one -- with an ERROR (maintainer, 2026-11-26). Empty and 0 stay the 1 every race
+    type reads them as.
     """
     text = start.laps_text.strip()
     try:
