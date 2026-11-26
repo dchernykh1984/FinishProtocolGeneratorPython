@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.attempt_rules import AttemptRule, rules_json
 from app.calculator import (
     _number_less,
     calculate_protocol,
@@ -12,7 +13,7 @@ from app.calculator import (
     report_repeated_groups,
     spiridonov,
 )
-from app.config import RACE_TYPE_CUSTOM_START, RaceConfig
+from app.config import RACE_TYPE_CUSTOM_START, RACE_TYPE_NUMBER_OF_TRIES, RaceConfig
 from app.models import (
     FinishCompetitorElement,
     FinishProtocolElement,
@@ -161,6 +162,91 @@ def test_a_lap_count_below_minus_one_is_kept_and_runs_as_minus_one(
         return path.read_text(encoding="utf-8")
 
     assert group_protocol(laps) == group_protocol(-1)
+
+
+# ---------------------------------------------------------------------------
+# calculate_protocol -- an invalid attempt count in Number of Tries
+# ---------------------------------------------------------------------------
+
+
+def _tries(laps: str, starts: int, rules: bool):
+    """Without control points: rider 1 has ``laps`` attempts and rode ``starts``
+    start/finish pairs of 30 s, rider 2 two attempts of 40 s."""
+    rule = AttemptRule("Result", 1, (1, 2), "asc")
+    cfg = _cfg(
+        race_type=RACE_TYPE_NUMBER_OF_TRIES,
+        attempt_rules_json=rules_json((rule,)) if rules else "[]",
+    )
+    comment = "" if rules else "1:1,2"  # the legacy rule: the best of attempts 1, 2
+    start_list = [
+        StartProtocolElement.from_line(f"1#Name 1#G#{laps}#1#1990#T#C#{comment}#"),
+        StartProtocolElement.from_line(f"2#Name 2#G#2#1#1990#T#C#{comment}#"),
+    ]
+    t = BASE_T + 3600
+    finish_list = []
+    for k in range(starts):
+        finish_list += [_finish("1", t + 100 * k), _finish("1", t + 100 * k + 30)]
+    for k in range(2):
+        finish_list += [_finish("2", t + 100 * k + 5), _finish("2", t + 100 * k + 45)]
+    log: list[str] = []
+    protocol = calculate_protocol(
+        start_list, [_group("G", t)], finish_list, [], [], cfg, log
+    )
+    return generate_sorted_protocol(protocol, cfg, 0), cfg, log
+
+
+@pytest.mark.parametrize("rules", [True, False], ids=["rules", "legacy"])
+@pytest.mark.parametrize(
+    ("laps", "starts"), [("-1", 2), ("-2", 3), ("abc", 2), ("1.5", 2)]
+)
+def test_an_invalid_attempt_count_is_no_attempt_and_the_rider_dnf(
+    laps: str, starts: int, rules: bool, tmp_path
+) -> None:
+    # Counted as 0 with an ERROR (maintainer, 2026-11-26); -1 crashed from two
+    # starts on and -2 from three.
+    from app.html_writer import write_absolute_protocol, write_group_protocol
+
+    ranked, cfg, log = _tries(laps, starts, rules)
+    rider = {fp.competitor_id: fp for fp in ranked}
+    assert [fp.competitor_id for fp in ranked] == ["2", "1"]
+    assert rider["1"].n_laps_finished == 0
+    assert place_status(rider["1"], 1, cfg) == ("DNF", "dnf")
+    assert is_printed(rider["1"], cfg)  # as a DNF is, by "Print DNF"
+    assert place_status(rider["2"], 1, cfg) == ("1", "ok")
+    assert (
+        f"ERROR: 1 invalid number of attempts in the start protocol: {laps!r}, "
+        "counted as 0 (no attempt)"
+    ) in log
+    for writer in (write_group_protocol, write_absolute_protocol):
+        path = tmp_path / f"{writer.__name__}.html"
+        writer(str(path), ranked, [_group("G", BASE_T + 3600)], cfg, 0)
+        rows = path.read_text(encoding="utf-8").split("<tr")
+        assert ">DNF<" in next(row for row in rows if "Name 1" in row)
+        assert "00:00:40.0" in next(row for row in rows if "Name 2" in row)
+
+
+@pytest.mark.parametrize("laps", ["0", "", " "])
+def test_an_empty_or_zero_attempt_count_is_still_one_attempt(laps: str) -> None:
+    ranked, _, log = _tries(laps, 1, rules=True)
+    rider = {fp.competitor_id: fp for fp in ranked}
+    assert rider["1"].n_laps == 1
+    assert rider["1"].finished
+    assert not any("invalid number of attempts" in line for line in log)
+
+
+def test_a_lap_race_still_reads_a_lap_count_that_is_no_number_as_one() -> None:
+    log: list[str] = []
+    fp = calculate_protocol(
+        [StartProtocolElement.from_line("1#Name 1#G#abc#1#1990#T#C##")],
+        [_group("G", BASE_T)],
+        [_finish("1", BASE_T + 300)],
+        [],
+        [],
+        _cfg(),
+        log,
+    )[0]
+    assert (fp.n_laps, fp.finished) == (1, True)
+    assert not any("invalid number of attempts" in line for line in log)
 
 
 # ---------------------------------------------------------------------------
