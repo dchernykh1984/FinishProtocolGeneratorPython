@@ -856,6 +856,9 @@ class MainWindow(QMainWindow):
         self._worker: _GenerateWorker | None = None
         self._ftp_worker: _FTPWorker | None = None
         self._timer: QTimer | None = None
+        # Whether auto-refresh started the run or download in progress: its errors
+        # then go to the log alone (maintainer, 2026-11-26).
+        self._run_by_timer = False
         self._chk_refresh: QCheckBox
         self._spin_refresh: QSpinBox
         self._chk_use_scl: QCheckBox
@@ -1872,7 +1875,17 @@ class MainWindow(QMainWindow):
         if hasattr(self, "_btn_ftp_download"):
             self._btn_ftp_download.setEnabled(enabled)
 
-    def _validate_attempt_rules(self, *, show_error: bool = True) -> bool:
+    def _report_refusal(self, title: str, msg: str, *, by_timer: bool) -> None:
+        """Why a run does not start: a dialog, or the log alone when auto-refresh
+        asked -- nobody is there to close one, and every tick stacked another."""
+        if by_timer:
+            self._append_log(f"ERROR: {title}: {msg}")
+        else:
+            QMessageBox.critical(self, title, msg)
+
+    def _validate_attempt_rules(
+        self, *, show_error: bool = True, by_timer: bool = False
+    ) -> bool:
         try:
             self._cfg.attempt_rules_json = rules_json(
                 parse_attempt_rules(self._cfg.attempt_rules_json)
@@ -1886,24 +1899,33 @@ class MainWindow(QMainWindow):
                 )
                 return True
             if show_error:
-                QMessageBox.critical(self, "Invalid attempt rules", str(exc))
+                self._report_refusal(
+                    "Invalid attempt rules", str(exc), by_timer=by_timer
+                )
             return False
         return True
 
-    def _on_generate(self) -> None:
-        if self._cfg.is_number_of_tries() and not self._validate_attempt_rules():
+    def _on_auto_refresh(self) -> None:
+        """A tick of auto-refresh: a run whose errors go to the log alone."""
+        self._on_generate(by_timer=True)
+
+    def _on_generate(self, *, by_timer: bool = False) -> None:
+        if self._cfg.is_number_of_tries() and not self._validate_attempt_rules(
+            by_timer=by_timer
+        ):
             return
         if self._worker and self._worker.isRunning():
             return
         if self._ftp_worker and self._ftp_worker.isRunning():
             return
         if self._ftp_actions_set() and not self._cfg.ftp_path:
-            QMessageBox.critical(
-                self,
+            self._report_refusal(
                 "FTP not configured",
                 "Download actions are set but FTP address is empty.",
+                by_timer=by_timer,
             )
             return
+        self._run_by_timer = by_timer
         self._apply_template()
         self._log_list.clear()
         self._log_file_path = (
@@ -1997,6 +2019,7 @@ class MainWindow(QMainWindow):
                 "Download actions are set but FTP address is empty.",
             )
             return
+        self._run_by_timer = False
         self._log_list.clear()
         self._log_file_path = (
             self._init_log_file() if self._cfg.use_file_logger else None
@@ -2020,7 +2043,10 @@ class MainWindow(QMainWindow):
     def _on_error(self, msg: str) -> None:
         self._append_log(f"ERROR: {msg}")
         self._set_buttons_enabled(True)
-        QMessageBox.critical(self, "Error", msg)
+        # Not for a run auto-refresh started: the dialog's own event loop kept the
+        # timer firing, one more dialog per tick (maintainer, 2026-11-26).
+        if not self._run_by_timer:
+            QMessageBox.critical(self, "Error", msg)
 
     def _init_log_file(self) -> str:
         log_dir = app_path("temp")
@@ -2046,7 +2072,7 @@ class MainWindow(QMainWindow):
             self._cfg.auto_refresh_interval = interval
             if self._timer is None:
                 self._timer = QTimer(self)
-                self._timer.timeout.connect(self._on_generate)
+                self._timer.timeout.connect(self._on_auto_refresh)
             self._timer.start(interval * 1000)
         else:
             if self._timer is not None:

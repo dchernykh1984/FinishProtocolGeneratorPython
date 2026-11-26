@@ -31,7 +31,8 @@ guess. What a run reads and writes is in [files.md](files.md), how it scores in
 **Generate Protocol** starts a run, and so does the auto-refresh timer ("Auto-refresh protocol",
 every "Interval (sec)"). A run does not start while another run or a download is still going,
 nor in Number of Tries while the attempt rules are invalid, nor when an FTP download action is
-set and the FTP address is empty; the last two say why in a dialog.
+set and the FTP address is empty; the last two say why in a dialog, or, when auto-refresh asked
+for the run, in an ERROR of the log alone.
 
 1. The HTML styles template is loaded -- a missing or unreadable one gives the built-in styles
    -- the log is cleared, and with "Write log to file" the run logs to `temp/fpg<N>.txt`, N the
@@ -49,7 +50,9 @@ set and the FTP address is empty; the last two say why in a dialog.
 4. The log ends with "Done." or with the errors of the publishing.
 
 An exception in step 3 -- an input file that does not exist, among others -- ends the run with
-an ERROR in the log and a dialog. Every other failure is a line in the log.
+an ERROR in the log and a dialog. A run auto-refresh started opens no dialog, its errors in the
+log alone (maintainer, 2026-11-26): a dialog kept the timer firing, every tick stacking one more.
+Every other failure is a line in the log.
 
 ## The log
 
