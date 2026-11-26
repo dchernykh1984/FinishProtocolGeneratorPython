@@ -16,7 +16,7 @@ import pytest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app.config import RACE_TYPE_NUMBER_OF_TRIES
-from app.main_window import MainWindow
+from app.main_window import MainWindow, _FTPWorker
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -58,8 +58,9 @@ def window(tmp_path: Path, dialogs: list[str]) -> Iterator[MainWindow]:
     finally:
         if win._timer is not None:
             win._timer.stop()
-        if win._worker is not None:
-            win._worker.wait()
+        for worker in (win._worker, win._ftp_worker):
+            if worker is not None:
+                worker.wait()
         # Deliver what a run still has queued while the dialogs are patched, so it
         # cannot open a real one in a later test.
         _app.processEvents()
@@ -126,6 +127,28 @@ def test_a_run_started_by_hand_after_auto_refresh_keeps_its_dialog(
 
     assert dialogs == ["Error"]
     assert _errors(window, "results.txt")
+
+
+def test_a_download_by_hand_after_auto_refresh_keeps_its_dialog(
+    window: MainWindow, dialogs: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _auto_refresh(
+        window, lambda: _idle(window) and bool(_errors(window, "results.txt"))
+    )
+    assert window._worker is not None
+    window._worker.wait()
+    _app.processEvents()
+    window._cfg.ftp_path = "ftp://127.0.0.1:9/"  # never reached: run is replaced
+    window._cfg.result_times_action = "Download"
+    monkeypatch.setattr(_FTPWorker, "run", lambda self: self.error.emit("no server"))
+
+    window._on_ftp_download()
+    assert window._ftp_worker is not None
+    window._ftp_worker.wait()
+    _app.processEvents()
+
+    assert _errors(window, "no server")
+    assert dialogs == ["Error"]
 
 
 @pytest.mark.parametrize("refusal", ["Invalid attempt rules", "FTP not configured"])
