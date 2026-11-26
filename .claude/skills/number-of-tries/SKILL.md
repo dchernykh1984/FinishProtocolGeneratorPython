@@ -10,7 +10,7 @@ description: Diagnose or change Number of Tries scoring rules, attempt timing wi
 - Rules belong to the event's generator config, not the website, group or participant.
   The numeric lap count in each start-protocol row still limits available attempts.
   A count that is negative or not a whole number is 0 attempts, with an ERROR naming the
-  rider and the value (`_counted_attempts` in `app/calculator.py`; maintainer,
+  rider and the value (`_start_line_for_tries` in `app/calculator.py`; maintainer,
   2026-11-26); empty and 0 stay 1. Lap races keep their own reading of the field.
 - `RaceConfig.attempt_rules_json` is an ordered JSON array saved under `AttemptRules`
   as one physical line in `fpg_info.txt`. Use `parse_attempt_rules()` and `rules_json()`
