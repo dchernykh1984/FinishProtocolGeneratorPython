@@ -40,7 +40,7 @@ def _record_dsq_reason(
         fp.dsq_reasons.append(entry)
 
 
-def _counted_attempts(
+def _start_line_for_tries(
     start: StartProtocolElement, log: list[str]
 ) -> StartProtocolElement:
     """His start line as Number of Tries counts it: an attempt count that is negative
@@ -246,7 +246,7 @@ def calculate_protocol(  # noqa: C901
     # Each group with no start time, and whether a rider of it has a mark already.
     unstarted: dict[str, bool] = {}
     for line in start_list:
-        start = _counted_attempts(line, log) if cfg.is_number_of_tries() else line
+        start = _start_line_for_tries(line, log) if cfg.is_number_of_tries() else line
         fp = FinishProtocolElement(start, cfg.disable_dnf, n_points)
         fp.attempt_rules = rules
         if rules:
