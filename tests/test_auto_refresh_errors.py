@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QLineEdit, QMessageBox
 
 from app.config import RACE_TYPE_NUMBER_OF_TRIES
 from app.main_window import MainWindow, _FTPWorker
@@ -161,7 +161,9 @@ def test_a_run_auto_refresh_cannot_start_says_why_in_the_log_alone(
     else:
         window._combo_race_type.setCurrentText(RACE_TYPE_NUMBER_OF_TRIES)
         window._attempt_rules_editor._add()
-        window._attempt_rules_editor.table.cellWidget(0, 2).setText("1,,2")
+        values = window._attempt_rules_editor.table.cellWidget(0, 2)
+        assert isinstance(values, QLineEdit)  # the rule's values: an invalid list
+        values.setText("1,,2")
 
     _auto_refresh(window, lambda: len(_errors(window, refusal)) >= 3)
 
