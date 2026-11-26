@@ -365,6 +365,26 @@ class TestAFinishMarkBeforeHisStart:
         rows = path.read_text(encoding="utf-8").split("<tr")
         assert ">DNF<" in next(row for row in rows if "Name 2" in row)
 
+    def test_only_finish_marks_after_his_start_make_multiple_ones(self) -> None:
+        start_t = BASE_T + 3600
+
+        def log_of(*finishes: float) -> list[str]:
+            log: list[str] = []
+            calculate_protocol(
+                [_start("1", "G", n_laps=1)],
+                [_group("G", start_t)],
+                [_finish("1", t, "finish") for t in finishes],
+                [],
+                [],
+                _cfg(),
+                log,
+            )
+            return log
+
+        warning = "WARNING: 1 has multiple finish marks"
+        assert warning not in log_of(start_t - 600, start_t + 300)  # warm-up, finish
+        assert warning in log_of(start_t + 300, start_t + 600)
+
     def test_in_custom_start_his_earliest_mark_is_his_start_not_his_finish(
         self,
     ) -> None:
